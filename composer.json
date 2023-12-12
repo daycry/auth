@@ -1,0 +1,88 @@
+{
+    "name": "daycry/auth",
+    "description": "Authentication for Codeigniter 4",
+    "homepage": "https://github.com/daycry/restful",
+    "authors":
+    [
+        {
+            "name": "daycry",
+            "homepage": "https://github.com/daycry",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "license": "MIT",
+    "require": {
+        "php": "^8.0",
+        "daycry/class-finder": "^2.0",
+        "daycry/cronjob": "^2.0",
+        "daycry/encryption": "^2.0",
+        "daycry/exceptions": "^1",
+        "daycry/jwt": "^1.0",
+        "daycry/settings": "^1",
+        "daycry/twig": "^1"
+    },
+    "require-dev":
+    {
+        "codeigniter4/devkit": "*",
+        "codeigniter4/framework": "^4",
+        "mikey179/vfsstream": "^1",
+        "mockery/mockery": "^1",
+        "rector/rector": "0.18.12"
+    },
+    "autoload":
+    {
+        "psr-4": {
+            "Daycry\\Auth\\": "src/"
+        },
+        "exclude-from-classmap": [
+            "**/Database/Migrations/**"
+        ]
+    },
+    "autoload-dev":
+    {
+        "psr-4":
+        {
+            "Tests\\": "tests/",
+            "Tests\\Support\\": "tests/_support"
+        }
+    },
+    "scripts": {
+        "post-update-cmd": [
+            "bash admin/setup.sh"
+        ],
+        "analyze": [
+            "phpstan analyze",
+            "psalm",
+            "rector process --dry-run"
+        ],
+        "ci": [
+            "Composer\\Config::disableProcessTimeout",
+            "@cs",
+            "@deduplicate",
+            "@inspect",
+            "@analyze",
+            "@test"
+        ],
+        "cs": "php-cs-fixer fix --ansi --verbose --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix --ansi --verbose --diff",
+        "deduplicate": "phpcpd app/ src/ --exclude src/Database/Migrations/2020-12-28-223112_create_auth_tables.php --exclude src/Authentication/Authenticators/HmacSha256.php",
+        "inspect": "deptrac analyze --cache-file=build/deptrac.cache",
+        "mutate": "infection --threads=2 --skip-initial-tests --coverage=build/phpunit",
+        "sa": "@analyze",
+        "style": "@cs-fix",
+        "test": [
+            "Composer\\Config::disableProcessTimeout",
+            "vendor/bin/phpunit"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}
