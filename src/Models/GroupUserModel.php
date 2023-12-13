@@ -14,12 +14,13 @@ declare(strict_types=1);
 namespace Daycry\Auth\Models;
 
 use CodeIgniter\Database\ConnectionInterface;
+use CodeIgniter\I18n\Time;
 use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserGroup;
 use Daycry\Auth\Entities\UserIdentity;
 
-class UserGroupModel extends BaseModel
+class GroupUserModel extends BaseModel
 {
     protected $table;
     protected $primaryKey     = 'id';
@@ -28,6 +29,7 @@ class UserGroupModel extends BaseModel
     protected $allowedFields  = [
         'user_id',
         'group_id',
+        'until_at'
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
@@ -38,16 +40,19 @@ class UserGroupModel extends BaseModel
     {
         parent::__construct($db, $validation);
 
-        $this->table = $this->tables['users_groups'];
+        $this->table = $this->tables['groups_users'];
     }
 
     /**
-     * Returns all user identities.
+     * Returns all user groups.
      *
-     * @return UserIdentity[]
+     * @return UserGroup[]
      */
     public function getGroups(User $user): ?array
     {
-        return $this->where('user_id', $user->id)->orderBy($this->primaryKey)->findAll();
+        return $this->where('user_id', $user->id)
+            ->where('until_at', null)
+            ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
+            ->orderBy($this->primaryKey)->findAll();
     }
 }

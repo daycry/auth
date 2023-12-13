@@ -15,14 +15,15 @@ namespace Daycry\Auth\Models;
 
 use Daycry\Auth\Entities\User;
 
-class PermissionModel extends BaseModel
+class PermissionUserModel extends BaseModel
 {
     protected $primaryKey     = 'id';
     protected $returnType     = 'array';
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
-        'permission',
-        'created_at',
+        'user_id',
+        'permission_id',
+        'until_at'
     ];
     protected $useTimestamps      = false;
     protected $validationRules    = [];
@@ -33,6 +34,6 @@ class PermissionModel extends BaseModel
     {
         parent::initialize();
 
-        $this->table = $this->tables['permissions'];
+        $this->table = $this->tables['permissions_users'];
     }
 }

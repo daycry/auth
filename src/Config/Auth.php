@@ -63,6 +63,7 @@ class Auth extends BaseConfig
      */
     public array $tables = [
         'users'              => 'users',
+        'permissions'        => 'auth_permissions',
         'permissions_users'  => 'auth_permissions_users',
         'identities'         => 'auth_identities',
         'logins'             => 'auth_logins',

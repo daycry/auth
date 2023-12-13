@@ -24,8 +24,7 @@ class GroupModel extends BaseModel
     protected $returnType     = Group::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
-        'name',
-        'scopes',
+        'name'
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';

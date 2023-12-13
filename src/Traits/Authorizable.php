@@ -14,15 +14,18 @@ declare(strict_types=1);
 namespace Daycry\Auth\Traits;
 
 use CodeIgniter\I18n\Time;
+use Daycry\Auth\Entities\UserGroup;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\PermissionModel;
+use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Exceptions\Exceptions\LogicException;
 
 trait Authorizable
 {
     protected ?array $groupCache       = null;
     protected ?array $permissionsCache = null;
+    protected ?array $groups = null;
 
     /**
      * Adds one or more groups to the current User.
@@ -32,8 +35,6 @@ trait Authorizable
     public function addGroup(string ...$groups): self
     {
         $this->populateGroups();
-
-        $configGroups = $this->getConfigGroups();
 
         $groupCount = count($this->groupCache);
 
@@ -46,7 +47,7 @@ trait Authorizable
             }
 
             // make sure it's a valid group
-            if (! in_array($group, $configGroups, true)) {
+            if (! in_array($group, array_values($this->groups), true)) {
                 throw AuthorizationException::forUnknownGroup($group);
             }
 
@@ -96,10 +97,8 @@ trait Authorizable
     {
         $this->populateGroups();
 
-        $configGroups = $this->getConfigGroups();
-
         foreach ($groups as $group) {
-            if (! in_array($group, $configGroups, true)) {
+            if (! in_array($group, array_values($this->groups), true)) {
                 throw AuthorizationException::forUnknownGroup($group);
             }
         }
@@ -117,7 +116,7 @@ trait Authorizable
     {
         $this->populateGroups();
 
-        return $this->groupCache;
+        return array_values($this->groupCache);
     }
 
     /**
@@ -305,19 +304,43 @@ trait Authorizable
     }
 
     /**
+     * User for populate all groups
+     */
+    private function getAllUserGroups(): array
+    {
+        /** @var GroupUserModel $GroupUserModel */
+        $userGroupModel = model(GroupUserModel::class);
+        $userGroups = $userGroupModel->getGroups($this);
+
+        $ids = [];
+        foreach($userGroups as $userGroup) {
+            $ids[] = $userGroup->group_id;
+        }
+
+        $groupModel = model(GroupModel::class);
+
+        return $groupModel->getGroupsByIds($ids);
+    }
+
+    /**
      * Used internally to populate the User groups
      * so we hit the database as little as possible.
      */
     private function populateGroups(): void
     {
-        if (is_array($this->groupCache)) {
+        if (is_array($this->groupCache) && is_array($this->groups)) {
             return;
         }
 
-        /** @var GroupModel $groupModel */
         $groupModel = model(GroupModel::class);
+        $rows = $groupModel->findAll();
+        
+        foreach($rows as $row)
+        {
+            $this->groups[$row->id] = $row->name;
+        }
 
-        $this->groupCache = $groupModel->getForUser($this);
+        $this->groupCache = array_column($this->getAllUserGroups(), 'name');
     }
 
     /**
@@ -341,12 +364,24 @@ trait Authorizable
      */
     private function saveGroups(): void
     {
-        /** @var GroupModel $model */
-        $model = model(GroupModel::class);
+        /** @var GroupUserModel $GroupUserModel */
+        $userGroupModel = model(GroupUserModel::class);
 
-        $cache = $this->groupCache;
+        $new = array_diff($this->groupCache, array_column($this->getAllUserGroups(), 'name'));
+        $remove = array_diff(array_column($this->getAllUserGroups(), 'name'), $this->groupCache);
 
-        $this->saveGroupsOrPermissions('group', $model, $cache);
+        foreach($new as $n)
+        {
+            $userGroup = new UserGroup();
+            $userGroup->user_id = $this->id;
+            $userGroup->group_id = array_search($n, $this->groups);
+            $userGroupModel->save($userGroup);
+        }
+
+        foreach($remove as $r)
+        {
+            $userGroupModel->where('group_id', array_search($r, $this->groups))->where('user_id', $this->id)->delete();
+        }
     }
 
     /**
@@ -396,14 +431,6 @@ trait Authorizable
 
             $model->insertBatch($inserts);
         }
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getConfigGroups(): array
-    {
-        return array_keys(setting('AuthGroups.groups'));
     }
 
     /**

@@ -2,21 +2,15 @@
 
 declare(strict_types=1);
 
-/**
- * This file is part of Daycry Auth.
- *
- * (c) Daycry <daycry9@proton.me>
- *
- * For the full copyright and license information, please view
- * the LICENSE file that was distributed with this source code.
- */
-
 namespace Tests\Entities;
 
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\Login;
 use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Exceptions\AuthorizationException;
+use Daycry\Auth\Models\GroupModel;
+use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -350,5 +344,84 @@ final class UserTest extends DatabaseTestCase
         $user = model(UserModel::class)->find($user->id);
 
         $this->assertFalse($user->isActivated());
+    }
+
+    public function testGetUserGroups(): void
+    {
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+        $groupBar = fake(GroupModel::class, ['name' => 'bar']);
+
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        fake(GroupUserModel::class, ['group_id' => $groupBar->id, 'user_id' => $this->user->id, 'until_at' => Time::yesterday()]);
+
+        $groups = $this->user->getGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertEquals('foo', $groups[0]);
+    }
+
+    public function testAddUserGroups(): void
+    {
+        $group = fake(GroupModel::class, ['name' => 'foo']);
+
+        $groups = $this->user->getGroups();
+        $this->assertCount(0, $groups);
+
+        $this->user->addGroup('foo');
+
+        $groups = $this->user->getGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertEquals('foo', $groups[0]);
+        $this->assertTrue($this->user->inGroup('foo'));
+    }
+
+    public function testRemoveUserGroups(): void
+    {
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+        $groupBar = fake(GroupModel::class, ['name' => 'bar']);
+
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        fake(GroupUserModel::class, ['group_id' => $groupBar->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $groups = $this->user->getGroups();
+        $this->assertCount(2, $groups);
+
+        $this->user->removeGroup('foo');
+
+        $groups = $this->user->getGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertEquals('bar', $groups[0]);
+    }
+
+    public function testSyncUserGroups(): void
+    {
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+        $groupBar = fake(GroupModel::class, ['name' => 'bar']);
+
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        fake(GroupUserModel::class, ['group_id' => $groupBar->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $groups = $this->user->getGroups();
+        $this->assertCount(2, $groups);
+
+        $this->user->syncGroups('foo');
+
+        $groups = $this->user->getGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertEquals('foo', $groups[0]);
+    }
+
+    public function testErrorSyncUserGroups(): void
+    {
+        $this->expectException(AuthorizationException::class);
+
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $this->user->syncGroups('bar');
     }
 }

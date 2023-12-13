@@ -18,7 +18,7 @@ use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\LoginModel;
-use Daycry\Auth\Models\UserGroupModel;
+use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Activatable;
 use Daycry\Auth\Traits\Authorizable;
@@ -40,11 +40,6 @@ class User extends Entity
     private ?string $email         = null;
     private ?string $password      = null;
     private ?string $password_hash = null;
-
-    /**
-     * @var Group[]|null
-     */
-    private ?array $groups = null;
 
     /**
      * @var string[]
@@ -124,49 +119,6 @@ class User extends Entity
     public function setIdentities(array $identities): void
     {
         $this->identities = $identities;
-    }
-
-    /**
-     * Get Groups
-     */
-    public function getGroups(string $name = 'all')
-    {
-        $this->populateGroups();
-
-        $groups = [];
-        if ($name === 'all') {
-            return $this->groups;
-        }
-
-        foreach ($this->groups as $group) {
-            if ($group->name === $name) {
-                $groups[] = $group;
-            }
-        }
-
-        return $groups;
-    }
-
-    /**
-     * ensures that all of the user's groups are loaded
-     * into the instance for faster access later.
-     */
-    private function populateGroups(): void
-    {
-        if ($this->groups === null) {
-            /** @var UserGroupModel $userGroupModel */
-            $userGroupModel = model(UserGroupModel::class);
-            $userGroups     = $userGroupModel->getGroups($this);
-
-            $ids = [];
-
-            foreach ($userGroups as $userGroup) {
-                $ids[] = $userGroup->group_id;
-            }
-
-            $groupModel   = model(GroupModel::class);
-            $this->groups = $groupModel->getGroupsByIds($ids);
-        }
     }
 
     /**

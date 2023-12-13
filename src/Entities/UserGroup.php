@@ -36,6 +36,7 @@ class UserGroup extends Entity
         'created_at',
         'updated_at',
         'deleted_at',
+        'until_at'
     ];
 
     /**
@@ -47,7 +48,7 @@ class UserGroup extends Entity
             return $this->user;
         }
 
-        $userProvider = model(service('settings')->get('RestFul.userProvider'));
+        $userProvider = model(service('settings')->get('Auth.userProvider'));
         $this->user   = $userProvider->where('id', $this->attributes['user_id'])->first();
 
         return $this->user;
