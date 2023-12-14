@@ -405,6 +405,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
     {
         // Update our auth config to use the username as a valid field for login.
         // It is commented out by default.
+        /** @var Auth $config */
         $config              = config('Auth');
         $config->validFields = ['email', 'username'];
         Factories::injectMock('config', 'Auth', $config);
@@ -458,6 +459,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         model(UserModel::class)->set('status', '12345')->update($this->user->id);
 
         // Update our auth config to use the status field as a valid field for login
+        /** @var Auth $config */
         $config              = config('Auth');
         $config->validFields = ['email', 'status'];
         Factories::injectMock('config', 'Auth', $config);
