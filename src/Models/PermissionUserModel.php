@@ -13,12 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
+use CodeIgniter\I18n\Time;
+use Daycry\Auth\Entities\PermissionUser;
 use Daycry\Auth\Entities\User;
 
 class PermissionUserModel extends BaseModel
 {
     protected $primaryKey     = 'id';
-    protected $returnType     = 'array';
+    protected $returnType     = PermissionUser::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
         'user_id',
@@ -35,5 +37,44 @@ class PermissionUserModel extends BaseModel
         parent::initialize();
 
         $this->table = $this->tables['permissions_users'];
+    }
+
+    /**
+     * Returns all user groups.
+     *
+     * @return UserGroup[]
+     */
+    public function getForUser(User $user): ?array
+    {
+        return $this->where('user_id', $user->id)
+            ->where('until_at', null)
+            ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
+            ->orderBy($this->primaryKey)->findAll();
+    }
+
+    /**
+     * @param int|string $userId
+     */
+    public function deleteAll($userId): void
+    {
+        $return = $this->builder()
+            ->where('user_id', $userId)
+            ->delete();
+
+        $this->checkQueryReturn($return);
+    }
+
+    /**
+     * @param int|string $userId
+     * @param mixed      $cache
+     */
+    public function deleteNotIn($userId, $cache): void
+    {
+        $return = $this->builder()
+            ->where('user_id', $userId)
+            ->whereNotIn('permission_id', $cache)
+            ->delete();
+
+        $this->checkQueryReturn($return);
     }
 }

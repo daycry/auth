@@ -34,6 +34,8 @@ class Auth extends BaseConfig
     public const RECORD_LOGIN_ATTEMPT_FAILURE = 1; // Record only failures
     public const RECORD_LOGIN_ATTEMPT_ALL     = 2; // Record all login attempts
 
+    public int $recordLoginAttempt = Auth::RECORD_LOGIN_ATTEMPT_ALL;
+
     /**
      * --------------------------------------------------------------------
      * Customize the DB group used for each model
@@ -92,9 +94,52 @@ class Auth extends BaseConfig
      * @var array<string, class-string<AuthenticatorInterface>>
      */
     public array $authenticators = [
-        'tokens'  => AccessToken::class,
-        'session' => Session::class,
+        'access_token'  => AccessToken::class,
+        'session'       => Session::class,
     ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Auth Source
+     * --------------------------------------------------------------------
+     * Set to specify the REST API requires to be logged in
+     *
+     *  NULL     Use config based users or wildcard testing
+     * 'ldap'    Use LDAP authentication
+     * 'library' Use a authentication library
+     *
+     * If library authentication is used define the class
+     *
+     * For digest authentication the library function should return already a stored
+     * md5(username:restrealm:password) for that username
+     *
+     * e.g: md5('admin:REST API:1234') = '1e957ebc35631ab22d5bd6526bd14ea2'
+     *
+     * @var array
+     */
+    public array $authSource = [
+        'access_token' => null,
+        'session'      => null
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Custom Authenticators
+     * --------------------------------------------------------------------
+     * Set to specify library for authenticator mode
+     *
+     * @var array<string, class-string<LibraryAuthenticatorInterface>|null>>
+     */
+
+     public array $libraryCustomAuthenticators =
+     [
+         'basic'     => null,
+         'digest'    => null,
+         'bearer'    => null,
+         'session'   => null,
+         'whitelist' => null,
+         'token'     => null
+     ];
 
     /**
      * --------------------------------------------------------------------
@@ -107,6 +152,48 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Name of Authenticator Header
+     * --------------------------------------------------------------------
+     * The name of Header that the Authorization token should be found.
+     * According to the specs, this should be `Authorization`, but rare
+     * circumstances might need a different header.
+     */
+    public array $authenticatorHeader = [
+        'access_token' => 'X-API-KEY'
+    ];
+
+    /**
+    *--------------------------------------------------------------------------
+    * Access Token
+    *--------------------------------------------------------------------------
+    */
+    public bool $accessTokenEnabled = false;
+    public int $unusedAccessTokenLifetime = YEAR;
+    public bool $strictApiAndAuth = false; // force the use of both api and auth before a valid api request is made
+
+    /**
+     * --------------------------------------------------------------------
+     * Session Authenticator Configuration
+     * --------------------------------------------------------------------
+     * These settings only apply if you are using the Session Authenticator
+     * for authentication.
+     *
+     * - field                  The name of the key the current user info is stored in session
+     * - allowRemembering       Does the system allow use of "remember-me"
+     * - rememberCookieName     The name of the cookie to use for "remember-me"
+     * - rememberLength         The length of time, in seconds, to remember a user.
+     *
+     * @var array<string, bool|int|string>
+     */
+    public array $sessionConfig = [
+        'field'              => 'user',
+        'allowRemembering'   => true,
+        'rememberCookieName' => 'remember',
+        'rememberLength'     => 30 * DAY,
+    ];
+    
+    /**
+     * --------------------------------------------------------------------
      * Authentication Actions
      * --------------------------------------------------------------------
      * Specifies the class that represents an action to take after
@@ -114,9 +201,9 @@ class Auth extends BaseConfig
      *
      * You must register actions in the order of the actions to be performed.
      *
-     * Available actions with Shield:
-     * - register: \CodeIgniter\Shield\Authentication\Actions\EmailActivator::class
-     * - login:    \CodeIgniter\Shield\Authentication\Actions\Email2FA::class
+     * Available actions with Auth:
+     * - register: \Daycry\Auth\Authentication\Actions\EmailActivator::class
+     * - login:    \Daycry\Auth\Authentication\Actions\Email2FA::class
      *
      * @var array<string, class-string<ActionInterface>|null>
      */
@@ -125,6 +212,26 @@ class Auth extends BaseConfig
         'login'    => null,
     ];
 
+
+    /**
+     * --------------------------------------------------------------------
+     * View files
+     * --------------------------------------------------------------------
+     */
+    public array $views = [
+        'login'                       => '\CodeIgniter\Shield\Views\login',
+        'register'                    => '\CodeIgniter\Shield\Views\register',
+        'layout'                      => '\CodeIgniter\Shield\Views\layout',
+        'action_email_2fa'            => '\CodeIgniter\Shield\Views\email_2fa_show',
+        'action_email_2fa_verify'     => '\CodeIgniter\Shield\Views\email_2fa_verify',
+        'action_email_2fa_email'      => '\CodeIgniter\Shield\Views\Email\email_2fa_email',
+        'action_email_activate_show'  => '\CodeIgniter\Shield\Views\email_activate_show',
+        'action_email_activate_email' => '\CodeIgniter\Shield\Views\Email\email_activate_email',
+        'magic-link-login'            => '\CodeIgniter\Shield\Views\magic_link_form',
+        'magic-link-message'          => '\CodeIgniter\Shield\Views\magic_link_message',
+        'magic-link-email'            => '\CodeIgniter\Shield\Views\Email\magic_link_email',
+    ];
+    
     /**
      * --------------------------------------------------------------------
      * User Provider
@@ -276,4 +383,100 @@ class Auth extends BaseConfig
      * @deprecated This is only for backward compatibility.
      */
     public bool $supportOldDangerousPassword = false;
+
+    /**
+     * Returns the URL that a user should be redirected
+     * to after a successful login.
+     */
+    public function loginRedirect(): string
+    {
+        $session = session();
+        $url     = $session->getTempdata('beforeLoginUrl') ?? setting('Auth.redirects')['login'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL that a user should be redirected
+     * to after they are logged out.
+     */
+    public function logoutRedirect(): string
+    {
+        $url = setting('Auth.redirects')['logout'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * after a successful registration.
+     */
+    public function registerRedirect(): string
+    {
+        $url = setting('Auth.redirects')['register'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * if force_reset identity is set to true.
+     */
+    public function forcePasswordResetRedirect(): string
+    {
+        $url = setting('Auth.redirects')['force_reset'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * if permission denied.
+     */
+    public function permissionDeniedRedirect(): string
+    {
+        $url = setting('Auth.redirects')['permission_denied'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * if group denied.
+     */
+    public function groupDeniedRedirect(): string
+    {
+        $url = setting('Auth.redirects')['group_denied'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Accepts a string which can be an absolute URL or
+     * a named route or just a URI path, and returns the
+     * full path.
+     *
+     * @param string $url an absolute URL or a named route or just URI path
+     */
+    protected function getUrl(string $url): string
+    {
+        // To accommodate all url patterns
+        $final_url = '';
+
+        switch (true) {
+            case strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0: // URL begins with 'http' or 'https'. E.g. http://example.com
+                $final_url = $url;
+                break;
+
+            case route_to($url) !== false: // URL is a named-route
+                $final_url = rtrim(url_to($url), '/ ');
+                break;
+
+            default: // URL is a route (URI path)
+                $final_url = rtrim(site_url($url), '/ ');
+                break;
+        }
+
+        return $final_url;
+    }
 }

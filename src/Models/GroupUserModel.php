@@ -17,14 +17,13 @@ use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Entities\UserGroup;
-use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Entities\GroupUser;
 
 class GroupUserModel extends BaseModel
 {
     protected $table;
     protected $primaryKey     = 'id';
-    protected $returnType     = UserGroup::class;
+    protected $returnType     = GroupUser::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
         'user_id',
@@ -48,11 +47,37 @@ class GroupUserModel extends BaseModel
      *
      * @return UserGroup[]
      */
-    public function getGroups(User $user): ?array
+    public function getForUser(User $user): ?array
     {
         return $this->where('user_id', $user->id)
             ->where('until_at', null)
             ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
             ->orderBy($this->primaryKey)->findAll();
+    }
+
+    /**
+     * @param int|string $userId
+     */
+    public function deleteAll($userId): void
+    {
+        $return = $this->builder()
+            ->where('user_id', $userId)
+            ->delete();
+
+        $this->checkQueryReturn($return);
+    }
+
+    /**
+     * @param int|string $userId
+     * @param mixed      $cache
+     */
+    public function deleteNotIn($userId, $cache): void
+    {
+        $return = $this->builder()
+            ->where('user_id', $userId)
+            ->whereNotIn('group_id', $cache)
+            ->delete();
+
+        $this->checkQueryReturn($return);
     }
 }

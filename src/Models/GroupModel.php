@@ -43,7 +43,7 @@ class GroupModel extends BaseModel
      *
      * @return Group[]
      */
-    public function getGroupsByIds(array $groupIds): array
+    public function getByIds(array $groupIds): array
     {
         return $this->whereIn('id', $groupIds)->orderBy($this->primaryKey)->findAll();
     }

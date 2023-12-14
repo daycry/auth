@@ -17,6 +17,7 @@ use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
+use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
@@ -149,7 +150,7 @@ class UserIdentityModel extends BaseModel
      * @param string   $name   Token name
      * @param string[] $scopes Permissions the token grants
      */
-    public function generateAccessToken(User $user, string $name, array $scopes = ['*']): AccessToken
+    public function generateAccessToken(User $user, string $name, array $scopes = ['*']): AccessTokenIdentity
     {
         $this->checkUserId($user);
 
@@ -165,9 +166,9 @@ class UserIdentityModel extends BaseModel
 
         $this->checkQueryReturn($return);
 
-        /** @var AccessToken $token */
+        /** @var AccessTokenIdentity $token */
         $token = $this
-            ->asObject(AccessToken::class)
+            ->asObject(AccessTokenIdentity::class)
             ->find($this->getInsertID());
 
         $token->raw_token = $rawToken;
@@ -175,23 +176,23 @@ class UserIdentityModel extends BaseModel
         return $token;
     }
 
-    public function getAccessTokenByRawToken(string $rawToken): ?AccessToken
+    public function getAccessTokenByRawToken(string $rawToken): ?AccessTokenIdentity
     {
         return $this
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->where('secret', hash('sha256', $rawToken))
-            ->asObject(AccessToken::class)
+            ->asObject(AccessTokenIdentity::class)
             ->first();
     }
 
-    public function getAccessToken(User $user, string $rawToken): ?AccessToken
+    public function getAccessToken(User $user, string $rawToken): ?AccessTokenIdentity
     {
         $this->checkUserId($user);
 
         return $this->where('user_id', $user->id)
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->where('secret', hash('sha256', $rawToken))
-            ->asObject(AccessToken::class)
+            ->asObject(AccessTokenIdentity::class)
             ->first();
     }
 
@@ -200,19 +201,19 @@ class UserIdentityModel extends BaseModel
      *
      * @param int|string $id
      */
-    public function getAccessTokenById($id, User $user): ?AccessToken
+    public function getAccessTokenById($id, User $user): ?AccessTokenIdentity
     {
         $this->checkUserId($user);
 
         return $this->where('user_id', $user->id)
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->where('id', $id)
-            ->asObject(AccessToken::class)
+            ->asObject(AccessTokenIdentity::class)
             ->first();
     }
 
     /**
-     * @return AccessToken[]
+     * @return AccessTokenIdentity[]
      */
     public function getAllAccessToken(User $user): array
     {
@@ -222,7 +223,7 @@ class UserIdentityModel extends BaseModel
             ->where('user_id', $user->id)
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->orderBy($this->primaryKey)
-            ->asObject(AccessToken::class)
+            ->asObject(AccessTokenIdentity::class)
             ->findAll();
     }
 

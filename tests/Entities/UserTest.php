@@ -12,8 +12,12 @@ use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Models\PermissionGroupModel;
+use Daycry\Auth\Models\PermissionModel;
+use Daycry\Auth\Models\PermissionUserModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Exceptions\Exceptions\LogicException;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -316,13 +320,14 @@ final class UserTest extends DatabaseTestCase
 
     public function testIsActivatedWhenRequired(): void
     {
-        setting('Auth.actions', ['register' => '\CodeIgniter\Shield\Authentication\Actions\EmailActivator']);
+        setting('Auth.actions', ['register' => '\Daycry\Auth\Authentication\Actions\EmailActivator']);
         $user = $this->user;
 
         $user->deactivate();
         /** @var User $user */
         $user = model(UserModel::class)->find($user->id);
 
+        $this->assertTrue($user->isNotActivated());
         $this->assertFalse($user->isActivated());
 
         $user->activate();
@@ -376,6 +381,39 @@ final class UserTest extends DatabaseTestCase
         $this->assertTrue($this->user->inGroup('foo'));
     }
 
+    public function testAddErrorUserGroups(): void
+    {
+        $this->expectException(AuthorizationException::class);
+
+        $this->user->addGroup('foo');
+    }
+
+    public function testUserAlreadyGroups(): void
+    {
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $groups = $this->user->getGroups();
+        $this->assertCount(1, $groups);
+
+        $this->user->addGroup('foo');
+
+        $groups = $this->user->getGroups();
+
+        $this->assertCount(1, $groups);
+    }
+
+    public function testUserNotInGroups(): void
+    {
+        $group = fake(GroupModel::class, ['name' => 'foo']);
+
+        $groups = $this->user->getGroups();
+        $this->assertCount(0, $groups);
+
+        $this->assertFalse($this->user->inGroup('foo'));
+    }
+
     public function testRemoveUserGroups(): void
     {
         $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
@@ -393,6 +431,13 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertCount(1, $groups);
         $this->assertEquals('bar', $groups[0]);
+
+        $criteria = [
+            'group_id'  => $groupFoo->id,
+            'user_id' => $this->user->id,
+        ];
+        
+        $this->dontSeeInDatabase($this->tables['groups_users'], $criteria);
     }
 
     public function testSyncUserGroups(): void
@@ -423,5 +468,193 @@ final class UserTest extends DatabaseTestCase
         fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
 
         $this->user->syncGroups('bar');
+    }
+
+    public function testGetUserPermissions(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
+        $permissionBar = fake(PermissionModel::class, ['name' => 'bar']);
+
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        fake(PermissionUserModel::class, ['permission_id' => $permissionBar->id, 'user_id' => $this->user->id, 'until_at' => Time::yesterday()]);
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+        $this->assertEquals('foo', $permissions[0]);
+    }
+
+    public function testAddUserPermissions(): void
+    {
+        fake(PermissionModel::class, ['name' => 'foo']);
+
+        $permissions = $this->user->getPermissions();
+        $this->assertCount(0, $permissions);
+
+        $this->user->addPermission('foo');
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+        $this->assertEquals('foo', $permissions[0]);
+        $this->assertTrue($this->user->hasPermission('foo'));
+    }
+
+    public function testAddUserAlreadyPermissions(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
+
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+    
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+        $this->assertEquals('foo', $permissions[0]);
+
+        $this->user->addPermission('foo');
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+        $this->assertEquals('foo', $permissions[0]);
+    }
+
+    public function testAddErrorUserPermissions(): void
+    {
+        $this->expectException(AuthorizationException::class);
+
+        $this->user->addPermission('foo');
+    }
+
+    public function testRemoveUserPermissions(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
+        $permissionBar = fake(PermissionModel::class, ['name' => 'bar']);
+
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        fake(PermissionUserModel::class, ['permission_id' => $permissionBar->id, 'user_id' => $this->user->id, 'until_at' => Time::yesterday()]);
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+
+        $this->user->removePermission('foo');
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(0, $permissions);
+
+        $criteria = [
+            'permission_id'  => $permissionFoo->id,
+            'user_id' => $this->user->id,
+        ];
+
+        $this->dontSeeInDatabase($this->tables['permissions_users'], $criteria);
+    }
+
+    public function testSyncUserPermissions(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
+        $permissionBar = fake(PermissionModel::class, ['name' => 'bar']);
+
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $permissions = $this->user->getPermissions();
+        $this->assertCount(1, $permissions);
+
+        $this->user->syncPermissions('bar');
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+        $this->assertEquals('bar', $permissions[0]);
+
+        $criteria = [
+            'permission_id'  => $permissionFoo->id,
+            'user_id' => $this->user->id,
+        ];
+
+        $this->dontSeeInDatabase($this->tables['permissions_users'], $criteria);
+    }
+
+    public function testErrorSyncUserPermissions(): void
+    {
+        $this->expectException(AuthorizationException::class);
+
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
+
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $permissions = $this->user->getPermissions();
+        $this->assertCount(1, $permissions);
+
+        $this->user->syncPermissions('bar');
+    }
+
+    public function testErrorCanUserPermissionsGroup(): void
+    {
+        $this->expectException(LogicException::class);
+
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+
+        fake(PermissionGroupModel::class, ['permission_id' => $permissionFoo->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(0, $permissions);
+
+        $this->assertTrue($this->user->can('foo'));
+    }
+
+    public function testCanUserPermissionsGroup(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo.read']);
+        $permissionBar = fake(PermissionModel::class, ['name' => 'bar.*']);
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+
+        fake(PermissionGroupModel::class, ['permission_id' => $permissionFoo->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
+        fake(PermissionGroupModel::class, ['permission_id' => $permissionBar->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(0, $permissions);
+
+        $this->assertTrue($this->user->can('foo.read'));
+        $this->assertFalse($this->user->can('foo.write'));
+        $this->assertTrue($this->user->can('bar.read'));
+    }
+
+    public function testCanUserPermissionsUser(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo.read']);
+        $permissionBar = fake(PermissionModel::class, ['name' => 'bar.*']);
+        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+
+        fake(PermissionGroupModel::class, ['permission_id' => $permissionBar->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        fake(GroupUserModel::class, ['group_id' => $groupFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+
+        $this->assertTrue($this->user->can('foo.read'));
+        $this->assertFalse($this->user->can('foo.write'));
+        $this->assertTrue($this->user->can('bar.read'));
+    }
+
+    public function testCannotUserPermissionsUserWithoutGroup(): void
+    {
+        $permissionFoo = fake(PermissionModel::class, ['name' => 'foo.read']);
+        
+        fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        
+        $permissions = $this->user->getPermissions();
+
+        $this->assertCount(1, $permissions);
+
+        $this->assertFalse($this->user->can('foo.write'));
     }
 }

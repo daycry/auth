@@ -95,12 +95,5 @@
 
         <!-- Database configuration -->
 		<env name="database.tests.strictOn" value="true"/>
-		<!-- Uncomment to use alternate testing database configuration -->
-		<env name="database.tests.hostname" value="127.0.0.1"/>
-		<env name="database.tests.database" value=":memory:"/>
-		<env name="database.tests.username" value="root"/>
-		<env name="database.tests.password" value=""/>
-		<env name="database.tests.DBDriver" value="SQLite3"/>
-		<env name="database.tests.DBPrefix" value="tests_"/>
 	</php>
 </phpunit>

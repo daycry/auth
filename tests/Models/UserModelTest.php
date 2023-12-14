@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Entities;
+namespace Tests\Models;
 
 use CodeIgniter\Database\Exceptions\DataException;
 use CodeIgniter\I18n\Time;

@@ -13,9 +13,9 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Entities;
 
-use Daycry\Auth\Models\GroupModel;
+use Daycry\Auth\Models\PermissionModel;
 
-class UserGroup extends Entity
+class PermissionUser extends Entity
 {
     /**
      * User $user
@@ -25,7 +25,7 @@ class UserGroup extends Entity
     /**
      * Group $group
      */
-    private ?Group $group = null;
+    private ?Permission $permission = null;
 
     /**
      * @var string[]
@@ -55,17 +55,17 @@ class UserGroup extends Entity
     }
 
     /**
-     * Get Group
+     * Get Permission
      */
-    public function getGroup()
+    public function getPermission()
     {
-        if ($this->group) {
-            return $this->group;
+        if ($this->permission) {
+            return $this->permission;
         }
 
-        $groupModel  = model(GroupModel::class);
-        $this->group = $groupModel->where('id', $this->attributes['group_id'])->first();
+        $groupModel  = model(PermissionModel::class);
+        $this->permission = $groupModel->where('id', $this->attributes['permission_id'])->first();
 
-        return $this->group;
+        return $this->permission;
     }
 }

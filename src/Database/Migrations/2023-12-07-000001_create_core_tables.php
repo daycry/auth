@@ -58,7 +58,7 @@ class CreateCoreTables extends Migration
         // Users Table
         $this->forge->addField([
             'id'             => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
-            'permission'       => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
+            'name'       => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
             'created_at'     => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
             'updated_at'     => ['type' => 'datetime', 'null' => true],
             'deleted_at'     => ['type' => 'datetime', 'null' => true],

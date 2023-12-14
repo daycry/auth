@@ -13,15 +13,15 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\Permission;
 
 class PermissionModel extends BaseModel
 {
     protected $primaryKey     = 'id';
-    protected $returnType     = 'array';
+    protected $returnType     = Permission::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
-        'permission',
+        'name',
         'created_at',
     ];
     protected $useTimestamps      = false;
@@ -34,5 +34,15 @@ class PermissionModel extends BaseModel
         parent::initialize();
 
         $this->table = $this->tables['permissions'];
+    }
+
+    /**
+     * @param int[]|string[] $permissionIds
+     *
+     * @return Permission[]
+     */
+    public function getByIds(array $permissionIds): array
+    {
+        return $this->whereIn('id', $permissionIds)->orderBy($this->primaryKey)->findAll();
     }
 }

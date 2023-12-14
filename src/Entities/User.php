@@ -23,6 +23,7 @@ use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Activatable;
 use Daycry\Auth\Traits\Authorizable;
 use Daycry\Auth\Traits\Bannable;
+use Daycry\Auth\Traits\HasAccessTokens;
 use Daycry\Auth\Traits\Resettable;
 
 class User extends Entity
@@ -31,6 +32,7 @@ class User extends Entity
     use Bannable;
     use Activatable;
     use Resettable;
+    use HasAccessTokens;
 
     /**
      * @var UserIdentity[]|null
@@ -119,23 +121,6 @@ class User extends Entity
     public function setIdentities(array $identities): void
     {
         $this->identities = $identities;
-    }
-
-    /**
-     * ensures that all of the scopes are loaded
-     * into the instance for faster access later.
-     */
-    public function populatePermissions()
-    {
-        if ($this->permissions === null) {
-            $scopes = [];
-
-            foreach ($this->getGroups() as $group) {
-                $scopes = array_unique(array_merge($this->scopes, $group->scopes));
-            }
-
-            $this->permissions = $scopes;
-        }
     }
 
     /**
