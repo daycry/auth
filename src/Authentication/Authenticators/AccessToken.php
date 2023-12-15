@@ -7,7 +7,6 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
-use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -120,14 +119,6 @@ class AccessToken extends Base implements AuthenticatorInterface
     }
 
     /**
-     * Returns the currently logged in user.
-     */
-    public function getUser(): ?User
-    {
-        return $this->user;
-    }
-
-    /**
      * Checks if the user is currently logged in.
      * Since AccessToken usage is inherently stateless,
      * it runs $this->attempt on each usage.
@@ -188,21 +179,5 @@ class AccessToken extends Base implements AuthenticatorInterface
         }
 
         return $key;
-    }
-
-    /**
-     * Updates the user's last active date.
-     */
-    public function recordActiveDate(): void
-    {
-        if (! $this->user instanceof User) {
-            throw new InvalidArgumentException(
-                __METHOD__ . '() requires logged in user before calling.'
-            );
-        }
-
-        $this->user->last_active = Time::now();
-
-        $this->provider->updateActiveDate($this->user);
     }
 }

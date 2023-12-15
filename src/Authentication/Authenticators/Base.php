@@ -6,10 +6,12 @@ namespace Daycry\Auth\Authentication\Authenticators;
 
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
+use CodeIgniter\I18n\Time;
 use Config\Services;
 use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Interfaces\LibraryAuthenticatorInterface;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -66,19 +68,6 @@ abstract class Base
     {
         if (empty($credentials)) {
             $this->forceLogin();
-        }
-
-        $authMethod = \strtolower($this->method);
-
-        $authSource = null;
-        if(isset(service('settings')->get('Auth.authSource')[$authMethod])) {
-            $authSource = service('settings')->get('Auth.authSource')[$authMethod];
-        }
-
-        if ($authSource === 'library') {
-            log_message('debug', "Performing Library authentication for" . json_encode($credentials));
-
-            return $this->_performLibraryAuth($credentials);
         }
 
         $result = $this->check($credentials);
@@ -143,26 +132,6 @@ abstract class Base
         return $result;
     }
 
-    protected function _performLibraryAuth(array $credentials)
-    {
-        $authLibraryClass = service('settings')->get('Auth.libraryCustomAuthenticators');
-
-        if (!isset($authLibraryClass[ $this->method ]) || !\class_exists($authLibraryClass[ $this->method ])) {
-            throw AuthenticationException::forUnknownAuthenticator($this->method);
-        }
-
-        $authLibraryClass = new $authLibraryClass[ $this->method ]($this->provider);
-
-        if ((!$authLibraryClass instanceof LibraryAuthenticatorInterface)) {
-            throw AuthenticationException::forInvalidLibraryImplementation();
-        }
-
-        if (\is_callable([ $authLibraryClass, 'check' ])) {
-            /** @var User $user */
-            return $authLibraryClass->{'check'}($credentials);
-        }
-    }
-
     /**
      * Force logging in by setting the WWW-Authenticate header
      *
@@ -193,5 +162,29 @@ abstract class Base
         }
 
         throw AuthenticationException::forInvalidUser();
+    }
+
+    /**
+     * Returns the currently logged in user.
+     */
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+    
+    /**
+     * Updates the user's last active date.
+     */
+    public function recordActiveDate(): void
+    {
+        if (! $this->user instanceof User) {
+            throw new InvalidArgumentException(
+                __METHOD__ . '() requires logged in user before calling.'
+            );
+        }
+
+        $this->user->last_active = Time::now();
+
+        $this->provider->updateActiveDate($this->user);
     }
 }

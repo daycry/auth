@@ -35,9 +35,9 @@ class GroupUserModel extends BaseModel
     protected $updatedField  = 'updated_at';
     protected $deletedField  = 'deleted_at';
 
-    public function __construct(?ConnectionInterface &$db = null, ?ValidationInterface $validation = null)
+    protected function initialize(): void
     {
-        parent::__construct($db, $validation);
+        parent::initialize();
 
         $this->table = $this->tables['groups_users'];
     }

@@ -6,6 +6,6 @@ namespace Daycry\Auth\Exceptions;
 
 use Daycry\Exceptions\Exceptions\RuntimeException;
 
-class SecurityException extends RuntimeException
+class ValidationException extends RuntimeException
 {
 }

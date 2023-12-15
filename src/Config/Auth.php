@@ -15,7 +15,9 @@ namespace Daycry\Auth\Config;
 
 use CodeIgniter\Config\BaseConfig;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
+use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
 use Daycry\Auth\Authentication\Passwords\CompositionValidator;
 use Daycry\Auth\Authentication\Passwords\DictionaryValidator;
 use Daycry\Auth\Authentication\Passwords\NothingPersonalValidator;
@@ -69,7 +71,6 @@ class Auth extends BaseConfig
         'permissions_users'  => 'auth_permissions_users',
         'identities'         => 'auth_identities',
         'logins'             => 'auth_logins',
-        'token_logins'       => 'auth_token_logins',
         'remember_tokens'    => 'auth_remember_tokens',
         'groups'             => 'auth_groups',
         'permissions_groups' => 'auth_permissions_groups',
@@ -79,7 +80,7 @@ class Auth extends BaseConfig
         'controllers'        => 'auth_controllers',
         'endpoints'          => 'auth_endpoints',
         'attempts'           => 'auth_attempts',
-        'limits'             => 'auth_limits',
+        'rates'             => 'auth_rates',
     ];
 
     /**
@@ -96,50 +97,10 @@ class Auth extends BaseConfig
     public array $authenticators = [
         'access_token'  => AccessToken::class,
         'session'       => Session::class,
+        'jwt'           => JWT::class
     ];
 
-    /**
-     * --------------------------------------------------------------------
-     * Auth Source
-     * --------------------------------------------------------------------
-     * Set to specify the REST API requires to be logged in
-     *
-     *  NULL     Use config based users or wildcard testing
-     * 'ldap'    Use LDAP authentication
-     * 'library' Use a authentication library
-     *
-     * If library authentication is used define the class
-     *
-     * For digest authentication the library function should return already a stored
-     * md5(username:restrealm:password) for that username
-     *
-     * e.g: md5('admin:REST API:1234') = '1e957ebc35631ab22d5bd6526bd14ea2'
-     *
-     * @var array
-     */
-    public array $authSource = [
-        'access_token' => null,
-        'session'      => null
-    ];
-
-    /**
-     * --------------------------------------------------------------------
-     * Custom Authenticators
-     * --------------------------------------------------------------------
-     * Set to specify library for authenticator mode
-     *
-     * @var array<string, class-string<LibraryAuthenticatorInterface>|null>>
-     */
-
-     public array $libraryCustomAuthenticators =
-     [
-         'basic'     => null,
-         'digest'    => null,
-         'bearer'    => null,
-         'session'   => null,
-         'whitelist' => null,
-         'token'     => null
-     ];
+    public string $jwtAdapter = DaycryJWTAdapter::class;
 
     /**
      * --------------------------------------------------------------------
@@ -159,7 +120,8 @@ class Auth extends BaseConfig
      * circumstances might need a different header.
      */
     public array $authenticatorHeader = [
-        'access_token' => 'X-API-KEY'
+        'access_token' => 'X-API-KEY',
+        'jwt'          => 'Authorization'
     ];
 
     /**
@@ -245,6 +207,24 @@ class Auth extends BaseConfig
      * @var class-string<UserModel>
      */
     public string $userProvider = UserModel::class;
+
+    /**
+     *--------------------------------------------------------------------------
+     * Rates Control
+     * --------------------------------------------------------------------------
+     * When set to TRUE, the REST API will count the number of uses of each method
+     * by an API key each hour. This is a general rule that can be overridden in the
+     * $this->method array in each controller
+     *
+     * Available methods are :
+     * public string $restLimitsMethod = 'IP_ADDRESS'; // Put a limit per ip address
+     * public string $restLimitsMethod = 'USER'; // Put a limit per user
+     * public string $restLimitsMethod = 'METHOD_NAME'; // Put a limit on method calls
+     * public string $restLimitsMethod = 'ROUTED_URL';  // Put a limit on the routed URL
+     */
+    public string $limitMethod = 'METHOD_NAME';
+    public int $requestLimit = 10;
+    public int $timeLimit = MINUTE;
 
     /**
      * --------------------------------------------------------------------

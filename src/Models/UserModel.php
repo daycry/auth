@@ -54,9 +54,9 @@ class UserModel extends BaseModel
      */
     protected ?User $tempUser = null;
 
-    public function __construct(?ConnectionInterface &$db = null, ?ValidationInterface $validation = null)
+    protected function initialize(): void
     {
-        parent::__construct($db, $validation);
+        parent::initialize();
 
         $this->table = $this->tables['users'];
     }

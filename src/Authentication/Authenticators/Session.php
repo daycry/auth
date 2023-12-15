@@ -855,20 +855,4 @@ class Session extends Base implements AuthenticatorInterface
 
         return $credentials[$field];
     }
-
-    /**
-     * Updates the user's last active date.
-     */
-    public function recordActiveDate(): void
-    {
-        if (! $this->user instanceof User) {
-            throw new InvalidArgumentException(
-                __METHOD__ . '() requires logged in user before calling.'
-            );
-        }
-
-        $this->user->last_active = Time::now();
-
-        $this->provider->updateActiveDate($this->user);
-    }
 }
