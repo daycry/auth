@@ -378,7 +378,7 @@ trait Authorizable
 
         $groupModel = model(GroupModel::class);
         $rows = $groupModel->findAll();
-        
+    
         foreach($rows as $row)
         {
             $this->groups[$row->id] = $row->name;

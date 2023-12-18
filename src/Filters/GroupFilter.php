@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\HTTP\RedirectResponse;
+use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 
 /**
@@ -28,7 +29,18 @@ class GroupFilter extends AbstractAuthFilter
     {
         /** @var Auth $config */
         $config = config('Auth');
-        return redirect()->to($config->groupDeniedRedirect())
-            ->with('error', lang('Auth.notEnoughPrivilege'));
+
+        if(auth()->getAuthenticator() instanceof Session)
+            {
+                return redirect()->to($config->groupDeniedRedirect())
+                    ->with('error', lang('Auth.notEnoughPrivilege'));
+            }else{
+                return service('response')->setStatusCode(
+                    404,
+                    lang('Auth.notEnoughPrivilege') // message
+                );
+            }
+
+        
     }
 }

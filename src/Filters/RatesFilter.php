@@ -15,7 +15,7 @@ use Config\Services;
 /**
  * Auth Rate-Limiting Filter.
  *
- * Provides rated limiting intended for Auth routes.
+ * Provides rated limiting intended for routes.
  */
 class RatesFilter implements FilterInterface
 {
@@ -69,13 +69,22 @@ class RatesFilter implements FilterInterface
                 break;
         }
 
-        // Restrict an IP address to no more than 10 requests
-        // per minute on any auth-form pages (login, register, forgot, etc).
-        if ($throttler->check(md5($limited_uri), $limit, $time, 1) === false) {
-            return service('response')->setStatusCode(
-                429,
-                lang('Auth.throttled', [$throttler->getTokenTime()]) // message
-            );
+        $ignoreRates = false;
+
+        if($userId = auth()->id()) {
+            $ignoreLimits = auth()->user()->ignore_rates;
+        }
+
+        if(!$ignoreLimits)
+        {
+            // Restrict an IP address to no more than 10 requests
+            // per minute on any auth-form pages (login, register, forgot, etc).
+            if ($throttler->check(md5($limited_uri), $limit, $time, 1) === false) {
+                return service('response')->setStatusCode(
+                    429,
+                    lang('Auth.throttled', [$throttler->getTokenTime()]) // message
+                );
+            }
         }
     }
 

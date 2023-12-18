@@ -8,6 +8,7 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use Daycry\Auth\Authentication\Authenticators\Session;
 
 /**
  * Group Authorization Filter.
@@ -35,12 +36,22 @@ abstract class AbstractAuthFilter implements FilterInterface
                 $session->setTempdata('beforeLoginUrl', current_url(), 300);
             }
 
-            return redirect()->route('login');
+            if(auth()->getAuthenticator() instanceof Session)
+            {
+                return redirect()->route('login');
+            }else{
+                return service('response')->setStatusCode(
+                    404,
+                    lang('Auth.invalidUser') // message
+                );
+            }
+            
         }
 
         if ($this->isAuthorized($arguments)) {
             return;
         }
+
 
         return $this->redirectToDeniedUrl();
     }

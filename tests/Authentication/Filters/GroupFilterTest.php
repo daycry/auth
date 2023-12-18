@@ -17,11 +17,14 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\GroupFilter;
 use Daycry\Auth\Models\UserModel;
 use CodeIgniter\Test\DatabaseTestTrait;
+use Daycry\Auth\Entities\Group;
+use Daycry\Auth\Models\GroupModel;
+use Tests\Support\FilterTestCase;
 
 /**
  * @internal
  */
-final class GroupFilterTest extends AbstractFilterTestCase
+final class GroupFilterTest extends FilterTestCase
 {
     use DatabaseTestTrait;
 
@@ -52,8 +55,11 @@ final class GroupFilterTest extends AbstractFilterTestCase
 
     public function testFilterSuccess(): void
     {
+        fake(GroupModel::class,['name' => 'admin']);
+
         /** @var User $user */
         $user = fake(UserModel::class);
+        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
         $user->addGroup('admin');
 
         $result = $this
@@ -69,8 +75,11 @@ final class GroupFilterTest extends AbstractFilterTestCase
 
     public function testFilterIncorrectGroupNoPrevious(): void
     {
+        fake(GroupModel::class,['name' => 'beta']);
+
         /** @var User $user */
         $user = fake(UserModel::class);
+        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
         $user->addGroup('beta');
 
         $result = $this

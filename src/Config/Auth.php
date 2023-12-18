@@ -193,6 +193,29 @@ class Auth extends BaseConfig
         'magic-link-message'          => '\CodeIgniter\Shield\Views\magic_link_message',
         'magic-link-email'            => '\CodeIgniter\Shield\Views\Email\magic_link_email',
     ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Redirect URLs
+     * --------------------------------------------------------------------
+     * The default URL that a user will be redirected to after various auth
+     * actions. This can be either of the following:
+     *
+     * 1. An absolute URL. E.g. http://example.com OR https://example.com
+     * 2. A named route that can be accessed using `route_to()` or `url_to()`
+     * 3. A URI path within the application. e.g 'admin', 'login', 'expath'
+     *
+     * If you need more flexibility you can override the `getUrl()` method
+     * to apply any logic you may need.
+     */
+    public array $redirects = [
+        'register'          => '/',
+        'login'             => '/',
+        'logout'            => 'login',
+        'force_reset'       => '/',
+        'permission_denied' => '/',
+        'group_denied'      => '/',
+    ];
     
     /**
      * --------------------------------------------------------------------

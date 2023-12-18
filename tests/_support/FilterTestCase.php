@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\Authentication\Filters;
+namespace Tests\Support;
 
 use CodeIgniter\Config\Factories;
 use Daycry\Auth\Test\AuthenticationTesting;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
-use Tests\Support\TestCase;
 use Config\Filters;
 
 /**

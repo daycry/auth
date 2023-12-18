@@ -96,7 +96,7 @@ class CreateCoreTables extends Migration
             'extra'         => ['type' => 'text', 'null' => true],
             'expires'       => ['type' => 'datetime', 'null' => true, 'default' => null],
             'force_reset'   => ['type' => 'tinyint', 'constraint' => 1, 'default' => 0],
-            'ignore_limits' => ['type' => 'tinyint', 'constraint' => 1, 'null' => false, 'default' => 0],
+            'ignore_rates' => ['type' => 'tinyint', 'constraint' => 1, 'null' => false, 'default' => 0],
             'is_private'    => ['type' => 'tinyint', 'constraint' => 1, 'null' => false, 'default' => 0],
             'ip_addresses'  => ['type' => 'text', 'null' => true, 'default' => null],
             'last_used_at'  => ['type' => 'datetime', 'null' => true],
@@ -149,6 +149,7 @@ class CreateCoreTables extends Migration
         $this->forge->addField([
             'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
             'name'       => ['type' => 'varchar', 'constraint' => 30, 'null' => true],
+            'description'=> ['type' => 'text', 'null' => true],
             'created_at' => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
             'updated_at' => ['type' => 'datetime', 'null' => true],
             'deleted_at' => ['type' => 'datetime', 'null' => true],
@@ -279,7 +280,7 @@ class CreateCoreTables extends Migration
         $this->forge->addForeignKey('user_id', $this->tables['users'], 'id', '', 'CASCADE');
         $this->forge->createTable($this->tables['attempts']);
 
-        // Limits Table
+        // Rates Table
         $this->forge->addField([
             'id'              => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
             'user_id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'null' => true, 'default' => null],
@@ -294,7 +295,7 @@ class CreateCoreTables extends Migration
         $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('uri');
         $this->forge->addForeignKey('user_id', $this->tables['users'], 'id', '', 'CASCADE');
-        $this->forge->createTable($this->tables['limits']);
+        $this->forge->createTable($this->tables['rates']);
     }
 
     public function down(): void
@@ -315,7 +316,7 @@ class CreateCoreTables extends Migration
         $this->forge->dropTable($this->tables['controllers'], true);
         $this->forge->dropTable($this->tables['endpoints'], true);
         $this->forge->dropTable($this->tables['attempts'], true);
-        $this->forge->dropTable($this->tables['limits'], true);
+        $this->forge->dropTable($this->tables['rates'], true);
 
         $this->db->enableForeignKeyChecks();
     }
