@@ -16,6 +16,7 @@ use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Models\GroupModel;
 use Tests\Support\FilterTestCase;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Filters\AuthFilter;
 
 /**
  * @internal
@@ -26,13 +27,13 @@ final class AuthJWTFilterTest extends FilterTestCase
 
     protected $namespace;
 
-    /*protected function setUp(): void
+    protected function setUp(): void
     {
         Services::reset(true);
 
-        $this->alias = 'jwt';
-        $this->classname = JWT::class;
-
+        $this->alias = 'auth';
+        $this->classname = AuthFilter::class;
+        
         parent::setUp();
 
         $_SESSION = [];
@@ -61,5 +62,5 @@ final class AuthJWTFilterTest extends FilterTestCase
 
         $result->assertStatus(200);
         $result->assertSee('Open');
-    }*/
+    }
 }
