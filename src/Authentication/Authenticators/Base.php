@@ -44,7 +44,7 @@ abstract class Base
     
     public function __construct(UserModel $provider)
     {
-        /** @var IncomingRequest $this->request */
+        /** @var IncomingRequest */
         $this->request = Services::request();
 
         $this->userIdentityModel = model(UserIdentityModel::class);

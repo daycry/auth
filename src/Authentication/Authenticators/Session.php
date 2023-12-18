@@ -249,6 +249,27 @@ class Session extends Base implements AuthenticatorInterface
     }
 
     /**
+     * Checks if the visitor is anonymous. The user's id is unknown.
+     * They are not logged in, are not in pending login state.
+     */
+    public function isAnonymous(): bool
+    {
+        $this->checkUserState();
+
+        return $this->userState === self::STATE_ANONYMOUS;
+    }
+
+    /**
+     * Returns pending login error message
+     */
+    public function getPendingMessage(): string
+    {
+        $this->checkUserState();
+
+        return $this->getSessionKey('auth_action_message') ?? '';
+    }
+
+    /**
      * Logs the given user in.
      */
     public function login(User $user, bool $actions = true): void

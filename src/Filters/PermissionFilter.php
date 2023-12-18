@@ -11,7 +11,7 @@ use Daycry\Auth\Config\Auth;
 /**
  * Group Authorization Filter.
  */
-class GroupFilter extends AbstractAuthFilter
+class PermissionFilter extends AbstractAuthFilter
 {
     /**
      * Ensures the user is logged in and a member of one or
@@ -19,7 +19,13 @@ class GroupFilter extends AbstractAuthFilter
      */
     protected function isAuthorized(array $arguments): bool
     {
-        return auth()->user()->inGroup(...$arguments);
+        foreach ($arguments as $permission) {
+            if (auth()->user()->can($permission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -32,7 +38,7 @@ class GroupFilter extends AbstractAuthFilter
 
         if(auth()->getAuthenticator() instanceof Session)
         {
-            return redirect()->to($config->groupDeniedRedirect())
+            return redirect()->to($config->permissionDeniedRedirect())
                 ->with('error', lang('Auth.notEnoughPrivilege'));
         }else{
             return service('response')->setStatusCode(

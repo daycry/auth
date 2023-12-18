@@ -113,6 +113,43 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Authentication Chain
+     * --------------------------------------------------------------------
+     * The Authenticators to test logged in status against
+     * when using the 'chain' filter. Each Authenticator listed will be checked.
+     * If no match is found, then the next in the chain will be checked.
+     *
+     * @var string[]
+     * @phpstan-var list<string>
+     */
+    public array $authenticationChain = [
+        'session',
+        'access_token',
+        'jwt',
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Allow Registration
+     * --------------------------------------------------------------------
+     * Determines whether users can register for the site.
+     */
+    public bool $allowRegistration = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Record Last Active Date
+     * --------------------------------------------------------------------
+     * If true, will always update the `last_active` datetime for the
+     * logged-in user on every page request.
+     * This feature only works when session/tokens filter is active.
+     *
+     * @see https://codeigniter4.github.io/shield/quick_start_guide/using_session_auth/#protecting-pages for set filters.
+     */
+    public bool $recordActiveDate = true;
+    
+    /**
+     * --------------------------------------------------------------------
      * Name of Authenticator Header
      * --------------------------------------------------------------------
      * The name of Header that the Authorization token should be found.

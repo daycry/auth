@@ -2,15 +2,6 @@
 
 declare(strict_types=1);
 
-/**
- * This file is part of CodeIgniter Shield.
- *
- * (c) CodeIgniter Foundation <admin@codeigniter.com>
- *
- * For the full copyright and license information, please view
- * the LICENSE file that was distributed with this source code.
- */
-
 namespace Tests\Authentication\Filters;
 
 use Daycry\Auth\Entities\User;
@@ -20,6 +11,7 @@ use CodeIgniter\Test\DatabaseTestTrait;
 use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Models\GroupModel;
 use Tests\Support\FilterTestCase;
+use Daycry\Auth\Config\Auth;
 
 /**
  * @internal
@@ -87,7 +79,9 @@ final class GroupFilterTest extends FilterTestCase
             ->get('protected-route');
 
         // Should redirect to home page since previous_url is not set
-        $result->assertRedirectTo(config('Auth')->groupDeniedRedirect());
+        /** @var Auth $config */
+        $config = config('Auth');
+        $result->assertRedirectTo($config->groupDeniedRedirect());
         // Should have error message
         $result->assertSessionHas('error', lang('Auth.notEnoughPrivilege'));
     }

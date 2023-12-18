@@ -30,18 +30,19 @@ abstract class AbstractAuthFilter implements FilterInterface
         }
 
         if (! auth()->loggedIn()) {
-            // Set the entrance url to redirect a user after successful login
-            if (uri_string() !== route_to('login')) {
-                $session = session();
-                $session->setTempdata('beforeLoginUrl', current_url(), 300);
-            }
-
+            
             if(auth()->getAuthenticator() instanceof Session)
             {
+                // Set the entrance url to redirect a user after successful login
+                if (uri_string() !== route_to('login')) {
+                    $session = session();
+                    $session->setTempdata('beforeLoginUrl', current_url(), 300);
+                }
+
                 return redirect()->route('login');
             }else{
                 return service('response')->setStatusCode(
-                    404,
+                    401,
                     lang('Auth.invalidUser') // message
                 );
             }
@@ -51,7 +52,6 @@ abstract class AbstractAuthFilter implements FilterInterface
         if ($this->isAuthorized($arguments)) {
             return;
         }
-
 
         return $this->redirectToDeniedUrl();
     }

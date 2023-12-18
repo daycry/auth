@@ -64,6 +64,16 @@ interface AuthenticatorInterface
     public function logout(): void;
 
     /**
+     * Returns the currently logged in user.
+     */
+    public function getUser(): ?User;
+
+    /**
+     * Updates the user's last active date.
+     */
+    public function recordActiveDate(): void;
+
+    /**
      * Get Credentials for log.
      */
     public function getLogCredentials(array $credentials): mixed;
