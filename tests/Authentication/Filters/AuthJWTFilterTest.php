@@ -68,4 +68,21 @@ final class AuthJWTFilterTest extends FilterTestCase
         $this->assertSame($user->id, auth('jwt')->id());
         $this->assertSame($user->id, auth('jwt')->user()->id);
     }
+
+    public function testFilterBanned(): void
+    {
+        /** @var User $user */
+        $user = fake(UserModel::class);
+        $user->ban('banned');
+
+        $jwt = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt)->encode($user->id);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->get('protected-route');
+
+        $result->assertStatus(401);
+
+        $this->assertNull(auth('jwt')->id());
+    }
 }

@@ -70,4 +70,20 @@ final class AuthSessionFilterTest extends FilterTestCase
         // Last Active should have been updated
         $this->assertInstanceOf(Time::class, auth('session')->user()->last_active);
     }
+
+    public function testFilterBanned(): void
+    {
+        /** @var User $user */
+        $user = fake(UserModel::class);
+        $_SESSION['user']['id'] = $user->id;
+
+        $user->ban('banned');
+
+        $result = $this->withSession(['user' => ['id' => $user->id]])
+            ->get('protected-route');
+
+        $result->assertStatus(302);
+
+        $this->assertNull(auth('session')->id());
+    }
 }

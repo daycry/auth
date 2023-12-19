@@ -46,21 +46,21 @@ class AuthFilter implements FilterInterface
                 $error = $user->getBanMessage() ?? lang('Auth.logOutBannedUser');
                 $authenticator->logout();
 
-                if(auth()->getAuthenticator() instanceof Session)
+                if(auth($alias)->getAuthenticator() instanceof Session)
                 {
                     return redirect()->to($config->logoutRedirect())
                         ->with('error', $error);
-                }else{
-                    return service('response')->setStatusCode(
-                        401,
-                        $error // message
-                    );
+                //}else{
+                //    return service('response')->setStatusCode(
+                //        401,
+                //        $error // message
+                //    );
                 }
             }
 
             if ($user !== null && ! $user->isActivated()) {
                 // If an action has been defined for register, start it up.
-                if(auth()->getAuthenticator() instanceof Session)
+                if(auth($alias)->getAuthenticator() instanceof Session)
                 {  
                     /** @var Session $authenticator */
                     $hasAction = $authenticator->startUpAction('register', $user);
@@ -79,7 +79,7 @@ class AuthFilter implements FilterInterface
 
             return;
         }else{
-            if(!auth()->getAuthenticator() instanceof Session)
+            if(!auth($alias)->getAuthenticator() instanceof Session)
             {
                 return service('response')->setStatusCode(
                     401,
@@ -88,7 +88,7 @@ class AuthFilter implements FilterInterface
             }
         }
 
-        if(auth()->getAuthenticator() instanceof Session)
+        if(auth($alias)->getAuthenticator() instanceof Session)
         {
             /** @var Session $authenticator */
             if ($authenticator->isPending()) {

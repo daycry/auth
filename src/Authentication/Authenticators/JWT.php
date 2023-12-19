@@ -92,9 +92,6 @@ class JWT extends Base implements AuthenticatorInterface
         // Find User
         $user = $this->provider->findById($userId);
 
-        // Find User
-        $user = $this->provider->findById($userId);
-
         if ($user === null) {
             return new Result([
                 'success' => false,
