@@ -120,7 +120,7 @@ class CreateCoreTables extends Migration
             'ip_address' => ['type' => 'varchar', 'constraint' => 255],
             'user_agent' => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
             'id_type'    => ['type' => 'varchar', 'constraint' => 255],
-            'identifier' => ['type' => 'varchar', 'constraint' => 255],
+            'identifier' => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
             'user_id'    => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'null' => true], // Only for successful logins
             'date'       => ['type' => 'datetime'],
             'success'    => ['type' => 'tinyint', 'constraint' => 1],

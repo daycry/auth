@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\Response;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 
@@ -25,7 +26,7 @@ class GroupFilter extends AbstractAuthFilter
     /**
      * If the user does not belong to the group, redirect to the configured URL with an error message.
      */
-    protected function redirectToDeniedUrl(): RedirectResponse
+    protected function redirectToDeniedUrl(): Response|RedirectResponse
     {
         /** @var Auth $config */
         $config = config('Auth');

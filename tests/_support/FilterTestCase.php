@@ -8,12 +8,11 @@ use CodeIgniter\Config\Factories;
 use Daycry\Auth\Test\AuthenticationTesting;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
-use Config\Filters;
 
 /**
  * @internal
  */
-abstract class FilterTestCase extends TestCase
+abstract class FilterTestCase extends DatabaseTestCase
 {
     use FeatureTestTrait;
     use AuthenticationTesting;

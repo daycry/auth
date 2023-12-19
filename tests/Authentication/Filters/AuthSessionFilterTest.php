@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Filters;
 
 use CodeIgniter\Config\Factories;
+use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\GroupFilter;
 use Daycry\Auth\Models\UserModel;
@@ -21,7 +22,7 @@ use Daycry\Auth\Filters\AuthFilter;
 /**
  * @internal
  */
-final class AuthJWTFilterTest extends FilterTestCase
+final class AuthSessionFilterTest extends FilterTestCase
 {
     use FeatureTestTrait;
 
@@ -31,7 +32,7 @@ final class AuthJWTFilterTest extends FilterTestCase
     {
         Services::reset(true);
 
-        $this->alias = 'auth:jwt';
+        $this->alias = 'auth:session';
         $this->classname = AuthFilter::class;
         
         parent::setUp();
@@ -43,7 +44,7 @@ final class AuthJWTFilterTest extends FilterTestCase
     {
         $result = $this->call('get', 'protected-route');
 
-        $result->assertStatus(401);
+        $result->assertRedirectTo('/login');
 
         $result = $this->get('open-route');
 
@@ -55,17 +56,18 @@ final class AuthJWTFilterTest extends FilterTestCase
     {
         /** @var User $user */
         $user = fake(UserModel::class);
+        $_SESSION['user']['id'] = $user->id;
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
-
-        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+        $result = $this->withSession(['user' => ['id' => $user->id]])
             ->get('protected-route');
 
         $result->assertStatus(200);
         $result->assertSee('Protected');
 
-        $this->assertSame($user->id, auth('jwt')->id());
-        $this->assertSame($user->id, auth('jwt')->user()->id);
+        $this->assertSame($user->id, auth('session')->id());
+        $this->assertSame($user->id, auth('session')->user()->id);
+
+        // Last Active should have been updated
+        $this->assertInstanceOf(Time::class, auth('session')->user()->last_active);
     }
 }

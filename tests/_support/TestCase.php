@@ -49,4 +49,15 @@ abstract class TestCase extends CIUnitTestCase
         $config->csrfProtection = 'session';
         Factories::injectMock('config', 'Security', $config);
     }
+
+    protected function inkectMockAttributes(array $attributes = [])
+    {
+        $config = config(Auth::class);
+
+        foreach ($attributes as $attribute => $value) {
+            $config->{$attribute} = $value;
+        }
+
+        Factories::injectMock('config', 'Auth', $config);
+    }
 }

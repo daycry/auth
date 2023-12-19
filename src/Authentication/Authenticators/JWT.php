@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Authenticators;
 
+use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
@@ -39,6 +41,10 @@ class JWT extends Base implements AuthenticatorInterface
      */
     public function attempt(array $credentials = []): Result
     {
+        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
+            $credentials = ['token' => $this->getBearerFromHeader()];
+        }
+
         return $this->checkLogin($credentials);
     }
 
@@ -113,11 +119,8 @@ class JWT extends Base implements AuthenticatorInterface
             return true;
         }
 
-        /** @var IncomingRequest $request */
-        $request = service('request');
-
         return $this->attempt([
-            'token' => $request->getHeaderLine(service('settings')->get('Auth.authenticatorHeader')[$this->method]),
+            'token' => $this->getBearerFromHeader(),
         ])->isOK();
     }
 
@@ -167,5 +170,23 @@ class JWT extends Base implements AuthenticatorInterface
     {
         $this->authType = self::ID_TYPE_JWT;
         return $credentials['token'] ?? '';
+    }
+
+    private function getBearerFromHeader(): string
+    {
+        $tokenHeader = service('settings')->get('Auth.authenticatorHeader')[$this->method];
+
+        $tokenHeader = $this->request->getHeaderLine($tokenHeader);
+
+        return $this->parseHeader($tokenHeader);
+    }
+
+    private function parseHeader(?string $token)
+    {
+        if (strpos($token, 'Bearer') === 0) {
+            $token = trim(substr($token, 6));
+        }
+
+        return $token;
     }
 }

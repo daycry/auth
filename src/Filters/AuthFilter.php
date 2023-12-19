@@ -27,6 +27,7 @@ class AuthFilter implements FilterInterface
         }
 
         $alias = ($arguments) ? $arguments[0] : service('settings')->get('Auth.defaultAuthenticator');
+
         /** @var  AuthenticatorInterface $authenticator */
         $authenticator = auth($alias)->getAuthenticator();
 
@@ -75,6 +76,8 @@ class AuthFilter implements FilterInterface
 
                 }
             }
+
+            return;
         }else{
             if(!auth()->getAuthenticator() instanceof Session)
             {

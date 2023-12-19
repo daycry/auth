@@ -24,8 +24,9 @@ final class GroupFilterTest extends FilterTestCase
     protected string $classname   = GroupFilter::class;
     protected string $routeFilter = 'group:admin';
 
-    public function testFilterNotAuthorized(): void
+    public function testFilterNotAuthorizedSession(): void
     {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
         $result = $this->call('get', 'protected-route');
 
         $result->assertRedirectTo('/login');
@@ -35,8 +36,17 @@ final class GroupFilterTest extends FilterTestCase
         $result->assertSee('Open');
     }
 
+    public function testFilterNotAuthorizedJWT(): void
+    {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $result = $this->call('get', 'protected-route');
+
+        $result->assertStatus(401);
+    }
+
     public function testFilterNotAuthorizedStoresRedirectToEntranceUrlIntoSession(): void
     {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
         $result = $this->call('get', 'protected-route');
 
         $result->assertRedirectTo('/login');
@@ -45,8 +55,9 @@ final class GroupFilterTest extends FilterTestCase
         $this->assertSame(site_url('protected-route'), session()->getTempdata('beforeLoginUrl'));
     }
 
-    public function testFilterSuccess(): void
+    public function testFilterSuccessSession(): void
     {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
         fake(GroupModel::class,['name' => 'admin']);
 
         /** @var User $user */
@@ -65,8 +76,9 @@ final class GroupFilterTest extends FilterTestCase
         $this->assertSame($user->id, auth('session')->user()->id);
     }
 
-    public function testFilterIncorrectGroupNoPrevious(): void
+    public function testFilterIncorrectGroupNoPreviousSession(): void
     {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
         fake(GroupModel::class,['name' => 'beta']);
 
         /** @var User $user */
@@ -84,5 +96,23 @@ final class GroupFilterTest extends FilterTestCase
         $result->assertRedirectTo($config->groupDeniedRedirect());
         // Should have error message
         $result->assertSessionHas('error', lang('Auth.notEnoughPrivilege'));
+    }
+
+    public function testFilterIncorrectGroupNoPreviousJWT(): void
+    {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        fake(GroupModel::class,['name' => 'beta']);
+
+        /** @var User $user */
+        $user = fake(UserModel::class);
+        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
+        $user->addGroup('beta');
+
+        $jwt = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt)->encode($user->id);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])->get('protected-route');
+
+        $result->assertStatus(401);
     }
 }

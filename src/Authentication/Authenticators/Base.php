@@ -78,10 +78,10 @@ abstract class Base
                 $identifier = $this->getLogCredentials($credentials);
                 $this->loginModel->recordLoginAttempt(
                     $this->authType,
-                    $identifier,
+                ($identifier) ? $identifier : null,
                     false,
                     $this->ipAddress,
-                    $this->userAgent
+                    $this->userAgent ? $this->userAgent : null
                 );
             }
 

@@ -32,6 +32,12 @@ class Registrar
         ];
     }
 
+    public static function Feature(): array{
+        return [
+            'multipleFilters' => true
+        ];
+    }
+
     public static function Validation(): array
     {
         return [

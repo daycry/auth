@@ -7,6 +7,7 @@ namespace Daycry\Auth\Filters;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
+use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 
@@ -75,5 +76,5 @@ abstract class AbstractAuthFilter implements FilterInterface
     /**
      * Returns redirect response when the user does not have access authorizations.
      */
-    abstract protected function redirectToDeniedUrl(): RedirectResponse;
+    abstract protected function redirectToDeniedUrl(): Response|RedirectResponse;
 }
