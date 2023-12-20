@@ -67,7 +67,7 @@ Usage of Auth requires the following:
 Installation is done through Composer.
 
 ```console
-composer require codeigniter4/auth
+composer require daycry/auth
 ```
 
 ## Contributing
