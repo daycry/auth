@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Config;
 
-use Daycry\Auth\Validation\ValidationRules as PasswordRules;
+use Daycry\Auth\Validation\PasswordValidationRules as PasswordRules;
 use Daycry\Auth\Collectors\Auth;
 use Daycry\Auth\Filters\AuthFilter;
 use Daycry\Auth\Filters\RatesFilter;

@@ -113,6 +113,14 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Default Group
+     * --------------------------------------------------------------------
+     * The group that a newly registered user is added to.
+     */
+    public string $defaultGroup = 'user';
+
+    /**
+     * --------------------------------------------------------------------
      * Authentication Chain
      * --------------------------------------------------------------------
      * The Authenticators to test logged in status against
@@ -218,17 +226,17 @@ class Auth extends BaseConfig
      * --------------------------------------------------------------------
      */
     public array $views = [
-        'login'                       => '\CodeIgniter\Shield\Views\login',
-        'register'                    => '\CodeIgniter\Shield\Views\register',
-        'layout'                      => '\CodeIgniter\Shield\Views\layout',
-        'action_email_2fa'            => '\CodeIgniter\Shield\Views\email_2fa_show',
-        'action_email_2fa_verify'     => '\CodeIgniter\Shield\Views\email_2fa_verify',
-        'action_email_2fa_email'      => '\CodeIgniter\Shield\Views\Email\email_2fa_email',
-        'action_email_activate_show'  => '\CodeIgniter\Shield\Views\email_activate_show',
-        'action_email_activate_email' => '\CodeIgniter\Shield\Views\Email\email_activate_email',
-        'magic-link-login'            => '\CodeIgniter\Shield\Views\magic_link_form',
-        'magic-link-message'          => '\CodeIgniter\Shield\Views\magic_link_message',
-        'magic-link-email'            => '\CodeIgniter\Shield\Views\Email\magic_link_email',
+        'login'                       => '\Daycry\Auth\Views\login',
+        'register'                    => '\Daycry\Auth\Views\register',
+        'layout'                      => '\Daycry\Auth\Views\layout',
+        'action_email_2fa'            => '\Daycry\Auth\Views\email_2fa_show',
+        'action_email_2fa_verify'     => '\Daycry\Auth\Views\email_2fa_verify',
+        'action_email_2fa_email'      => '\Daycry\Auth\Views\Email\email_2fa_email',
+        'action_email_activate_show'  => '\Daycry\Auth\Views\email_activate_show',
+        'action_email_activate_email' => '\Daycry\Auth\Views\Email\email_activate_email',
+        'magic-link-login'            => '\Daycry\Auth\Views\magic_link_form',
+        'magic-link-message'          => '\Daycry\Auth\Views\magic_link_message',
+        'magic-link-email'            => '\Daycry\Auth\Views\Email\magic_link_email',
     ];
 
     /**
@@ -286,6 +294,43 @@ class Auth extends BaseConfig
     public int $requestLimit = 10;
     public int $timeLimit = MINUTE;
 
+    /**
+     * --------------------------------------------------------------------
+     * The validation rules for username
+     * --------------------------------------------------------------------
+     *
+     * Do not use string rules like `required|valid_email`.
+     *
+     * @var array<string, array<int, string>|string>
+     */
+    public array $usernameValidationRules = [
+        'label' => 'Auth.username',
+        'rules' => [
+            'required',
+            'max_length[30]',
+            'min_length[3]',
+            'regex_match[/\A[a-zA-Z0-9\.]+\z/]',
+        ],
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * The validation rules for email
+     * --------------------------------------------------------------------
+     *
+     * Do not use string rules like `required|valid_email`.
+     *
+     * @var array<string, array<int, string>|string>
+     */
+    public array $emailValidationRules = [
+        'label' => 'Auth.email',
+        'rules' => [
+            'required',
+            'max_length[254]',
+            'valid_email',
+        ],
+    ];
+    
     /**
      * --------------------------------------------------------------------
      * Minimum Password Length

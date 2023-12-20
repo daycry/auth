@@ -325,7 +325,12 @@ trait Authorizable
 
         $groupModel = model(GroupModel::class);
 
-        return $groupModel->getByIds($ids);
+        if($ids)
+        {
+            return $groupModel->getByIds($ids);
+        }
+
+        return [];
     }
 
     /**
@@ -344,7 +349,12 @@ trait Authorizable
 
         $permissionModel = model(PermissionModel::class);
 
-        return $permissionModel->getByIds($ids);
+        if($ids)
+        {
+            return $permissionModel->getByIds($ids);
+        }
+
+        return [];
     }
 
     /**
@@ -363,7 +373,12 @@ trait Authorizable
 
         $permissionModel = model(PermissionModel::class);
 
-        return $permissionModel->getByIds($ids);
+        if($ids)
+        {
+            return $permissionModel->getByIds($ids);
+        }
+
+        return [];
     }
 
     /**

@@ -20,6 +20,7 @@ use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Faker\Generator;
 
 class UserModel extends BaseModel
@@ -276,6 +277,25 @@ class UserModel extends BaseModel
         $this->tempUser = null;
 
         return $data;
+    }
+
+    /**
+     * Adds a user to the default group.
+     * Used during registration.
+     */
+    public function addToDefaultGroup(User $user): void
+    {
+        $defaultGroup  = setting('Auth.defaultGroup');
+
+        $rows = model(GroupModel::class)->findAll();
+
+        $allowedGroups = array_column($rows, 'name');
+
+        if (empty($defaultGroup) || ! in_array($defaultGroup, $allowedGroups, true)) {
+            throw new InvalidArgumentException(lang('Auth.unknownGroup', [$defaultGroup ?? '--not found--']));
+        }
+
+        $user->addGroup($defaultGroup);
     }
 
     public function fake(Generator &$faker): User

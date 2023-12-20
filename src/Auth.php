@@ -134,11 +134,11 @@ class Auth
      *      - auth()->routes($routes);
      *      - auth()->routes($routes, ['except' => ['login', 'register']])
      */
-    /*public function routes(RouteCollection &$routes, array $config = []): void
+    public function routes(RouteCollection &$routes, array $config = []): void
     {
         $authRoutes = config('AuthRoutes')->routes;
 
-        $routes->group('/', ['namespace' => 'CodeIgniter\Shield\Controllers'], static function (RouteCollection $routes) use ($authRoutes, $config): void {
+        $routes->group('/', ['namespace' => 'Daycry\Auth\Controllers'], static function (RouteCollection $routes) use ($authRoutes, $config): void {
             foreach ($authRoutes as $name => $row) {
                 if (! isset($config['except']) || ! in_array($name, $config['except'], true)) {
                     foreach ($row as $params) {
@@ -150,7 +150,7 @@ class Auth
                 }
             }
         });
-    }*/
+    }
 
     /**
      * Returns the Model that is responsible for getting users.

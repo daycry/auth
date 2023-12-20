@@ -4,109 +4,82 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Validation;
 
-use CodeIgniter\HTTP\IncomingRequest;
 use Daycry\Auth\Authentication\Passwords;
-use Daycry\Auth\Entities\User;
 use Daycry\Auth\Config\Auth;
 
-/**
- * Class ValidationRules
- *
- * Provides auth-related validation rules for CodeIgniter 4.
- *
- * To use, add this class to Config/Validation.php, in the
- * $rulesets array.
- */
 class ValidationRules
 {
-    /**
-     * A validation helper method to check if the passed in
-     * password will pass all of the validators currently defined.
-     *
-     * Handy for use in validation, but you will get a slightly
-     * better security if this is done manually, since you can
-     * personalize based on a specific user at that point.
-     *
-     * @param string $value  Field value
-     * @param string $error1 Error that will be returned (for call without validation data array)
-     * @param array  $data   Validation data array
-     * @param string $error2 Error that will be returned (for call with validation data array)
-     */
-    public function strong_password(string $value, ?string &$error1 = null, array $data = [], ?string &$error2 = null): bool
-    {
-        /** @var Passwords $checker */
-        $checker = service('passwords');
+    protected Auth $config;
 
-        if (function_exists('auth') && auth()->user()) {
-            $user = auth()->user();
-        } else {
-            /** @phpstan-ignore-next-line */
-            $user = empty($data) ? $this->buildUserFromRequest() : $this->buildUserFromData($data);
+    /**
+     * Auth Table names
+     */
+    protected array $tables;
+
+    public function __construct()
+    {
+        /** @var Auth $authConfig */
+        $authConfig = config('Auth');
+
+        $this->config = $authConfig;
+        $this->tables = $this->config->tables;
+    }
+
+    public function getRegistrationRules(): array
+    {
+        $setting = setting('Validation.registration');
+        if ($setting !== null) {
+            return $setting;
         }
 
-        $result = $checker->check($value, $user);
+        $usernameRules            = $this->config->usernameValidationRules;
+        $usernameRules['rules'][] = sprintf(
+            'is_unique[%s.username]',
+            $this->tables['users']
+        );
 
-        if (! $result->isOk()) {
-            if (empty($data)) {
-                $error1 = $result->reason();
-            } else {
-                $error2 = $result->reason();
-            }
-        }
+        $emailRules            = $this->config->emailValidationRules;
+        $emailRules['rules'][] = sprintf(
+            'is_unique[%s.secret]',
+            $this->tables['identities']
+        );
 
-        return $result->isOk();
+        $passwordRules            = $this->getPasswordRules();
+        $passwordRules['rules'][] = 'strong_password[]';
+
+        return [
+            'username'         => $usernameRules,
+            'email'            => $emailRules,
+            'password'         => $passwordRules,
+            'password_confirm' => $this->getPasswordConfirmRules(),
+        ];
     }
 
-    /**
-     * Returns true if $str is $val or fewer bytes in length.
-     */
-    public function max_byte(?string $str, string $val): bool
+    public function getLoginRules(): array
     {
-        return is_numeric($val) && $val >= strlen($str ?? '');
+        return setting('Validation.login') ?? [
+            // 'username' => $this->config->usernameValidationRules,
+            'email'    => $this->config->emailValidationRules,
+            'password' => $this->getPasswordRules(),
+        ];
     }
 
-    /**
-     * Builds a new user instance from the global request.
-     *
-     * @deprecated This will be removed soon.
-     *
-     * @see https://github.com/codeigniter4/shield/pull/747#discussion_r1198778666
-     */
-    protected function buildUserFromRequest(): User
+    public function getPasswordRules(): array
     {
-        $fields = $this->prepareValidFields();
-
-        /** @var IncomingRequest $request */
-        $request = service('request');
-
-        $data = $request->getPost($fields);
-
-        return new User($data);
+        return [
+            'label'  => 'Auth.password',
+            'rules'  => ['required', Passwords::getMaxLengthRule()],
+            'errors' => [
+                'max_byte' => 'Auth.errorPasswordTooLongBytes',
+            ],
+        ];
     }
 
-    /**
-     * Builds a new user instance from assigned data..
-     *
-     * @param array $data Assigned data
-     */
-    protected function buildUserFromData(array $data = []): User
+    public function getPasswordConfirmRules(): array
     {
-        $fields = $this->prepareValidFields();
-
-        $data = array_intersect_key($data, array_fill_keys($fields, null));
-
-        return new User($data);
-    }
-
-    /**
-     * Prepare valid user fields
-     */
-    protected function prepareValidFields(): array
-    {
-        /** @var Auth $config */
-        $config = config('Auth');
-        $fields = array_merge($config->validFields, $config->personalFields, ['email', 'password']);
-
-        return array_unique($fields);
+        return [
+            'label' => 'Auth.passwordConfirm',
+            'rules' => 'required|matches[password]',
+        ];
     }
 }

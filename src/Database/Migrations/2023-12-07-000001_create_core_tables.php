@@ -64,7 +64,7 @@ class CreateCoreTables extends Migration
             'deleted_at'     => ['type' => 'datetime', 'null' => true],
         ]);
         $this->forge->addPrimaryKey('id');
-        $this->forge->addUniqueKey('username');
+        $this->forge->addUniqueKey('name');
         $this->createTable($this->tables['permissions']);
 
         // Users Permissions Table
