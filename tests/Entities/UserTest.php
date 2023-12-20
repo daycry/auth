@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Entities;
 
 use CodeIgniter\I18n\Time;
@@ -362,7 +371,7 @@ final class UserTest extends DatabaseTestCase
         $groups = $this->user->getGroups();
 
         $this->assertCount(1, $groups);
-        $this->assertEquals('foo', $groups[0]);
+        $this->assertSame('foo', $groups[0]);
     }
 
     public function testAddUserGroups(): void
@@ -377,7 +386,7 @@ final class UserTest extends DatabaseTestCase
         $groups = $this->user->getGroups();
 
         $this->assertCount(1, $groups);
-        $this->assertEquals('foo', $groups[0]);
+        $this->assertSame('foo', $groups[0]);
         $this->assertTrue($this->user->inGroup('foo'));
     }
 
@@ -430,13 +439,13 @@ final class UserTest extends DatabaseTestCase
         $groups = $this->user->getGroups();
 
         $this->assertCount(1, $groups);
-        $this->assertEquals('bar', $groups[0]);
+        $this->assertSame('bar', $groups[0]);
 
         $criteria = [
-            'group_id'  => $groupFoo->id,
-            'user_id' => $this->user->id,
+            'group_id' => $groupFoo->id,
+            'user_id'  => $this->user->id,
         ];
-        
+
         $this->dontSeeInDatabase($this->tables['groups_users'], $criteria);
     }
 
@@ -456,7 +465,7 @@ final class UserTest extends DatabaseTestCase
         $groups = $this->user->getGroups();
 
         $this->assertCount(1, $groups);
-        $this->assertEquals('foo', $groups[0]);
+        $this->assertSame('foo', $groups[0]);
     }
 
     public function testErrorSyncUserGroups(): void
@@ -481,7 +490,7 @@ final class UserTest extends DatabaseTestCase
         $permissions = $this->user->getPermissions();
 
         $this->assertCount(1, $permissions);
-        $this->assertEquals('foo', $permissions[0]);
+        $this->assertSame('foo', $permissions[0]);
     }
 
     public function testAddUserPermissions(): void
@@ -496,7 +505,7 @@ final class UserTest extends DatabaseTestCase
         $permissions = $this->user->getPermissions();
 
         $this->assertCount(1, $permissions);
-        $this->assertEquals('foo', $permissions[0]);
+        $this->assertSame('foo', $permissions[0]);
         $this->assertTrue($this->user->hasPermission('foo'));
     }
 
@@ -505,18 +514,18 @@ final class UserTest extends DatabaseTestCase
         $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
 
         fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
-    
+
         $permissions = $this->user->getPermissions();
 
         $this->assertCount(1, $permissions);
-        $this->assertEquals('foo', $permissions[0]);
+        $this->assertSame('foo', $permissions[0]);
 
         $this->user->addPermission('foo');
 
         $permissions = $this->user->getPermissions();
 
         $this->assertCount(1, $permissions);
-        $this->assertEquals('foo', $permissions[0]);
+        $this->assertSame('foo', $permissions[0]);
     }
 
     public function testAddErrorUserPermissions(): void
@@ -545,8 +554,8 @@ final class UserTest extends DatabaseTestCase
         $this->assertCount(0, $permissions);
 
         $criteria = [
-            'permission_id'  => $permissionFoo->id,
-            'user_id' => $this->user->id,
+            'permission_id' => $permissionFoo->id,
+            'user_id'       => $this->user->id,
         ];
 
         $this->dontSeeInDatabase($this->tables['permissions_users'], $criteria);
@@ -567,11 +576,11 @@ final class UserTest extends DatabaseTestCase
         $permissions = $this->user->getPermissions();
 
         $this->assertCount(1, $permissions);
-        $this->assertEquals('bar', $permissions[0]);
+        $this->assertSame('bar', $permissions[0]);
 
         $criteria = [
-            'permission_id'  => $permissionFoo->id,
-            'user_id' => $this->user->id,
+            'permission_id' => $permissionFoo->id,
+            'user_id'       => $this->user->id,
         ];
 
         $this->dontSeeInDatabase($this->tables['permissions_users'], $criteria);
@@ -596,7 +605,7 @@ final class UserTest extends DatabaseTestCase
         $this->expectException(LogicException::class);
 
         $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
-        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+        $groupFoo      = fake(GroupModel::class, ['name' => 'foo']);
 
         fake(PermissionGroupModel::class, ['permission_id' => $permissionFoo->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
 
@@ -611,7 +620,7 @@ final class UserTest extends DatabaseTestCase
     {
         $permissionFoo = fake(PermissionModel::class, ['name' => 'foo.read']);
         $permissionBar = fake(PermissionModel::class, ['name' => 'bar.*']);
-        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+        $groupFoo      = fake(GroupModel::class, ['name' => 'foo']);
 
         fake(PermissionGroupModel::class, ['permission_id' => $permissionFoo->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
         fake(PermissionGroupModel::class, ['permission_id' => $permissionBar->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
@@ -630,7 +639,7 @@ final class UserTest extends DatabaseTestCase
     {
         $permissionFoo = fake(PermissionModel::class, ['name' => 'foo.read']);
         $permissionBar = fake(PermissionModel::class, ['name' => 'bar.*']);
-        $groupFoo = fake(GroupModel::class, ['name' => 'foo']);
+        $groupFoo      = fake(GroupModel::class, ['name' => 'foo']);
 
         fake(PermissionGroupModel::class, ['permission_id' => $permissionBar->id, 'group_id' => $groupFoo->id, 'until_at' => null]);
         fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
@@ -648,9 +657,9 @@ final class UserTest extends DatabaseTestCase
     public function testCannotUserPermissionsUserWithoutGroup(): void
     {
         $permissionFoo = fake(PermissionModel::class, ['name' => 'foo.read']);
-        
+
         fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
-        
+
         $permissions = $this->user->getPermissions();
 
         $this->assertCount(1, $permissions);

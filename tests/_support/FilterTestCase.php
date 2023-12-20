@@ -2,12 +2,21 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Support;
 
 use CodeIgniter\Config\Factories;
-use Daycry\Auth\Test\AuthenticationTesting;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
+use Daycry\Auth\Test\AuthenticationTesting;
 
 /**
  * @internal

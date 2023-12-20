@@ -15,13 +15,11 @@ namespace Daycry\Auth\Traits;
 
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\Group;
-use Daycry\Auth\Entities\GroupUser;
-use Daycry\Auth\Entities\PermissionUser;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
-use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\PermissionGroupModel;
+use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\PermissionUserModel;
 use Daycry\Exceptions\Exceptions\LogicException;
 
@@ -29,8 +27,8 @@ trait Authorizable
 {
     protected ?array $groupCache       = null;
     protected ?array $permissionsCache = null;
-    protected ?array $groups = null;
-    protected ?array $permissions = null;
+    protected ?array $groups           = null;
+    protected ?array $permissions      = null;
 
     /**
      * Adds one or more groups to the current User.
@@ -273,7 +271,7 @@ trait Authorizable
             }
 
             foreach ($this->groupCache as $group) {
-                $group = model(GroupModel::class)->where('name', $group)->first();
+                $group       = model(GroupModel::class)->where('name', $group)->first();
                 $permissions = $this->getGroupPermissions($group);
 
                 // Check exact match
@@ -316,17 +314,17 @@ trait Authorizable
     {
         /** @var GroupUserModel $GroupUserModel */
         $userGroupModel = model(GroupUserModel::class);
-        $userGroups = $userGroupModel->getForUser($this);
+        $userGroups     = $userGroupModel->getForUser($this);
 
         $ids = [];
-        foreach($userGroups as $userGroup) {
+
+        foreach ($userGroups as $userGroup) {
             $ids[] = $userGroup->group_id;
         }
 
         $groupModel = model(GroupModel::class);
 
-        if($ids)
-        {
+        if ($ids) {
             return $groupModel->getByIds($ids);
         }
 
@@ -340,17 +338,17 @@ trait Authorizable
     {
         /** @var GroupUserModel $GroupUserModel */
         $userPermissionsModel = model(PermissionUserModel::class);
-        $userPermissions = $userPermissionsModel->getForUser($this);
+        $userPermissions      = $userPermissionsModel->getForUser($this);
 
         $ids = [];
-        foreach($userPermissions as $userPermission) {
+
+        foreach ($userPermissions as $userPermission) {
             $ids[] = $userPermission->permission_id;
         }
 
         $permissionModel = model(PermissionModel::class);
 
-        if($ids)
-        {
+        if ($ids) {
             return $permissionModel->getByIds($ids);
         }
 
@@ -364,17 +362,17 @@ trait Authorizable
     {
         /** @var PermissionGroupModel $groupPermissionsModel */
         $groupPermissionsModel = model(PermissionGroupModel::class);
-        $groupPermissions = $groupPermissionsModel->getForGroup($group);
+        $groupPermissions      = $groupPermissionsModel->getForGroup($group);
 
         $ids = [];
-        foreach($groupPermissions as $groupPermission) {
+
+        foreach ($groupPermissions as $groupPermission) {
             $ids[] = $groupPermission->permission_id;
         }
 
         $permissionModel = model(PermissionModel::class);
 
-        if($ids)
-        {
+        if ($ids) {
             return $permissionModel->getByIds($ids);
         }
 
@@ -392,10 +390,9 @@ trait Authorizable
         }
 
         $groupModel = model(GroupModel::class);
-        $rows = $groupModel->findAll();
-    
-        foreach($rows as $row)
-        {
+        $rows       = $groupModel->findAll();
+
+        foreach ($rows as $row) {
             $this->groups[$row->id] = $row->name;
         }
 
@@ -414,10 +411,9 @@ trait Authorizable
 
         /** @var PermissionModel $permissionModel */
         $permissionModel = model(PermissionModel::class);
-        $rows = $permissionModel->findAll();
-        
-        foreach($rows as $row)
-        {
+        $rows            = $permissionModel->findAll();
+
+        foreach ($rows as $row) {
             $this->permissions[$row->id] = $row->name;
         }
 
@@ -433,11 +429,11 @@ trait Authorizable
         $model = model(GroupUserModel::class);
 
         $names = $this->groupCache;
-        
+
         $cache = [];
-        foreach( $names as $name)
-        {
-            $cache[] = array_search($name, $this->groups);
+
+        foreach ($names as $name) {
+            $cache[] = array_search($name, $this->groups, true);
         }
 
         $existing = array_column($this->getAllUserGroups(), 'id');
@@ -454,11 +450,11 @@ trait Authorizable
         $model = model(PermissionUserModel::class);
 
         $names = $this->permissionsCache;
-        
+
         $cache = [];
-        foreach( $names as $name)
-        {
-            $cache[] = array_search($name, $this->permissions);
+
+        foreach ($names as $name) {
+            $cache[] = array_search($name, $this->permissions, true);
         }
 
         $existing = array_column($this->getAllUserPermissions(), 'id');

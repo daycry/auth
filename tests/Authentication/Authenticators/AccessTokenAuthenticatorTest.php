@@ -2,21 +2,29 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Authentication\Authenticators;
 
 use CodeIgniter\I18n\Time;
+use CodeIgniter\Test\Mock\MockEvents;
+use Config\Services;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Config\Auth;
-use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Entities\AccessToken as AccessTokenEntity;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Models\UserModel;
-use CodeIgniter\Test\Mock\MockEvents;
-use Config\Services;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
+use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
 
 /**

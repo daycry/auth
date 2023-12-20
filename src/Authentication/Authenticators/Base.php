@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Authentication\Authenticators;
 
 use CodeIgniter\HTTP\IncomingRequest;
@@ -12,7 +21,6 @@ use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
-use Daycry\Auth\Interfaces\LibraryAuthenticatorInterface;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -21,27 +29,21 @@ use Daycry\Auth\Result;
 abstract class Base
 {
     protected ?string $authType = null;
-
-    protected ?string $method = null;
-
+    protected ?string $method   = null;
     protected UserModel $provider;
-
     protected ?User $user = null;
-
     protected LoginModel $loginModel;
-
     protected ?string $ipAddress = null;
-
     protected ?string $userAgent = null;
-
     protected Request $request;
-
     protected UserIdentityModel $userIdentityModel;
 
     abstract public function check(array $credentials): Result;
+
     abstract public function login(User $user, bool $actions = true): void;
+
     abstract public function getLogCredentials(array $credentials): mixed;
-    
+
     public function __construct(UserModel $provider)
     {
         /** @var IncomingRequest */
@@ -60,7 +62,6 @@ abstract class Base
     /**
      * Check if the user is logged in
      *
-     * @access protected
      * @param string|null $username The user's name
      * @param string|null $password The user's password
      */
@@ -78,10 +79,10 @@ abstract class Base
                 $identifier = $this->getLogCredentials($credentials);
                 $this->loginModel->recordLoginAttempt(
                     $this->authType,
-                ($identifier) ? $identifier : null,
+                    ($identifier) ?: null,
                     false,
                     $this->ipAddress,
-                    $this->userAgent ? $this->userAgent : null
+                    $this->userAgent ?: null
                 );
             }
 
@@ -135,16 +136,16 @@ abstract class Base
     /**
      * Force logging in by setting the WWW-Authenticate header
      *
-     * @access protected
      * @param string $nonce A server-specified data string which should be uniquely generated each time
+     *
      * @return void
      */
     protected function forceLogin($nonce = '')
     {
-        $rest_auth = \strtolower($this->method);
+        $rest_auth  = \strtolower($this->method);
         $rest_realm = service('settings')->get('RestFul.restRealm');
 
-        //if (service('settings')->get('RestFul.strictAccessTokenAndAuth') === true) {
+        // if (service('settings')->get('RestFul.strictAccessTokenAndAuth') === true) {
         if (Services::request()->getUserAgent()->isBrowser()) {
             // @codeCoverageIgnoreStart
             if (strtolower($rest_auth) === 'basic') {
@@ -171,7 +172,7 @@ abstract class Base
     {
         return $this->user;
     }
-    
+
     /**
      * Updates the user's last active date.
      */

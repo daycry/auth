@@ -30,6 +30,6 @@ class Permission extends Entity
      * @var array<string, string>
      */
     protected $casts = [
-        'id'     => '?integer'
+        'id' => '?integer',
     ];
 }

@@ -36,7 +36,7 @@ class GroupUser extends Entity
         'created_at',
         'updated_at',
         'deleted_at',
-        'until_at'
+        'until_at',
     ];
 
     /**

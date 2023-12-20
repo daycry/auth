@@ -13,10 +13,8 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\Database\Exceptions\DataException;
 use CodeIgniter\I18n\Time;
-use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
@@ -285,7 +283,7 @@ class UserModel extends BaseModel
      */
     public function addToDefaultGroup(User $user): void
     {
-        $defaultGroup  = setting('Auth.defaultGroup');
+        $defaultGroup = setting('Auth.defaultGroup');
 
         $rows = model(GroupModel::class)->findAll();
 

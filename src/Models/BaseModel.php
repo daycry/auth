@@ -31,7 +31,7 @@ abstract class BaseModel extends Model
     public function __construct(?ConnectionInterface &$db = null, ?ValidationInterface $validation = null)
     {
         if ($db === null) {
-            $db = Database::connect(service('settings')->get('Auth.DBGroup'));
+            $db            = Database::connect(service('settings')->get('Auth.DBGroup'));
             $this->DBGroup = service('settings')->get('Auth.DBGroup');
         }
 

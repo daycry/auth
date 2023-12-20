@@ -2,16 +2,25 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Config;
 
-use Daycry\Auth\Validation\PasswordValidationRules as PasswordRules;
 use Daycry\Auth\Collectors\Auth;
 use Daycry\Auth\Filters\AuthFilter;
-use Daycry\Auth\Filters\RatesFilter;
 use Daycry\Auth\Filters\ChainAuthFilter;
 use Daycry\Auth\Filters\ForcePasswordResetFilter;
 use Daycry\Auth\Filters\GroupFilter;
 use Daycry\Auth\Filters\PermissionFilter;
+use Daycry\Auth\Filters\RatesFilter;
+use Daycry\Auth\Validation\PasswordValidationRules as PasswordRules;
 
 class Registrar
 {
@@ -32,9 +41,10 @@ class Registrar
         ];
     }
 
-    public static function Feature(): array{
+    public static function Feature(): array
+    {
         return [
-            'multipleFilters' => true
+            'multipleFilters' => true,
         ];
     }
 

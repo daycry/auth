@@ -2,16 +2,23 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Authentication\Filters;
 
-use Daycry\Auth\Entities\User;
-use Daycry\Auth\Models\UserModel;
 use CodeIgniter\Test\DatabaseTestTrait;
-use Daycry\Auth\Models\GroupModel;
-use Tests\Support\FilterTestCase;
-use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\PermissionFilter;
 use Daycry\Auth\Models\PermissionModel;
+use Daycry\Auth\Models\UserModel;
+use Tests\Support\FilterTestCase;
 
 /**
  * @internal
@@ -97,8 +104,8 @@ final class PermissionFilterTest extends FilterTestCase
         fake(PermissionModel::class, ['name' => 'admin.access']);
         $user->addPermission('admin.access');
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
+        $jwt   = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt())->encode($user->id);
 
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->get('protected-route');
@@ -122,8 +129,8 @@ final class PermissionFilterTest extends FilterTestCase
         fake(PermissionModel::class, ['name' => 'admin.read']);
         $user->addPermission('admin.read');
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
+        $jwt   = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt())->encode($user->id);
 
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->get('protected-route');

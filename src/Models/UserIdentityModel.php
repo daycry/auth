@@ -13,12 +13,10 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\I18n\Time;
-use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
-use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\DatabaseException;

@@ -37,7 +37,7 @@ class PermissionGroup extends Entity
         'created_at',
         'updated_at',
         'deleted_at',
-        'until_at'
+        'until_at',
     ];
 
     /**
@@ -49,8 +49,8 @@ class PermissionGroup extends Entity
             return $this->group;
         }
 
-        $groupModel = model(GroupModel::class);
-        $this->group   = $groupModel->where('id', $this->attributes['group_id'])->first();
+        $groupModel  = model(GroupModel::class);
+        $this->group = $groupModel->where('id', $this->attributes['group_id'])->first();
 
         return $this->group;
     }
@@ -64,7 +64,7 @@ class PermissionGroup extends Entity
             return $this->permission;
         }
 
-        $groupModel  = model(PermissionModel::class);
+        $groupModel       = model(PermissionModel::class);
         $this->permission = $groupModel->where('id', $this->attributes['permission_id'])->first();
 
         return $this->permission;

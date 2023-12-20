@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Authentication\Authenticators;
 
 use CodeIgniter\I18n\Time;
@@ -162,6 +171,7 @@ class AccessToken extends Base implements AuthenticatorInterface
     public function getLogCredentials(array $credentials): mixed
     {
         $this->authType = self::ID_TYPE_ACCESS_TOKEN;
+
         return $credentials['token'] ?? '';
     }
 
@@ -170,11 +180,10 @@ class AccessToken extends Base implements AuthenticatorInterface
         $accessTokenName = service('settings')->get('Auth.authenticatorHeader')[$this->method];
 
         $key = $this->request->getHeaderLine($accessTokenName);
-        $key = ($key) ? $key : $this->request->getGetPost($accessTokenName);
-        $key = ($key) ? $key : $this->request->getVar($accessTokenName);
+        $key = ($key) ?: $this->request->getGetPost($accessTokenName);
+        $key = ($key) ?: $this->request->getVar($accessTokenName);
 
-        if(empty($key))
-        {
+        if (empty($key)) {
             return null;
         }
 

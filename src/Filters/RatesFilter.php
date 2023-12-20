@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
@@ -39,19 +48,19 @@ class RatesFilter implements FilterInterface
         helper('checkEndpoint');
 
         $throttler = service('throttler');
-        $request = Services::request();
-        $router = Services::router();
+        $request   = Services::request();
+        $router    = Services::router();
 
         $endpoint = checkEndpoint();
 
         if ($endpoint) {
-            $limit = ($endpoint->limit) ? $endpoint->limit : service('settings')->get('Auth.requestLimit');
-            $time = ($endpoint->time) ? $endpoint->time : service('settings')->get('Auth.timeLimit');
+            $limit = ($endpoint->limit) ?: service('settings')->get('Auth.requestLimit');
+            $time  = ($endpoint->time) ?: service('settings')->get('Auth.timeLimit');
         }
 
         switch (service('settings')->get('RestFul.limitMethod')) {
             case 'IP_ADDRESS':
-                $api_key = $request->getIPAddress();
+                $api_key     = $request->getIPAddress();
                 $limited_uri = 'ip-address:' . $request->getIPAddress();
                 break;
 
@@ -65,18 +74,17 @@ class RatesFilter implements FilterInterface
 
             case 'ROUTED_URL':
             default:
-                $limited_uri = 'uri:'.$request->getPath().':'.$request->getMethod(); // It's good to differentiate GET from PUT
+                $limited_uri = 'uri:' . $request->getPath() . ':' . $request->getMethod(); // It's good to differentiate GET from PUT
                 break;
         }
 
         $ignoreRates = false;
 
-        if($userId = auth()->id()) {
+        if ($userId = auth()->id()) {
             $ignoreLimits = auth()->user()->ignore_rates;
         }
 
-        if(!$ignoreLimits)
-        {
+        if (! $ignoreLimits) {
             // Restrict an IP address to no more than 10 requests
             // per minute on any auth-form pages (login, register, forgot, etc).
             if ($throttler->check(md5($limited_uri), $limit, $time, 1) === false) {

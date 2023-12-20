@@ -2,19 +2,22 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Authentication\Filters;
 
-use CodeIgniter\Config\Factories;
-use Daycry\Auth\Entities\User;
-use Daycry\Auth\Filters\GroupFilter;
-use Daycry\Auth\Models\UserModel;
 use Config\Services;
-use Daycry\Auth\Authentication\Authenticators\JWT;
-use Daycry\Auth\Entities\Group;
-use Daycry\Auth\Models\GroupModel;
-use Tests\Support\FilterTestCase;
-use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\AuthFilter;
+use Daycry\Auth\Models\UserModel;
+use Tests\Support\FilterTestCase;
 
 /**
  * @internal
@@ -22,7 +25,6 @@ use Daycry\Auth\Filters\AuthFilter;
 final class AuthAccessTokenFilterTest extends FilterTestCase
 {
     protected $namespace;
-
     protected string $alias       = 'auth';
     protected string $classname   = AuthFilter::class;
     protected string $routeFilter = 'auth:access_token';
@@ -53,7 +55,7 @@ final class AuthAccessTokenFilterTest extends FilterTestCase
         /** @var User $user */
         $user = fake(UserModel::class);
 
-       $token = $user->generateAccessToken('foo');
+        $token = $user->generateAccessToken('foo');
 
         $result = $this->withHeaders(['X-API-KEY' => $token->raw_token])
             ->get('protected-route');

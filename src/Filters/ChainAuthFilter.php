@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
@@ -43,9 +52,9 @@ class ChainAuthFilter implements FilterInterface
 
         helper('settings');
 
-        /** @var  Auth $config*/
+        /** @var Auth $config */
         $config = config(Auth::class);
-        $chain = $config->authenticationChain;
+        $chain  = $config->authenticationChain;
 
         foreach ($chain as $alias) {
             if (auth($alias)->loggedIn()) {
@@ -56,15 +65,14 @@ class ChainAuthFilter implements FilterInterface
             }
         }
 
-        if(auth()->getAuthenticator() instanceof Session)
-        {
+        if (auth()->getAuthenticator() instanceof Session) {
             return redirect()->route('login');
-        }else{
-            return service('response')->setStatusCode(
-                401,
-                lang('Auth.invalidUser')
-            );
         }
+
+        return service('response')->setStatusCode(
+            401,
+            lang('Auth.invalidUser')
+        );
     }
 
     /**

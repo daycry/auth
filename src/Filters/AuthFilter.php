@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
@@ -9,8 +18,8 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
-use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Interfaces\AuthenticatorInterface;
 
 /**
  * Authentication Filter.
@@ -29,18 +38,17 @@ class AuthFilter implements FilterInterface
         }
 
         $endpoint = checkEndpoint();
-        
+
         $alias = ($endpoint) ? $endpoint->auth : service('settings')->get('Auth.defaultAuthenticator');
         $alias = ($arguments) ? $arguments[0] : $alias;
 
-        /** @var  AuthenticatorInterface $authenticator */
+        /** @var AuthenticatorInterface $authenticator */
         $authenticator = auth($alias)->getAuthenticator();
 
         /** @var Auth $config */
         $config = config(Auth::class);
 
-        if($authenticator instanceof Session)
-        {
+        if ($authenticator instanceof Session) {
             if (auth($alias)->loggedIn()) {
                 if (setting('Auth.recordActiveDate')) {
                     $authenticator->recordActiveDate();
@@ -52,7 +60,7 @@ class AuthFilter implements FilterInterface
                 if ($user->isBanned()) {
                     $error = $user->getBanMessage() ?? lang('Auth.logOutBannedUser');
                     $authenticator->logout();
-    
+
                     return redirect()->to($config->logoutRedirect())
                         ->with('error', $error);
                 }
@@ -75,26 +83,24 @@ class AuthFilter implements FilterInterface
                 return redirect()->route('auth-action-show')
                     ->with('error', $authenticator->getPendingMessage());
             }
-    
+
             if (uri_string() !== route_to('login')) {
                 $session = session();
                 $session->setTempdata('beforeLoginUrl', current_url(), 300);
             }
-    
+
             return redirect()->route('login');
+        }
+        $result = $authenticator->attempt();
 
-        }else{
-            $result = $authenticator->attempt();
+        if (! $result->isOK()) {
+            return service('response')
+                ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
+                ->setJson(['message' => $result->reason()]);
+        }
 
-            if (! $result->isOK()) {
-                return service('response')
-                    ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
-                    ->setJson(['message' => $result->reason()]);
-            }
-    
-            if (setting('Auth.recordActiveDate')) {
-                $authenticator->recordActiveDate();
-            }
+        if (setting('Auth.recordActiveDate')) {
+            $authenticator->recordActiveDate();
         }
     }
 

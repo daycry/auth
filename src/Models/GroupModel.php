@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Database\ConnectionInterface;
-use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Entities\Group;
 
 class GroupModel extends BaseModel
@@ -24,7 +22,7 @@ class GroupModel extends BaseModel
     protected $returnType     = Group::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
-        'name'
+        'name',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';

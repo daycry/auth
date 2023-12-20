@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Entities;
 
 use CodeIgniter\Entity\Entity;
@@ -12,8 +21,7 @@ class Rate extends Entity
         'updated_at',
         'deleted_at',
     ];
-
     protected $casts = [
-        'count'           => 'integer'
+        'count' => 'integer',
     ];
 }

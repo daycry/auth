@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
@@ -31,9 +40,7 @@ abstract class AbstractAuthFilter implements FilterInterface
         }
 
         if (! auth()->loggedIn()) {
-            
-            if(auth()->getAuthenticator() instanceof Session)
-            {
+            if (auth()->getAuthenticator() instanceof Session) {
                 // Set the entrance url to redirect a user after successful login
                 if (uri_string() !== route_to('login')) {
                     $session = session();
@@ -41,12 +48,12 @@ abstract class AbstractAuthFilter implements FilterInterface
                 }
 
                 return redirect()->route('login');
-            }else{
-                return service('response')->setStatusCode(
-                    401,
-                    lang('Auth.invalidUser') // message
-                );
             }
+
+            return service('response')->setStatusCode(
+                401,
+                lang('Auth.invalidUser') // message
+            );
         }
 
         if ($this->isAuthorized($arguments)) {

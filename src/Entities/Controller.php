@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Entities;
 
 use Daycry\Auth\Models\EndpointModel;
@@ -20,15 +29,15 @@ class Controller extends Entity
         'created_at',
         'updated_at',
         'deleted_at',
-        'checked_at'
+        'checked_at',
     ];
 
     /**
      * @var array<string, string>
      */
     protected $casts = [
-        'id'          => '?integer',
-        'url'         => 'string'
+        'id'  => '?integer',
+        'url' => 'string',
     ];
 
     /**

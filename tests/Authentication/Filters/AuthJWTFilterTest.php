@@ -2,19 +2,22 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Authentication\Filters;
 
-use CodeIgniter\Config\Factories;
-use Daycry\Auth\Entities\User;
-use Daycry\Auth\Filters\GroupFilter;
-use Daycry\Auth\Models\UserModel;
 use Config\Services;
-use Daycry\Auth\Authentication\Authenticators\JWT;
-use Daycry\Auth\Entities\Group;
-use Daycry\Auth\Models\GroupModel;
-use Tests\Support\FilterTestCase;
-use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\AuthFilter;
+use Daycry\Auth\Models\UserModel;
+use Tests\Support\FilterTestCase;
 
 /**
  * @internal
@@ -22,7 +25,6 @@ use Daycry\Auth\Filters\AuthFilter;
 final class AuthJWTFilterTest extends FilterTestCase
 {
     protected $namespace;
-
     protected string $alias       = 'auth';
     protected string $classname   = AuthFilter::class;
     protected string $routeFilter = 'auth:jwt';
@@ -53,8 +55,8 @@ final class AuthJWTFilterTest extends FilterTestCase
         /** @var User $user */
         $user = fake(UserModel::class);
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
+        $jwt   = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt())->encode($user->id);
 
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->get('protected-route');
@@ -72,8 +74,8 @@ final class AuthJWTFilterTest extends FilterTestCase
         $user = fake(UserModel::class);
         $user->ban('banned');
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
+        $jwt   = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt())->encode($user->id);
 
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->get('protected-route');

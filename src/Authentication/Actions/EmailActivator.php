@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Authentication\Actions;
 
 use CodeIgniter\Exceptions\PageNotFoundException;
@@ -118,6 +127,7 @@ class EmailActivator implements ActionInterface
         // Success!
         /** @var Auth $config */
         $config = config('Auth');
+
         return redirect()->to($config->registerRedirect())
             ->with('message', lang('Auth.registerSuccess'));
     }

@@ -2,20 +2,23 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Authentication\Authenticators;
 
-use CodeIgniter\HTTP\IncomingRequest;
-use CodeIgniter\HTTP\RequestInterface;
-use CodeIgniter\I18n\Time;
-use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
 use Daycry\Exceptions\Exceptions\RuntimeException;
-use Daycry\JWT\JWT as JWTLibrary;
-use stdClass;
 
 /**
  * Stateless JWT Authenticator
@@ -71,8 +74,8 @@ class JWT extends Base implements AuthenticatorInterface
 
         // Check JWT
         try {
-            $jwt = service('settings')->get('Auth.jwtAdapter');
-            $this->payload = (new $jwt)->decode($credentials['token']);
+            $jwt           = service('settings')->get('Auth.jwtAdapter');
+            $this->payload = (new $jwt())->decode($credentials['token']);
         } catch (RuntimeException $e) {
             return new Result([
                 'success' => false,
@@ -88,7 +91,7 @@ class JWT extends Base implements AuthenticatorInterface
                 'reason'  => 'Invalid JWT: no user_id',
             ]);
         }
-        
+
         // Find User
         $user = $this->provider->findById($userId);
 
@@ -166,6 +169,7 @@ class JWT extends Base implements AuthenticatorInterface
     public function getLogCredentials(array $credentials): mixed
     {
         $this->authType = self::ID_TYPE_JWT;
+
         return $credentials['token'] ?? '';
     }
 

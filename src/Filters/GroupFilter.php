@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Daycry\Auth\Filters;
 
 use CodeIgniter\HTTP\RedirectResponse;
@@ -31,15 +40,14 @@ class GroupFilter extends AbstractAuthFilter
         /** @var Auth $config */
         $config = config('Auth');
 
-        if(auth()->getAuthenticator() instanceof Session)
-        {
+        if (auth()->getAuthenticator() instanceof Session) {
             return redirect()->to($config->groupDeniedRedirect())
                 ->with('error', lang('Auth.notEnoughPrivilege'));
-        }else{
-            return service('response')->setStatusCode(
-                401,
-                lang('Auth.notEnoughPrivilege') // message
-            );
         }
+
+        return service('response')->setStatusCode(
+            401,
+            lang('Auth.notEnoughPrivilege') // message
+        );
     }
 }

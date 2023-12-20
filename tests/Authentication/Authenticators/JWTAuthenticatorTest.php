@@ -2,11 +2,19 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Authentication\Authenticators;
 
 use CodeIgniter\Config\Services;
 use CodeIgniter\Test\Mock\MockEvents;
-use Daycry\Auth\Auth;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
@@ -119,7 +127,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
     public function testCheckNoSubToken(): void
     {
         $payload = null;
-        $token = (new DaycryJWTAdapter())->encode($payload);
+        $token   = (new DaycryJWTAdapter())->encode($payload);
 
         $result = $this->auth->check(['token' => $token]);
 

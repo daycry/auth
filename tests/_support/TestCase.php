@@ -2,15 +2,24 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Support;
 
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Test\CIUnitTestCase;
+use Config\Security;
 use Config\Services;
-use Daycry\Settings\Settings;
 use Daycry\Auth\Config\Auth;
 use Daycry\Settings\Config\Settings as SettingsConfig;
-use Config\Security;
+use Daycry\Settings\Settings;
 
 /**
  * @internal
@@ -38,7 +47,7 @@ abstract class TestCase extends CIUnitTestCase
         setting('Email.fromName', 'John Smith');
 
         // Clear any actions
-        /** @var  Auth $config */
+        /** @var Auth $config */
         $config          = config('Auth');
         $config->actions = ['login' => null, 'register' => null];
         Factories::injectMock('config', 'Auth', $config);

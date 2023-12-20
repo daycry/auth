@@ -80,7 +80,7 @@ class Auth extends BaseConfig
         'controllers'        => 'auth_controllers',
         'endpoints'          => 'auth_endpoints',
         'attempts'           => 'auth_attempts',
-        'rates'             => 'auth_rates',
+        'rates'              => 'auth_rates',
     ];
 
     /**
@@ -95,9 +95,9 @@ class Auth extends BaseConfig
      * @var array<string, class-string<AuthenticatorInterface>>
      */
     public array $authenticators = [
-        'access_token'  => AccessToken::class,
-        'session'       => Session::class,
-        'jwt'           => JWT::class
+        'access_token' => AccessToken::class,
+        'session'      => Session::class,
+        'jwt'          => JWT::class,
     ];
 
     public string $jwtAdapter = DaycryJWTAdapter::class;
@@ -155,7 +155,7 @@ class Auth extends BaseConfig
      * @see https://codeigniter4.github.io/shield/quick_start_guide/using_session_auth/#protecting-pages for set filters.
      */
     public bool $recordActiveDate = true;
-    
+
     /**
      * --------------------------------------------------------------------
      * Name of Authenticator Header
@@ -166,17 +166,39 @@ class Auth extends BaseConfig
      */
     public array $authenticatorHeader = [
         'access_token' => 'X-API-KEY',
-        'jwt'          => 'Authorization'
+        'jwt'          => 'Authorization',
     ];
 
     /**
-    *--------------------------------------------------------------------------
-    * Access Token
-    *--------------------------------------------------------------------------
-    */
+     *--------------------------------------------------------------------------
+     * Access Token
+     *--------------------------------------------------------------------------
+     */
     public bool $accessTokenEnabled = false;
+
     public int $unusedAccessTokenLifetime = YEAR;
-    public bool $strictApiAndAuth = false; // force the use of both api and auth before a valid api request is made
+    public bool $strictApiAndAuth         = false; // force the use of both api and auth before a valid api request is made
+
+    /**
+     * --------------------------------------------------------------------
+     * Allow Magic Link Logins
+     * --------------------------------------------------------------------
+     * If true, will allow the use of "magic links" sent via the email
+     * as a way to log a user in without the need for a password.
+     * By default, this is used in place of a password reset flow, but
+     * could be modified as the only method of login once an account
+     * has been set up.
+     */
+    public bool $allowMagicLinkLogins = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Magic Link Lifetime
+     * --------------------------------------------------------------------
+     * Specifies the amount of time, in seconds, that a magic link is valid.
+     * You can use Time Constants or any desired number.
+     */
+    public int $magicLinkLifetime = HOUR;
 
     /**
      * --------------------------------------------------------------------
@@ -198,7 +220,7 @@ class Auth extends BaseConfig
         'rememberCookieName' => 'remember',
         'rememberLength'     => 30 * DAY,
     ];
-    
+
     /**
      * --------------------------------------------------------------------
      * Authentication Actions
@@ -218,7 +240,6 @@ class Auth extends BaseConfig
         'register' => null,
         'login'    => null,
     ];
-
 
     /**
      * --------------------------------------------------------------------
@@ -261,7 +282,7 @@ class Auth extends BaseConfig
         'permission_denied' => '/',
         'group_denied'      => '/',
     ];
-    
+
     /**
      * --------------------------------------------------------------------
      * User Provider
@@ -291,8 +312,9 @@ class Auth extends BaseConfig
      * public string $restLimitsMethod = 'ROUTED_URL';  // Put a limit on the routed URL
      */
     public string $limitMethod = 'METHOD_NAME';
+
     public int $requestLimit = 10;
-    public int $timeLimit = MINUTE;
+    public int $timeLimit    = MINUTE;
 
     /**
      * --------------------------------------------------------------------
@@ -330,7 +352,7 @@ class Auth extends BaseConfig
             'valid_email',
         ],
     ];
-    
+
     /**
      * --------------------------------------------------------------------
      * Minimum Password Length

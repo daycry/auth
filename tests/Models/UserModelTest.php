@@ -2,20 +2,22 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Models;
 
 use CodeIgniter\Database\Exceptions\DataException;
-use CodeIgniter\I18n\Time;
-use Daycry\Auth\Authentication\Authenticators\Session;
-use Daycry\Auth\Entities\Login;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Entities\UserIdentity;
-use Daycry\Auth\Models\LoginModel;
-use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Exceptions\Exceptions\LogicException;
 use Tests\Support\DatabaseTestCase;
-use Tests\Support\FakeUser;
 
 /**
  * @internal

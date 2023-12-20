@@ -22,6 +22,7 @@ use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Exceptions\SecurityException;
+use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserModel;
@@ -65,7 +66,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->method = self::ID_TYPE_USERNAME;
 
-        $this->rememberModel     = model(RememberModel::class);
+        $this->rememberModel = model(RememberModel::class);
 
         parent::__construct($provider);
 
@@ -197,6 +198,21 @@ class Session extends Base implements AuthenticatorInterface
     }
 
     /**
+     * Returns an action object from the session data
+     */
+    public function getAction(): ?ActionInterface
+    {
+        /** @var class-string<ActionInterface>|null $actionClass */
+        $actionClass = $this->getSessionKey('auth_action');
+
+        if ($actionClass === null) {
+            return null;
+        }
+
+        return Factories::actions($actionClass); // @phpstan-ignore-line
+    }
+
+    /**
      * Check token in Action
      *
      * @param string $token Token to check
@@ -276,8 +292,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->user = $user;
 
-        if($actions)
-        {
+        if ($actions) {
             // Update the user's last used date on their password identity.
             $user->touchIdentity($user->getEmailIdentity());
 
@@ -294,7 +309,7 @@ class Session extends Base implements AuthenticatorInterface
             if (! $this->hasAction()) {
                 $this->completeLogin($user);
             }
-        }else{
+        } else {
             // Check identities for actions
             if ($this->getIdentitiesForAction($user) !== []) {
                 throw new LogicException(
@@ -864,7 +879,6 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         $field = array_pop($field);
-
 
         if (! in_array($field, ['email', 'username'], true)) {
             $this->authType = $field;

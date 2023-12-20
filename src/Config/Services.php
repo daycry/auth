@@ -14,12 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Config;
 
 use CodeIgniter\Config\BaseService;
-use Daycry\Auth\Libraries\IncomingRequest;
 use CodeIgniter\HTTP\UserAgent;
 use Config\App;
 use Daycry\Auth\Auth;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Libraries\IncomingRequest;
 
 class Services extends BaseService
 {

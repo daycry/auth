@@ -25,7 +25,7 @@ class PermissionUserModel extends BaseModel
     protected $allowedFields  = [
         'user_id',
         'permission_id',
-        'until_at'
+        'until_at',
     ];
     protected $useTimestamps      = false;
     protected $validationRules    = [];

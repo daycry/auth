@@ -13,11 +13,9 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Database\ConnectionInterface;
 use CodeIgniter\I18n\Time;
-use CodeIgniter\Validation\ValidationInterface;
-use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\GroupUser;
+use Daycry\Auth\Entities\User;
 
 class GroupUserModel extends BaseModel
 {
@@ -28,7 +26,7 @@ class GroupUserModel extends BaseModel
     protected $allowedFields  = [
         'user_id',
         'group_id',
-        'until_at'
+        'until_at',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';

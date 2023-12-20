@@ -57,11 +57,11 @@ class CreateCoreTables extends Migration
 
         // Users Table
         $this->forge->addField([
-            'id'             => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
             'name'       => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
-            'created_at'     => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
-            'updated_at'     => ['type' => 'datetime', 'null' => true],
-            'deleted_at'     => ['type' => 'datetime', 'null' => true],
+            'created_at' => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
+            'updated_at' => ['type' => 'datetime', 'null' => true],
+            'deleted_at' => ['type' => 'datetime', 'null' => true],
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('name');
@@ -69,13 +69,13 @@ class CreateCoreTables extends Migration
 
         // Users Permissions Table
         $this->forge->addField([
-            'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
-            'user_id'    => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
+            'id'            => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'user_id'       => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
             'permission_id' => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
-            'until_at'   => ['type' => 'datetime', 'null' => true],
-            'created_at' => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
-            'updated_at' => ['type' => 'datetime', 'null' => true],
-            'deleted_at' => ['type' => 'datetime', 'null' => true],
+            'until_at'      => ['type' => 'datetime', 'null' => true],
+            'created_at'    => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
+            'updated_at'    => ['type' => 'datetime', 'null' => true],
+            'deleted_at'    => ['type' => 'datetime', 'null' => true],
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addForeignKey('user_id', $this->tables['users'], 'id', '', 'CASCADE');
@@ -87,22 +87,22 @@ class CreateCoreTables extends Migration
          * Used for storage of passwords, access tokens.
          */
         $this->forge->addField([
-            'id'            => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
-            'user_id'       => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
-            'type'          => ['type' => 'varchar', 'constraint' => 255],
-            'name'          => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
-            'secret'        => ['type' => 'varchar', 'constraint' => 255],
-            'secret2'       => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
-            'extra'         => ['type' => 'text', 'null' => true],
-            'expires'       => ['type' => 'datetime', 'null' => true, 'default' => null],
-            'force_reset'   => ['type' => 'tinyint', 'constraint' => 1, 'default' => 0],
+            'id'           => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'user_id'      => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
+            'type'         => ['type' => 'varchar', 'constraint' => 255],
+            'name'         => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
+            'secret'       => ['type' => 'varchar', 'constraint' => 255],
+            'secret2'      => ['type' => 'varchar', 'constraint' => 255, 'null' => true],
+            'extra'        => ['type' => 'text', 'null' => true],
+            'expires'      => ['type' => 'datetime', 'null' => true, 'default' => null],
+            'force_reset'  => ['type' => 'tinyint', 'constraint' => 1, 'default' => 0],
             'ignore_rates' => ['type' => 'tinyint', 'constraint' => 1, 'null' => false, 'default' => 0],
-            'is_private'    => ['type' => 'tinyint', 'constraint' => 1, 'null' => false, 'default' => 0],
-            'ip_addresses'  => ['type' => 'text', 'null' => true, 'default' => null],
-            'last_used_at'  => ['type' => 'datetime', 'null' => true],
-            'created_at'    => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
-            'updated_at'    => ['type' => 'datetime', 'null' => true],
-            'deleted_at'    => ['type' => 'datetime', 'null' => true],
+            'is_private'   => ['type' => 'tinyint', 'constraint' => 1, 'null' => false, 'default' => 0],
+            'ip_addresses' => ['type' => 'text', 'null' => true, 'default' => null],
+            'last_used_at' => ['type' => 'datetime', 'null' => true],
+            'created_at'   => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
+            'updated_at'   => ['type' => 'datetime', 'null' => true],
+            'deleted_at'   => ['type' => 'datetime', 'null' => true],
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['type', 'secret']);
@@ -147,12 +147,12 @@ class CreateCoreTables extends Migration
 
         // Groups Table
         $this->forge->addField([
-            'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
-            'name'       => ['type' => 'varchar', 'constraint' => 30, 'null' => true],
-            'description'=> ['type' => 'text', 'null' => true],
-            'created_at' => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
-            'updated_at' => ['type' => 'datetime', 'null' => true],
-            'deleted_at' => ['type' => 'datetime', 'null' => true],
+            'id'          => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'name'        => ['type' => 'varchar', 'constraint' => 30, 'null' => true],
+            'description' => ['type' => 'text', 'null' => true],
+            'created_at'  => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
+            'updated_at'  => ['type' => 'datetime', 'null' => true],
+            'deleted_at'  => ['type' => 'datetime', 'null' => true],
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('name');
@@ -160,13 +160,13 @@ class CreateCoreTables extends Migration
 
         // Groups Permissions Table
         $this->forge->addField([
-            'id'         => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
-            'group_id'   => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
-            'permission_id'   => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
-            'until_at'   => ['type' => 'datetime', 'null' => true],
-            'created_at' => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
-            'updated_at' => ['type' => 'datetime', 'null' => true],
-            'deleted_at' => ['type' => 'datetime', 'null' => true],
+            'id'            => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'group_id'      => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
+            'permission_id' => ['type' => 'int', 'constraint' => 11, 'unsigned' => true],
+            'until_at'      => ['type' => 'datetime', 'null' => true],
+            'created_at'    => ['type' => 'datetime', 'null' => false, 'default' => new RawSql('CURRENT_TIMESTAMP')],
+            'updated_at'    => ['type' => 'datetime', 'null' => true],
+            'deleted_at'    => ['type' => 'datetime', 'null' => true],
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addForeignKey('group_id', $this->tables['groups'], 'id', '', 'CASCADE');
