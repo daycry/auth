@@ -62,11 +62,11 @@ class LoginModel extends BaseModel
      */
     public function recordLoginAttempt(
         string $idType,
-        string $identifier,
+        ?string $identifier,
         bool $success,
         ?string $ipAddress = null,
         ?string $userAgent = null,
-        $userId = null
+        ?int $userId = null
     ): void {
         $this->disableDBDebug();
 

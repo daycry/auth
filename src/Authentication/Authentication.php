@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Authentication;
 
 use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Models\UserModel;
 

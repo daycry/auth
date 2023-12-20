@@ -30,7 +30,6 @@ class Group extends Entity
      * @var array<string, string>
      */
     protected $casts = [
-        'id'     => '?integer',
-        'scopes' => 'serialize',
+        'id' => '?integer',
     ];
 }

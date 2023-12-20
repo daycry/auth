@@ -28,6 +28,11 @@ class AuthenticationException extends RuntimeException
         return new self(lang('Auth.unknownAuthenticator', [$alias]));
     }
 
+    public static function forInvalidLibraryImplementation(): self
+    {
+        return new self(lang('RestFul.invalidLibraryImplementation'));
+    }
+
     public static function forUnknownUserProvider(): self
     {
         return new self(lang('Auth.unknownUserProvider'));

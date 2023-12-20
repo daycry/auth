@@ -14,9 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Config;
 
 use CodeIgniter\Config\BaseService;
+use CodeIgniter\HTTP\UserAgent;
+use Config\App;
 use Daycry\Auth\Auth;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Libraries\IncomingRequest;
 
 class Services extends BaseService
 {
@@ -45,5 +48,28 @@ class Services extends BaseService
         }
 
         return new Passwords(config('Auth'));
+    }
+
+    /**
+     * The IncomingRequest class models an HTTP request.
+     *
+     * @return IncomingRequest
+     *
+     * @internal
+     */
+    public static function incomingrequest(?App $config = null, bool $getShared = true)
+    {
+        if ($getShared) {
+            return static::getSharedInstance('request', $config);
+        }
+
+        $config ??= config('App');
+
+        return new IncomingRequest(
+            $config,
+            self::uri(),
+            'php://input',
+            new UserAgent()
+        );
     }
 }

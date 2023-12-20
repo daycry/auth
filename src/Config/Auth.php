@@ -15,7 +15,9 @@ namespace Daycry\Auth\Config;
 
 use CodeIgniter\Config\BaseConfig;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
+use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
 use Daycry\Auth\Authentication\Passwords\CompositionValidator;
 use Daycry\Auth\Authentication\Passwords\DictionaryValidator;
 use Daycry\Auth\Authentication\Passwords\NothingPersonalValidator;
@@ -33,6 +35,8 @@ class Auth extends BaseConfig
     public const RECORD_LOGIN_ATTEMPT_NONE    = 0; // Do not record at all
     public const RECORD_LOGIN_ATTEMPT_FAILURE = 1; // Record only failures
     public const RECORD_LOGIN_ATTEMPT_ALL     = 2; // Record all login attempts
+
+    public int $recordLoginAttempt = Auth::RECORD_LOGIN_ATTEMPT_ALL;
 
     /**
      * --------------------------------------------------------------------
@@ -63,10 +67,10 @@ class Auth extends BaseConfig
      */
     public array $tables = [
         'users'              => 'users',
+        'permissions'        => 'auth_permissions',
         'permissions_users'  => 'auth_permissions_users',
         'identities'         => 'auth_identities',
         'logins'             => 'auth_logins',
-        'token_logins'       => 'auth_token_logins',
         'remember_tokens'    => 'auth_remember_tokens',
         'groups'             => 'auth_groups',
         'permissions_groups' => 'auth_permissions_groups',
@@ -76,7 +80,7 @@ class Auth extends BaseConfig
         'controllers'        => 'auth_controllers',
         'endpoints'          => 'auth_endpoints',
         'attempts'           => 'auth_attempts',
-        'limits'             => 'auth_limits',
+        'rates'              => 'auth_rates',
     ];
 
     /**
@@ -91,9 +95,12 @@ class Auth extends BaseConfig
      * @var array<string, class-string<AuthenticatorInterface>>
      */
     public array $authenticators = [
-        'tokens'  => AccessToken::class,
-        'session' => Session::class,
+        'access_token' => AccessToken::class,
+        'session'      => Session::class,
+        'jwt'          => JWT::class,
     ];
+
+    public string $jwtAdapter = DaycryJWTAdapter::class;
 
     /**
      * --------------------------------------------------------------------
@@ -106,6 +113,116 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Default Group
+     * --------------------------------------------------------------------
+     * The group that a newly registered user is added to.
+     */
+    public string $defaultGroup = 'user';
+
+    /**
+     * --------------------------------------------------------------------
+     * Authentication Chain
+     * --------------------------------------------------------------------
+     * The Authenticators to test logged in status against
+     * when using the 'chain' filter. Each Authenticator listed will be checked.
+     * If no match is found, then the next in the chain will be checked.
+     *
+     * @var string[]
+     * @phpstan-var list<string>
+     */
+    public array $authenticationChain = [
+        'session',
+        'access_token',
+        'jwt',
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Allow Registration
+     * --------------------------------------------------------------------
+     * Determines whether users can register for the site.
+     */
+    public bool $allowRegistration = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Record Last Active Date
+     * --------------------------------------------------------------------
+     * If true, will always update the `last_active` datetime for the
+     * logged-in user on every page request.
+     * This feature only works when session/tokens filter is active.
+     *
+     * @see https://codeigniter4.github.io/shield/quick_start_guide/using_session_auth/#protecting-pages for set filters.
+     */
+    public bool $recordActiveDate = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Name of Authenticator Header
+     * --------------------------------------------------------------------
+     * The name of Header that the Authorization token should be found.
+     * According to the specs, this should be `Authorization`, but rare
+     * circumstances might need a different header.
+     */
+    public array $authenticatorHeader = [
+        'access_token' => 'X-API-KEY',
+        'jwt'          => 'Authorization',
+    ];
+
+    /**
+     *--------------------------------------------------------------------------
+     * Access Token
+     *--------------------------------------------------------------------------
+     */
+    public bool $accessTokenEnabled = false;
+
+    public int $unusedAccessTokenLifetime = YEAR;
+    public bool $strictApiAndAuth         = false; // force the use of both api and auth before a valid api request is made
+
+    /**
+     * --------------------------------------------------------------------
+     * Allow Magic Link Logins
+     * --------------------------------------------------------------------
+     * If true, will allow the use of "magic links" sent via the email
+     * as a way to log a user in without the need for a password.
+     * By default, this is used in place of a password reset flow, but
+     * could be modified as the only method of login once an account
+     * has been set up.
+     */
+    public bool $allowMagicLinkLogins = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Magic Link Lifetime
+     * --------------------------------------------------------------------
+     * Specifies the amount of time, in seconds, that a magic link is valid.
+     * You can use Time Constants or any desired number.
+     */
+    public int $magicLinkLifetime = HOUR;
+
+    /**
+     * --------------------------------------------------------------------
+     * Session Authenticator Configuration
+     * --------------------------------------------------------------------
+     * These settings only apply if you are using the Session Authenticator
+     * for authentication.
+     *
+     * - field                  The name of the key the current user info is stored in session
+     * - allowRemembering       Does the system allow use of "remember-me"
+     * - rememberCookieName     The name of the cookie to use for "remember-me"
+     * - rememberLength         The length of time, in seconds, to remember a user.
+     *
+     * @var array<string, bool|int|string>
+     */
+    public array $sessionConfig = [
+        'field'              => 'user',
+        'allowRemembering'   => true,
+        'rememberCookieName' => 'remember',
+        'rememberLength'     => 30 * DAY,
+    ];
+
+    /**
+     * --------------------------------------------------------------------
      * Authentication Actions
      * --------------------------------------------------------------------
      * Specifies the class that represents an action to take after
@@ -113,15 +230,57 @@ class Auth extends BaseConfig
      *
      * You must register actions in the order of the actions to be performed.
      *
-     * Available actions with Shield:
-     * - register: \CodeIgniter\Shield\Authentication\Actions\EmailActivator::class
-     * - login:    \CodeIgniter\Shield\Authentication\Actions\Email2FA::class
+     * Available actions with Auth:
+     * - register: \Daycry\Auth\Authentication\Actions\EmailActivator::class
+     * - login:    \Daycry\Auth\Authentication\Actions\Email2FA::class
      *
      * @var array<string, class-string<ActionInterface>|null>
      */
     public array $actions = [
         'register' => null,
         'login'    => null,
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * View files
+     * --------------------------------------------------------------------
+     */
+    public array $views = [
+        'login'                       => '\Daycry\Auth\Views\login',
+        'register'                    => '\Daycry\Auth\Views\register',
+        'layout'                      => '\Daycry\Auth\Views\layout',
+        'action_email_2fa'            => '\Daycry\Auth\Views\email_2fa_show',
+        'action_email_2fa_verify'     => '\Daycry\Auth\Views\email_2fa_verify',
+        'action_email_2fa_email'      => '\Daycry\Auth\Views\Email\email_2fa_email',
+        'action_email_activate_show'  => '\Daycry\Auth\Views\email_activate_show',
+        'action_email_activate_email' => '\Daycry\Auth\Views\Email\email_activate_email',
+        'magic-link-login'            => '\Daycry\Auth\Views\magic_link_form',
+        'magic-link-message'          => '\Daycry\Auth\Views\magic_link_message',
+        'magic-link-email'            => '\Daycry\Auth\Views\Email\magic_link_email',
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Redirect URLs
+     * --------------------------------------------------------------------
+     * The default URL that a user will be redirected to after various auth
+     * actions. This can be either of the following:
+     *
+     * 1. An absolute URL. E.g. http://example.com OR https://example.com
+     * 2. A named route that can be accessed using `route_to()` or `url_to()`
+     * 3. A URI path within the application. e.g 'admin', 'login', 'expath'
+     *
+     * If you need more flexibility you can override the `getUrl()` method
+     * to apply any logic you may need.
+     */
+    public array $redirects = [
+        'register'          => '/',
+        'login'             => '/',
+        'logout'            => 'login',
+        'force_reset'       => '/',
+        'permission_denied' => '/',
+        'group_denied'      => '/',
     ];
 
     /**
@@ -137,6 +296,62 @@ class Auth extends BaseConfig
      * @var class-string<UserModel>
      */
     public string $userProvider = UserModel::class;
+
+    /**
+     *--------------------------------------------------------------------------
+     * Rates Control
+     * --------------------------------------------------------------------------
+     * When set to TRUE, the REST API will count the number of uses of each method
+     * by an API key each hour. This is a general rule that can be overridden in the
+     * $this->method array in each controller
+     *
+     * Available methods are :
+     * public string $restLimitsMethod = 'IP_ADDRESS'; // Put a limit per ip address
+     * public string $restLimitsMethod = 'USER'; // Put a limit per user
+     * public string $restLimitsMethod = 'METHOD_NAME'; // Put a limit on method calls
+     * public string $restLimitsMethod = 'ROUTED_URL';  // Put a limit on the routed URL
+     */
+    public string $limitMethod = 'METHOD_NAME';
+
+    public int $requestLimit = 10;
+    public int $timeLimit    = MINUTE;
+
+    /**
+     * --------------------------------------------------------------------
+     * The validation rules for username
+     * --------------------------------------------------------------------
+     *
+     * Do not use string rules like `required|valid_email`.
+     *
+     * @var array<string, array<int, string>|string>
+     */
+    public array $usernameValidationRules = [
+        'label' => 'Auth.username',
+        'rules' => [
+            'required',
+            'max_length[30]',
+            'min_length[3]',
+            'regex_match[/\A[a-zA-Z0-9\.]+\z/]',
+        ],
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * The validation rules for email
+     * --------------------------------------------------------------------
+     *
+     * Do not use string rules like `required|valid_email`.
+     *
+     * @var array<string, array<int, string>|string>
+     */
+    public array $emailValidationRules = [
+        'label' => 'Auth.email',
+        'rules' => [
+            'required',
+            'max_length[254]',
+            'valid_email',
+        ],
+    ];
 
     /**
      * --------------------------------------------------------------------
@@ -275,4 +490,100 @@ class Auth extends BaseConfig
      * @deprecated This is only for backward compatibility.
      */
     public bool $supportOldDangerousPassword = false;
+
+    /**
+     * Returns the URL that a user should be redirected
+     * to after a successful login.
+     */
+    public function loginRedirect(): string
+    {
+        $session = session();
+        $url     = $session->getTempdata('beforeLoginUrl') ?? setting('Auth.redirects')['login'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL that a user should be redirected
+     * to after they are logged out.
+     */
+    public function logoutRedirect(): string
+    {
+        $url = setting('Auth.redirects')['logout'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * after a successful registration.
+     */
+    public function registerRedirect(): string
+    {
+        $url = setting('Auth.redirects')['register'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * if force_reset identity is set to true.
+     */
+    public function forcePasswordResetRedirect(): string
+    {
+        $url = setting('Auth.redirects')['force_reset'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * if permission denied.
+     */
+    public function permissionDeniedRedirect(): string
+    {
+        $url = setting('Auth.redirects')['permission_denied'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Returns the URL the user should be redirected to
+     * if group denied.
+     */
+    public function groupDeniedRedirect(): string
+    {
+        $url = setting('Auth.redirects')['group_denied'];
+
+        return $this->getUrl($url);
+    }
+
+    /**
+     * Accepts a string which can be an absolute URL or
+     * a named route or just a URI path, and returns the
+     * full path.
+     *
+     * @param string $url an absolute URL or a named route or just URI path
+     */
+    protected function getUrl(string $url): string
+    {
+        // To accommodate all url patterns
+        $final_url = '';
+
+        switch (true) {
+            case strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0: // URL begins with 'http' or 'https'. E.g. http://example.com
+                $final_url = $url;
+                break;
+
+            case route_to($url) !== false: // URL is a named-route
+                $final_url = rtrim(url_to($url), '/ ');
+                break;
+
+            default: // URL is a route (URI path)
+                $final_url = rtrim(site_url($url), '/ ');
+                break;
+        }
+
+        return $final_url;
+    }
 }

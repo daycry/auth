@@ -15,7 +15,10 @@ namespace Tests\Support;
 
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Test\CIUnitTestCase;
+use Config\Security;
 use Config\Services;
+use Daycry\Auth\Config\Auth;
+use Daycry\Settings\Config\Settings as SettingsConfig;
 use Daycry\Settings\Settings;
 
 /**
@@ -30,6 +33,7 @@ abstract class TestCase extends CIUnitTestCase
         parent::setUp();
 
         // Use Array Settings Handler
+        /** @var SettingsConfig $configSettings */
         $configSettings           = config('Settings');
         $configSettings->handlers = ['array'];
         $settings                 = new Settings($configSettings);
@@ -43,13 +47,26 @@ abstract class TestCase extends CIUnitTestCase
         setting('Email.fromName', 'John Smith');
 
         // Clear any actions
+        /** @var Auth $config */
         $config          = config('Auth');
         $config->actions = ['login' => null, 'register' => null];
         Factories::injectMock('config', 'Auth', $config);
 
         // Set Config\Security::$csrfProtection to 'session'
+        /** @var Security $config */
         $config                 = config('Security');
         $config->csrfProtection = 'session';
         Factories::injectMock('config', 'Security', $config);
+    }
+
+    protected function inkectMockAttributes(array $attributes = [])
+    {
+        $config = config(Auth::class);
+
+        foreach ($attributes as $attribute => $value) {
+            $config->{$attribute} = $value;
+        }
+
+        Factories::injectMock('config', 'Auth', $config);
     }
 }

@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Database\ConnectionInterface;
-use CodeIgniter\Validation\ValidationInterface;
 use Daycry\Auth\Entities\Group;
 
 class GroupModel extends BaseModel
@@ -25,16 +23,15 @@ class GroupModel extends BaseModel
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
         'name',
-        'scopes',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
     protected $deletedField  = 'deleted_at';
 
-    public function __construct(?ConnectionInterface &$db = null, ?ValidationInterface $validation = null)
+    protected function initialize(): void
     {
-        parent::__construct($db, $validation);
+        parent::initialize();
 
         $this->table = $this->tables['groups'];
     }
@@ -44,7 +41,7 @@ class GroupModel extends BaseModel
      *
      * @return Group[]
      */
-    public function getGroupsByIds(array $groupIds): array
+    public function getByIds(array $groupIds): array
     {
         return $this->whereIn('id', $groupIds)->orderBy($this->primaryKey)->findAll();
     }

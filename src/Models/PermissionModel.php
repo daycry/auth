@@ -13,17 +13,15 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\Permission;
 
 class PermissionModel extends BaseModel
 {
     protected $primaryKey     = 'id';
-    protected $returnType     = 'array';
+    protected $returnType     = Permission::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
-        'user_id',
-        'permission',
-        'until_at',
+        'name',
         'created_at',
     ];
     protected $useTimestamps      = false;
@@ -35,43 +33,16 @@ class PermissionModel extends BaseModel
     {
         parent::initialize();
 
-        $this->table = $this->tables['permissions_users'];
-    }
-
-    public function getForUser(User $user): array
-    {
-        $rows = $this->builder()
-            ->select('permission')
-            ->where('user_id', $user->id)
-            ->get()
-            ->getResultArray();
-
-        return array_column($rows, 'permission');
+        $this->table = $this->tables['permissions'];
     }
 
     /**
-     * @param int|string $userId
+     * @param int[]|string[] $permissionIds
+     *
+     * @return Permission[]
      */
-    public function deleteAll($userId): void
+    public function getByIds(array $permissionIds): array
     {
-        $return = $this->builder()
-            ->where('user_id', $userId)
-            ->delete();
-
-        $this->checkQueryReturn($return);
-    }
-
-    /**
-     * @param int|string $userId
-     * @param mixed      $cache
-     */
-    public function deleteNotIn($userId, $cache): void
-    {
-        $return = $this->builder()
-            ->where('user_id', $userId)
-            ->whereNotIn('permission', $cache)
-            ->delete();
-
-        $this->checkQueryReturn($return);
+        return $this->whereIn('id', $permissionIds)->orderBy($this->primaryKey)->findAll();
     }
 }

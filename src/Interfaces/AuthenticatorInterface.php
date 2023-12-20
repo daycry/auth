@@ -24,13 +24,13 @@ interface AuthenticatorInterface
      *
      * @throws AuthenticationException
      */
-    public function attempt(array $credentials): Result;
+    public function attempt(array $credentials = []): Result;
 
     /**
      * Checks a user's $credentials to see if they match an
      * existing user.
      */
-    public function check(array $credentials): Result;
+    public function check(array $credentials = []): Result;
 
     /**
      * Checks if the user is currently logged in.
@@ -43,7 +43,7 @@ interface AuthenticatorInterface
      *
      * @see https://codeigniter4.github.io/CodeIgniter4/extending/authentication.html
      */
-    public function login(User $user): void;
+    public function login(User $user, bool $actions = true): void;
 
     /**
      * Logs a user in based on their ID.
@@ -72,4 +72,9 @@ interface AuthenticatorInterface
      * Updates the user's last active date.
      */
     public function recordActiveDate(): void;
+
+    /**
+     * Get Credentials for log.
+     */
+    public function getLogCredentials(array $credentials): mixed;
 }
