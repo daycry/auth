@@ -22,7 +22,7 @@ abstract class AbstractAuthFilter implements FilterInterface
      *
      * @param array|null $arguments
      *
-     * @return RedirectResponse|void
+     * @return RedirectResponse|Response|void
      */
     public function before(RequestInterface $request, $arguments = null)
     {
@@ -47,7 +47,6 @@ abstract class AbstractAuthFilter implements FilterInterface
                     lang('Auth.invalidUser') // message
                 );
             }
-            
         }
 
         if ($this->isAuthorized($arguments)) {

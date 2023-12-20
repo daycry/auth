@@ -19,13 +19,13 @@ use Daycry\Auth\Filters\AuthFilter;
 /**
  * @internal
  */
-final class AuthJWTFilterTest extends FilterTestCase
+final class AuthAccessTokenFilterTest extends FilterTestCase
 {
     protected $namespace;
 
     protected string $alias       = 'auth';
     protected string $classname   = AuthFilter::class;
-    protected string $routeFilter = 'auth:jwt';
+    protected string $routeFilter = 'auth:access_token';
 
     protected function setUp(): void
     {
@@ -53,17 +53,16 @@ final class AuthJWTFilterTest extends FilterTestCase
         /** @var User $user */
         $user = fake(UserModel::class);
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
+       $token = $user->generateAccessToken('foo');
 
-        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+        $result = $this->withHeaders(['X-API-KEY' => $token->raw_token])
             ->get('protected-route');
 
         $result->assertStatus(200);
         $result->assertSee('Protected');
 
-        $this->assertSame($user->id, auth('jwt')->id());
-        $this->assertSame($user->id, auth('jwt')->user()->id);
+        $this->assertSame($user->id, auth('access_token')->id());
+        $this->assertSame($user->id, auth('access_token')->user()->id);
     }
 
     public function testFilterBanned(): void
@@ -72,14 +71,13 @@ final class AuthJWTFilterTest extends FilterTestCase
         $user = fake(UserModel::class);
         $user->ban('banned');
 
-        $jwt = service('settings')->get('Auth.jwtAdapter');
-        $token = (new $jwt)->encode($user->id);
+        $token = $user->generateAccessToken('foo');
 
-        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+        $result = $this->withHeaders(['X-API-KEY' => $token->raw_token])
             ->get('protected-route');
 
         $result->assertStatus(401);
 
-        $this->assertNull(auth('jwt')->id());
+        $this->assertNull(auth('access_token')->id());
     }
 }

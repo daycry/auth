@@ -28,13 +28,14 @@ final class AuthSessionFilterTest extends FilterTestCase
 
     protected $namespace;
 
+    protected string $alias       = 'auth';
+    protected string $classname   = AuthFilter::class;
+    protected string $routeFilter = 'auth:session';
+
     protected function setUp(): void
     {
         Services::reset(true);
 
-        $this->alias = 'auth:session';
-        $this->classname = AuthFilter::class;
-        
         parent::setUp();
 
         $_SESSION = [];
