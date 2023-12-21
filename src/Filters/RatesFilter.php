@@ -53,9 +53,12 @@ class RatesFilter implements FilterInterface
 
         $endpoint = checkEndpoint();
 
+        $limit = service('settings')->get('Auth.requestLimit');
+        $time  = service('settings')->get('Auth.timeLimit');
+
         if ($endpoint) {
-            $limit = ($endpoint->limit) ?: service('settings')->get('Auth.requestLimit');
-            $time  = ($endpoint->time) ?: service('settings')->get('Auth.timeLimit');
+            $limit = ($endpoint->limit) ?: $limit;
+            $time  = ($endpoint->time) ?: $time;
         }
 
         switch (service('settings')->get('RestFul.limitMethod')) {

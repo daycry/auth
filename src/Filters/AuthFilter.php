@@ -39,8 +39,8 @@ class AuthFilter implements FilterInterface
 
         $endpoint = checkEndpoint();
 
-        $alias = ($endpoint) ? $endpoint->auth : service('settings')->get('Auth.defaultAuthenticator');
-        $alias = ($arguments) ? $arguments[0] : $alias;
+        $alias = ($arguments) ? $arguments[0] : service('settings')->get('Auth.defaultAuthenticator');
+        $alias = ($endpoint && $endpoint->auth) ? $endpoint->auth : $alias;
 
         /** @var AuthenticatorInterface $authenticator */
         $authenticator = auth($alias)->getAuthenticator();

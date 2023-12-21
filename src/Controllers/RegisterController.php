@@ -21,7 +21,9 @@ use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\ValidationException;
+use Daycry\Auth\Interfaces\AuthController;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Auth\Traits\Viewable;
 use Daycry\Auth\Validation\ValidationRules;
 use Psr\Log\LoggerInterface;
@@ -32,8 +34,9 @@ use Psr\Log\LoggerInterface;
  * Handles displaying registration form,
  * and handling actual registration flow.
  */
-class RegisterController extends BaseController
+class RegisterController extends BaseController implements AuthController
 {
+    use BaseControllerTrait;
     use Viewable;
 
     public function initController(

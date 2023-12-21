@@ -17,7 +17,8 @@ use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class AuthorizationException extends RuntimeException
 {
-    protected $code = 401;
+    public static $authorized = true;
+    protected $code           = 401;
 
     public static function forUnknownGroup(string $group): self
     {
@@ -31,6 +32,8 @@ class AuthorizationException extends RuntimeException
 
     public static function forUnauthorized(): self
     {
+        self::$authorized = false;
+
         return new self(lang('Auth.notEnoughPrivilege'));
     }
 }

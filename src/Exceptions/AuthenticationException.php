@@ -18,7 +18,8 @@ use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class AuthenticationException extends RuntimeException
 {
-    protected $code = 403;
+    public static $authorized = true;
+    protected $code           = 403;
 
     /**
      * @param string $alias Authenticator alias
@@ -40,11 +41,15 @@ class AuthenticationException extends RuntimeException
 
     public static function forInvalidUser(): self
     {
+        self::$authorized = false;
+
         return new self(lang('Auth.invalidUser'));
     }
 
     public static function forBannedUser(): self
     {
+        self::$authorized = false;
+
         return new self(lang('Auth.invalidUser'));
     }
 

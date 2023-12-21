@@ -1,0 +1,42 @@
+<?php
+
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
+namespace Daycry\Auth\Exceptions;
+
+use Daycry\Exceptions\Exceptions\RuntimeException;
+
+class FailTooManyRequestsException extends RuntimeException
+{
+    protected $code           = 429;
+    public static $authorized = true;
+
+    public static function forApiKeyLimit(string $key)
+    {
+        self::$authorized = false;
+        $parser           = \Config\Services::parser();
+
+        return new self($parser->setData(['key' => $key])->renderString(lang('Rest.textRestApiKeyTimeLimit')));
+    }
+
+    public static function forInvalidAttemptsLimit()
+    {
+        self::$authorized = false;
+
+        return new self(lang('RestFul.invalidAttemptsLimit'));
+    }
+
+    public static function forIpAddressTimeLimit()
+    {
+        self::$authorized = false;
+
+        return new self(lang('RestFul.textRestIpAddressTimeLimit'));
+    }
+}
