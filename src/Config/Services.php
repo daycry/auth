@@ -20,6 +20,7 @@ use Daycry\Auth\Auth;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Libraries\IncomingRequest;
+use Daycry\Auth\Libraries\Logger;
 
 class Services extends BaseService
 {
@@ -71,5 +72,19 @@ class Services extends BaseService
             'php://input',
             new UserAgent()
         );
+    }
+
+    /**
+     * The restful log class
+     */
+    public static function log(bool $getShared = true): Logger
+    {
+        if ($getShared) {
+            return self::getSharedInstance('log');
+        }
+
+        helper('checkEndpoint');
+
+        return new Logger(checkEndpoint());
     }
 }

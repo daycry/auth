@@ -18,14 +18,18 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\Response;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Interfaces\ActionInterface;
+use Daycry\Auth\Interfaces\AuthController;
+use Daycry\Auth\Traits\BaseControllerTrait;
 
 /**
  * Class ActionController
  *
  * A generic controller to handle Authentication Actions.
  */
-class ActionController extends BaseController
+class ActionController extends BaseController implements AuthController
 {
+    use BaseControllerTrait;
+
     protected ?ActionInterface $action = null;
 
     /**

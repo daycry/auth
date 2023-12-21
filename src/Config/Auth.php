@@ -120,6 +120,26 @@ class Auth extends BaseConfig
     public string $defaultGroup = 'user';
 
     /**
+     *--------------------------------------------------------------------------
+     * AUTH Logs
+     * --------------------------------------------------------------------------
+     * When set to TRUE, the REST API will save requests
+     */
+    public bool $enableLogs = false;
+
+    /**
+     * --------------------------------------------------------------------------
+     * Enable block Invalid Attempts
+     * --------------------------------------------------------------------------
+     *
+     * IP blocking on consecutive failed attempts
+     */
+    public bool $enableInvalidAttempts = false;
+
+    public int $maxAttempts = 10;
+    public int $timeBlocked = 3600;
+
+    /**
      * --------------------------------------------------------------------
      * Authentication Chain
      * --------------------------------------------------------------------
@@ -238,7 +258,7 @@ class Auth extends BaseConfig
      */
     public array $actions = [
         'register' => null,
-        'login'    => null,
+        'login'    => \Daycry\Auth\Authentication\Actions\Email2FA::class,
     ];
 
     /**
@@ -490,6 +510,30 @@ class Auth extends BaseConfig
      * @deprecated This is only for backward compatibility.
      */
     public bool $supportOldDangerousPassword = false;
+
+    /**
+     *--------------------------------------------------------------------------
+     * Cronjob
+     *--------------------------------------------------------------------------
+     *
+     * Set to TRUE to enable Cronjob for fill the table petitions with your API classes
+     * $restNamespaceScope \Namespace\Class or \Namespace\Folder\Class or \Namespace example: \App\Controllers
+     *
+     * This feature use Daycry\CronJob vendor
+     * for more information: https://github.com/daycry/cronjob
+     *
+     * Ex: $namespaceScope = ['\Api\Controllers\Class', '\App\Controllers\Class'];
+     */
+    public array $namespaceScope = ['\Daycry\Auth\Controllers'];
+
+    /**
+     * Exclude methods in discovering
+     *
+     * This is useful when you use traits or the class extends the initController method
+     *
+     * Ex: doLogin is a Authenticable trait method and initController is a method of ResourceController class
+     */
+    public array $excludeMethods = ['initController', '_remap'];
 
     /**
      * Returns the URL that a user should be redirected

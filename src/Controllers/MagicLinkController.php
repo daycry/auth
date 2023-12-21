@@ -19,9 +19,11 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Interfaces\AuthController;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Auth\Traits\Viewable;
 
 /**
@@ -32,8 +34,9 @@ use Daycry\Auth\Traits\Viewable;
  * be used on it's own without an email/password
  * login strategy.
  */
-class MagicLinkController extends BaseController
+class MagicLinkController extends BaseController implements AuthController
 {
+    use BaseControllerTrait;
     use Viewable;
 
     /**

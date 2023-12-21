@@ -16,11 +16,14 @@ namespace Daycry\Auth\Controllers;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Interfaces\AuthController;
+use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Auth\Traits\Viewable;
 use Daycry\Auth\Validation\ValidationRules;
 
-class LoginController extends BaseController
+class LoginController extends BaseController implements AuthController
 {
+    use BaseControllerTrait;
     use Viewable;
 
     /**
