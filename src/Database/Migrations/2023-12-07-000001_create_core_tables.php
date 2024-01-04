@@ -39,6 +39,8 @@ class CreateCoreTables extends Migration
 
     public function up(): void
     {
+        $this->db->disableForeignKeyChecks();
+
         // Users Table
         $this->forge->addField([
             'id'             => ['type' => 'int', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
@@ -296,6 +298,8 @@ class CreateCoreTables extends Migration
         $this->forge->addUniqueKey('uri');
         $this->forge->addForeignKey('user_id', $this->tables['users'], 'id', '', 'CASCADE');
         $this->forge->createTable($this->tables['rates']);
+
+        $this->db->enableForeignKeyChecks();
     }
 
     public function down(): void

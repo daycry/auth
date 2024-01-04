@@ -31,7 +31,7 @@ class AuthenticationException extends RuntimeException
 
     public static function forInvalidLibraryImplementation(): self
     {
-        return new self(lang('RestFul.invalidLibraryImplementation'));
+        return new self(lang('Auth.invalidLibraryImplementation'));
     }
 
     public static function forUnknownUserProvider(): self

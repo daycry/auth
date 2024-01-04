@@ -159,7 +159,7 @@ class CheckIpInRange
         $first = self::ip2long6(implode(':', $first));
         $last  = self::ip2long6(implode(':', $last));
 
-        return ($ip >= $first && $ip <= $last);
+        return $ip >= $first && $ip <= $last;
     }
 
     /**

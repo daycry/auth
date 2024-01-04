@@ -14,12 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Traits;
 
 use Config\Services;
-use Config\Validation as ValidationCOnfig;
+use Config\Validation as ValidationConfig;
 use Daycry\Auth\Exceptions\ValidationException;
 
 trait Validation
 {
-    protected function validation(string $rules, $data = null, ?ValidationCOnfig $config = null, bool $getShared = true, bool $filter = false)
+    protected function validation(string $rules, $data = null, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false)
     {
         $config ??= config('Validation');
         $data ??= $this->content;

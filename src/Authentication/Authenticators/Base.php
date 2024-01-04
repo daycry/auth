@@ -143,9 +143,9 @@ abstract class Base
     protected function forceLogin($nonce = '')
     {
         $rest_auth  = \strtolower($this->method);
-        $rest_realm = service('settings')->get('RestFul.restRealm');
+        $rest_realm = service('settings')->get('Auth.restRealm');
 
-        // if (service('settings')->get('RestFul.strictAccessTokenAndAuth') === true) {
+        // if (service('settings')->get('Auth.strictAccessTokenAndAuth') === true) {
         if (Services::request()->getUserAgent()->isBrowser()) {
             // @codeCoverageIgnoreStart
             if (strtolower($rest_auth) === 'basic') {

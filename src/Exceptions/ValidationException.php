@@ -21,7 +21,7 @@ class ValidationException extends RuntimeException
     {
         $parser = \Config\Services::parser();
 
-        return new self($parser->setData(['param' => $param])->renderString(lang('RestFul.invalidParamsForMethod')));
+        return new self($parser->setData(['param' => $param])->renderString(lang('Auth.invalidParamsForMethod')));
     }
 
     public static function validationData()

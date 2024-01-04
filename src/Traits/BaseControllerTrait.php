@@ -14,9 +14,12 @@ namespace Daycry\Auth\Traits;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Router\Router;
 use Config\Mimes;
 use Config\Services;
 use Daycry\Auth\Interfaces\AuthController;
+use Daycry\Auth\Libraries\Logger;
+use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\AttemptModel;
 use Daycry\Auth\Validators\AttemptValidator;
 use Daycry\Encryption\Encryption;
@@ -30,10 +33,20 @@ trait BaseControllerTrait
 {
     use Validation;
 
+    protected Router $router;
+
+    protected ?Logger $_logger = null;
+
+    protected Encryption $encryption;
+
     /**
      * The authorization Request
      */
     private bool $_isRequestAuthorized = true;
+
+    protected array $args;
+
+    protected ?stdClass $content = null;
 
     /**
      * Extend this function to apply additional checking early on in the process.
@@ -44,16 +57,13 @@ trait BaseControllerTrait
 
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
-        helper(['security', 'checkEndpoint', 'auth']);
+        helper(['security', 'auth']);
 
-        $this->_logger = Services::log();
-
-        parent::initController($request, $response, $logger);
-
+        $this->_logger    = Services::log();
         $this->router     = Services::router();
         $this->encryption = new Encryption();
 
-        $this->override = checkEndpoint();
+        parent::initController($request, $response, $logger);
 
         if (method_exists($this, 'setFormat')) {
             $output = $this->request->negotiate('media', setting('Format.supportedResponseFormats'));
@@ -61,8 +71,8 @@ trait BaseControllerTrait
             $this->setFormat($output);
         }
 
-        $this->args    = $this->request->getAllParams();
-        $this->content = (! empty($this->args['body'])) ? $this->args['body'] : new stdClass();
+        $this->args    = Utils::getAllParams();
+        $this->content = (! empty($this->args['body'])) ? $this->args['body'] : null;
 
         // Extend this function to apply additional checking early on in the process
         $this->earlyChecks();
@@ -166,18 +176,15 @@ trait BaseControllerTrait
             }
 
             $message = ($this->validator && $this->validator->getErrors()) ? $this->validator->getErrors() : $ex->getMessage();
-
-            $code = ($ex->getCode()) ?: 400;
+            $code    = ($ex->getCode()) ?: 400;
 
             if (method_exists($this, 'fail')) {
                 return $this->fail($message, $code);
             }
 
             if ($this->request->isAJAX()) {
-                $code = ($ex->getCode()) ?: 400;
-
                 return $this->response->setStatusCode($code)->setJSON(
-                    ['status' => false, 'error' => $ex->getMessage(), 'token' => $this->_getToken()]
+                    ['status' => false, 'error' => $message, 'token' => $this->_getToken()]
                 );
             }
 

@@ -14,11 +14,11 @@ declare(strict_types=1);
 namespace Daycry\Auth\Libraries;
 
 use CodeIgniter\Debug\Timer;
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\ResponseInterface;
 use Config\Services;
 use Daycry\Auth\Entities\Endpoint;
 use Daycry\Auth\Models\LogModel;
-use Daycry\Encryption\Encryption;
 
 class Logger
 {
@@ -73,10 +73,7 @@ class Logger
     public function save(): int
     {
         if ($this->logAuthorized) {
-            $params = $this->request->getAllParams();
-
-            $params = $params ? (service('settings')->get('RestFul.logParamsJson') === true ? \json_encode($params) : \serialize($params)) : null;
-            $params = ($params !== null && service('settings')->get('RestFul.logParamsEncrypt') === true) ? (new Encryption())->encrypt($params) : $params;
+            $params = Utils::getAllParams();
 
             $this->response = Services::response();
 
