@@ -46,13 +46,13 @@ jobs:
         run: composer install --ansi --no-interaction
 
       - name: Test with PHPUnit
-        run: script -e -c "composer test"
+        run: script -e -c "vendor/bin/phpunit -v"
       
       - name: Run Coveralls
         if: matrix.php-versions == '8.2'
         run: |
           composer global require --ansi php-coveralls/php-coveralls:^2.4
-          php-coveralls --coverage_clover=build/phpunit/clover.xml -v
+          php-coveralls --coverage_clover=build/logs/clover.xml -v
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COVERALLS_PARALLEL: true
@@ -65,5 +65,5 @@ jobs:
       - name: Coveralls Finished
         uses: coverallsapp/github-action@master
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true

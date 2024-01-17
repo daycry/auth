@@ -91,6 +91,7 @@ class AuthFilter implements FilterInterface
 
             return redirect()->route('login');
         }
+
         $result = $authenticator->attempt();
 
         if (! $result->isOK()) {

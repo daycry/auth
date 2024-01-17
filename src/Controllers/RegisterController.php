@@ -16,8 +16,6 @@ namespace Daycry\Auth\Controllers;
 use App\Controllers\BaseController;
 use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\RedirectResponse;
-use CodeIgniter\HTTP\RequestInterface;
-use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\ValidationException;
@@ -26,7 +24,6 @@ use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Auth\Traits\Viewable;
 use Daycry\Auth\Validation\ValidationRules;
-use Psr\Log\LoggerInterface;
 
 /**
  * Class RegisterController
@@ -38,18 +35,6 @@ class RegisterController extends BaseController implements AuthController
 {
     use BaseControllerTrait;
     use Viewable;
-
-    public function initController(
-        RequestInterface $request,
-        ResponseInterface $response,
-        LoggerInterface $logger
-    ): void {
-        parent::initController(
-            $request,
-            $response,
-            $logger
-        );
-    }
 
     /**
      * Displays the registration form.

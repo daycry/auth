@@ -63,7 +63,7 @@ class Registrar
     {
         return [
             'views' => [
-                'shield:model' => 'CodeIgniter\Shield\Commands\Generators\Views\usermodel.tpl.php',
+                'auth:model' => 'Daycry\Auth\Commands\Generators\Views\usermodel.tpl.php',
             ],
         ];
     }
