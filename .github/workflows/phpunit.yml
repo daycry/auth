@@ -46,7 +46,7 @@ jobs:
         run: composer install --ansi --no-interaction
 
       - name: Test with PHPUnit
-        run: script -e -c "composer test"
+        run: script -e -c "vendor/bin/phpunit -v"
       
       - name: Run Coveralls
         if: matrix.php-versions == '8.2'
@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2
+        uuses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
