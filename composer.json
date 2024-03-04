@@ -1,7 +1,7 @@
 {
     "name": "daycry/auth",
     "description": "Authentication for Codeigniter 4",
-    "homepage": "https://github.com/daycry/restful",
+    "homepage": "https://github.com/daycry/auth",
     "authors":
     [
         {
@@ -20,7 +20,6 @@
         "daycry/encryption": "^2.0",
         "daycry/exceptions": "^1",
         "daycry/jwt": "^1.0",
-        "daycry/settings": "^1",
         "daycry/twig": "^1"
     },
     "require-dev":
