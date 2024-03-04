@@ -28,7 +28,8 @@
         "codeigniter4/framework": "^4",
         "mikey179/vfsstream": "^1",
         "mockery/mockery": "^1",
-        "rector/rector": "0.18.12"
+        "rector/rector": "0.18.12",
+        "php-coveralls/php-coveralls": "^2.7"
     },
     "autoload":
     {
