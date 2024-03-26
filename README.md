@@ -1,4 +1,13 @@
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate?business=SYC5XDT23UZ5G&no_recurring=0&item_name=Thank+you%21&currency_code=EUR)
+
 # CodeIgniter Auth
+
+[![Build status](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
+[![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg)](https://coveralls.io/github/daycry/auth)
+[![Downloads](https://poser.pugx.org/daycry/auth/downloads)](https://packagist.org/packages/daycry/auth)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/daycry/auth)](https://packagist.org/packages/daycry/auth)
+[![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://packagist.org/packages/daycry/auth)
+[![GitHub license](https://img.shields.io/github/license/daycry/auth)](https://github.com/daycry/auth/blob/main/LICENSE)
 
 Auth is an authentication and authorization framework for CodeIgniter 4.
 While it does provide a base set of tools
