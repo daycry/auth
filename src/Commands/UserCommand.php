@@ -50,37 +50,37 @@ class UserCommand extends BaseCommand
      * @var string
      */
     protected $usage = <<<'EOL'
-        shield:user <action> options
+        auth:user <action> options
 
-            shield:user create -n newusername -e newuser@example.com
+            auth:user create -n newusername -e newuser@example.com
 
-            shield:user activate -n username
-            shield:user activate -e user@example.com
+            auth:user activate -n username
+            auth:user activate -e user@example.com
 
-            shield:user deactivate -n username
-            shield:user deactivate -e user@example.com
+            auth:user deactivate -n username
+            auth:user deactivate -e user@example.com
 
-            shield:user changename -n username --new-name newusername
-            shield:user changename -e user@example.com --new-name newusername
+            auth:user changename -n username --new-name newusername
+            auth:user changename -e user@example.com --new-name newusername
 
-            shield:user changeemail -n username --new-email newuseremail@example.com
-            shield:user changeemail -e user@example.com --new-email newuseremail@example.com
+            auth:user changeemail -n username --new-email newuseremail@example.com
+            auth:user changeemail -e user@example.com --new-email newuseremail@example.com
 
-            shield:user delete -i 123
-            shield:user delete -n username
-            shield:user delete -e user@example.com
+            auth:user delete -i 123
+            auth:user delete -n username
+            auth:user delete -e user@example.com
 
-            shield:user password -n username
-            shield:user password -e user@example.com
+            auth:user password -n username
+            auth:user password -e user@example.com
 
-            shield:user list
-            shield:user list -n username -e user@example.com
+            auth:user list
+            auth:user list -n username -e user@example.com
 
-            shield:user addgroup -n username -g mygroup
-            shield:user addgroup -e user@example.com -g mygroup
+            auth:user addgroup -n username -g mygroup
+            auth:user addgroup -e user@example.com -g mygroup
 
-            shield:user removegroup -n username -g mygroup
-            shield:user removegroup -e user@example.com -g mygroup
+            auth:user removegroup -n username -g mygroup
+            auth:user removegroup -e user@example.com -g mygroup
         EOL;
 
     /**
