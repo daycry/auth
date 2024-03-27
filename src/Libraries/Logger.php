@@ -81,7 +81,7 @@ class Logger
 
             $data = [
                 'user_id'       => auth()->id() ?? null,
-                'uri'           => $this->request->uri,
+                'uri'           => $this->request->getUri()->__toString(),
                 'method'        => $this->request->getMethod(),
                 'params'        => $params,
                 'ip_address'    => $this->request->getIPAddress(),
@@ -89,6 +89,8 @@ class Logger
                 'response_code' => $this->responseCode,
                 'authorized'    => $this->authorized,
             ];
+
+            dd($data);
 
             $this->logModel->save($data);
             $this->insertId = $this->logModel->getInsertID();
