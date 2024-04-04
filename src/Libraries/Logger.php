@@ -81,9 +81,9 @@ class Logger
 
             $data = [
                 'user_id'       => auth()->id() ?? null,
-                'uri'           => $this->request->uri,
+                'uri'           => $this->request->getUri()->__toString(),
                 'method'        => $this->request->getMethod(),
-                'params'        => $params,
+                'params'        => serialize($params),
                 'ip_address'    => $this->request->getIPAddress(),
                 'duration'      => $this->benchmark->getElapsedTime('auth'),
                 'response_code' => $this->responseCode,

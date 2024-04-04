@@ -61,7 +61,7 @@ class RatesFilter implements FilterInterface
             $time  = ($endpoint->time) ?: $time;
         }
 
-        switch (service('settings')->get('RestFul.limitMethod')) {
+        switch (service('settings')->get('Auth.limitMethod')) {
             case 'IP_ADDRESS':
                 $api_key     = $request->getIPAddress();
                 $limited_uri = 'ip-address:' . $request->getIPAddress();

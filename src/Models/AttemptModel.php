@@ -37,6 +37,6 @@ class AttemptModel extends BaseModel
     {
         parent::__construct($db, $validation);
 
-        $this->table = $this->tables['attemps'];
+        $this->table = $this->tables['attempts'];
     }
 }

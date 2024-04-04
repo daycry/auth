@@ -23,20 +23,20 @@ class FailTooManyRequestsException extends RuntimeException
         self::$authorized = false;
         $parser           = \Config\Services::parser();
 
-        return new self($parser->setData(['key' => $key])->renderString(lang('Rest.textRestApiKeyTimeLimit')));
+        return new self($parser->setData(['key' => $key])->renderString(lang('Auth.textRestApiKeyTimeLimit')));
     }
 
     public static function forInvalidAttemptsLimit()
     {
         self::$authorized = false;
 
-        return new self(lang('RestFul.invalidAttemptsLimit'));
+        return new self(lang('Auth.throttled'));
     }
 
     public static function forIpAddressTimeLimit()
     {
         self::$authorized = false;
 
-        return new self(lang('RestFul.textRestIpAddressTimeLimit'));
+        return new self(lang('Auth.textRestIpAddressTimeLimit'));
     }
 }
