@@ -173,7 +173,7 @@ class JWT extends Base implements AuthenticatorInterface
         return $credentials['token'] ?? '';
     }
 
-    private function getBearerFromHeader(): string
+    protected function getBearerFromHeader(): string
     {
         $tokenHeader = service('settings')->get('Auth.authenticatorHeader')[$this->method];
 
