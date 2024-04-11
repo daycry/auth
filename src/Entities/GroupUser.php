@@ -28,7 +28,7 @@ class GroupUser extends Entity
     private ?Group $group = null;
 
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */

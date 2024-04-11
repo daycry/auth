@@ -261,6 +261,10 @@ trait Authorizable
 
             $permission = strtolower($permission);
 
+            if (in_array('*', $this->permissionsCache, true)) {
+                return true;
+            }
+
             // Check user's permissions
             if (in_array($permission, $this->permissionsCache, true)) {
                 return true;
@@ -273,6 +277,10 @@ trait Authorizable
             foreach ($this->groupCache as $group) {
                 $group       = model(GroupModel::class)->where('name', $group)->first();
                 $permissions = $this->getGroupPermissions($group);
+
+                if (in_array('*', array_column($permissions, 'name'), true)) {
+                    return true;
+                }
 
                 // Check exact match
                 if (isset($permissions) && in_array($permission, array_column($permissions, 'name'), true)) {
@@ -463,8 +471,8 @@ trait Authorizable
     }
 
     /**
-     * @phpstan-param 'group'|'permission' $type
-     * @param GroupUserModel|PermissionUserModel $model
+     * @phpstan-param 'group'|'permission'               $type
+     * @param         GroupUserModel|PermissionUserModel $model
      */
     private function saveGroupsOrPermissions(string $type, $model, array $cache, array $existing): void
     {

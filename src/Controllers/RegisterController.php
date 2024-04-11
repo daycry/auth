@@ -157,7 +157,7 @@ class RegisterController extends BaseController implements AuthController
     /**
      * Returns the rules that should be used for validation.
      *
-     * @return array<string, array<string, array<string>|string>>
+     * @return         array<string, array<string, list<string>|string>>
      * @phpstan-return array<string, array<string, string|list<string>>>
      */
     protected function getValidationRules(): array

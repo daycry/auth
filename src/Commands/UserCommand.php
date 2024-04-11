@@ -259,24 +259,26 @@ class UserCommand extends BaseCommand
         $data = [];
 
         if ($username === null) {
-            $username = $this->prompt('Username', null, $this->validationRules['username']['rules']);
+            $username = $this->prompt('Username', null, $this->validationRules['username']['rules'], config('Auth')->DBGroup);
         }
         $data['username'] = $username;
 
         if ($email === null) {
-            $email = $this->prompt('Email', null, $this->validationRules['email']['rules']);
+            $email = $this->prompt('Email', null, $this->validationRules['email']['rules'], config('Auth')->DBGroup);
         }
         $data['email'] = $email;
 
         $password = $this->prompt(
             'Password',
             null,
-            $this->validationRules['password']['rules']
+            $this->validationRules['password']['rules'],
+            config('Auth')->DBGroup
         );
         $passwordConfirm = $this->prompt(
             'Password confirmation',
             null,
-            $this->validationRules['password']['rules']
+            $this->validationRules['password']['rules'],
+            config('Auth')->DBGroup
         );
 
         if ($password !== $passwordConfirm) {
@@ -288,7 +290,7 @@ class UserCommand extends BaseCommand
         $validation = Services::validation();
         $validation->setRules($this->validationRules);
 
-        if (! $validation->run($data)) {
+        if (! $validation->run($data, null, config('Auth')->DBGroup)) {
             foreach ($validation->getErrors() as $message) {
                 $this->write($message, 'red');
             }
@@ -367,7 +369,7 @@ class UserCommand extends BaseCommand
         $user = $this->findUser('Change username', $username, $email);
 
         if ($newUsername === null) {
-            $newUsername = $this->prompt('New username', null, $this->validationRules['username']['rules']);
+            $newUsername = $this->prompt('New username', null, $this->validationRules['username']['rules'], config('Auth')->DBGroup);
         } else {
             // Run validation if the user has passed username and/or email via command line
             $validation = Services::validation();
@@ -408,7 +410,7 @@ class UserCommand extends BaseCommand
         $user = $this->findUser('Change email', $username, $email);
 
         if ($newEmail === null) {
-            $newEmail = $this->prompt('New email', null, $this->validationRules['email']['rules']);
+            $newEmail = $this->prompt('New email', null, $this->validationRules['email']['rules'], config('Auth')->DBGroup);
         } else {
             // Run validation if the user has passed username and/or email via command line
             $validation = Services::validation();

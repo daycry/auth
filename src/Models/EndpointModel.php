@@ -47,7 +47,7 @@ class EndpointModel extends BaseModel
     /**
      * Returns all Endpoints.
      *
-     * @return Endpoint[]
+     * @return list<Endpoint>
      */
     public function getEndpoints(Controller $controller): ?array
     {

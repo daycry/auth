@@ -35,7 +35,7 @@ class ActionController extends BaseController implements AuthController
     /**
      * Perform an initial check if we have a valid action or not.
      *
-     * @param string[] $params
+     * @param list<string> $params
      *
      * @return Response|string
      */

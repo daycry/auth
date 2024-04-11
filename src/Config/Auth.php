@@ -147,7 +147,7 @@ class Auth extends BaseConfig
      * when using the 'chain' filter. Each Authenticator listed will be checked.
      * If no match is found, then the next in the chain will be checked.
      *
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      */
     public array $authenticationChain = [
@@ -391,7 +391,7 @@ class Auth extends BaseConfig
      * You can add custom classes as long as they adhere to the
      * CodeIgniter\Shield\Authentication\Passwords\ValidatorInterface.
      *
-     * @var class-string<ValidatorInterface>[]
+     * @var list<class-string<ValidatorInterface>>
      */
     public array $passwordValidators = [
         CompositionValidator::class,

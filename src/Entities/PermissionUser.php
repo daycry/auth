@@ -28,7 +28,7 @@ class PermissionUser extends Entity
     private ?Permission $permission = null;
 
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */

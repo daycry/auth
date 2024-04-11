@@ -33,7 +33,7 @@ class User extends Entity
     use HasAccessTokens;
 
     /**
-     * @var UserIdentity[]|null
+     * @var list<UserIdentity>|null
      */
     private ?array $identities = null;
 
@@ -42,7 +42,7 @@ class User extends Entity
     private ?string $password_hash = null;
 
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */
@@ -82,7 +82,7 @@ class User extends Entity
      *
      * @param string $type 'all' returns all identities.
      *
-     * @return UserIdentity[]
+     * @return list<UserIdentity>
      */
     public function getIdentities(string $type = 'all'): array
     {
