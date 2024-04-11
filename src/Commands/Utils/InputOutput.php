@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Commands\Utils;
 
-use CodeIgniter\CLI\CLI;
+use Daycry\Auth\CLI\CustomCLI as CLI;
 
 class InputOutput
 {
@@ -26,9 +26,9 @@ class InputOutput
      *
      * @return string The user input
      */
-    public function prompt(string $field, $options = null, $validation = null): string
+    public function prompt(string $field, $options = null, $validation = null, ?string $DBGroup = null): string
     {
-        return CLI::prompt($field, $options, $validation);
+        return CLI::prompt($field, $options, $validation, $DBGroup);
     }
 
     /**

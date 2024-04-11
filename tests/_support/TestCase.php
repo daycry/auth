@@ -14,12 +14,12 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use CodeIgniter\Config\Factories;
+use CodeIgniter\Settings\Config\Settings as SettingsConfig;
+use CodeIgniter\Settings\Settings;
 use CodeIgniter\Test\CIUnitTestCase;
 use Config\Security;
 use Config\Services;
 use Daycry\Auth\Config\Auth;
-use CodeIgniter\Settings\Config\Settings as SettingsConfig;
-use CodeIgniter\Settings\Settings;
 
 /**
  * @internal

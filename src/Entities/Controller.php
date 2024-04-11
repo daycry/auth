@@ -16,12 +16,12 @@ use Daycry\Auth\Models\EndpointModel;
 class Controller extends Entity
 {
     /**
-     * @var Endpoint[]|null
+     * @var list<Endpoint>|null
      */
     private ?array $endpoints = null;
 
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */
@@ -46,7 +46,7 @@ class Controller extends Entity
      *
      * @param string $endpoint 'all' returns all endpoints.
      *
-     * @return Endpoint[]
+     * @return list<Endpoint>
      */
     public function getEndpoints(string $endpoint = 'all'): ?array
     {

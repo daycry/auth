@@ -43,7 +43,7 @@ class GroupUserModel extends BaseModel
     /**
      * Returns all user groups.
      *
-     * @return UserGroup[]
+     * @return list<UserGroup>
      */
     public function getForUser(User $user): ?array
     {

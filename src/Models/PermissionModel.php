@@ -37,9 +37,9 @@ class PermissionModel extends BaseModel
     }
 
     /**
-     * @param int[]|string[] $permissionIds
+     * @param list<int>|list<string> $permissionIds
      *
-     * @return Permission[]
+     * @return list<Permission>
      */
     public function getByIds(array $permissionIds): array
     {

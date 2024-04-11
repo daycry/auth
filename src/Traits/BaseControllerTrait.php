@@ -34,9 +34,7 @@ trait BaseControllerTrait
     use Validation;
 
     protected Router $router;
-
     protected ?Logger $_logger = null;
-
     protected Encryption $encryption;
 
     /**
@@ -45,7 +43,6 @@ trait BaseControllerTrait
     private bool $_isRequestAuthorized = true;
 
     protected array $args;
-
     protected ?stdClass $content = null;
 
     /**
@@ -95,7 +92,7 @@ trait BaseControllerTrait
                 if ($this->_isRequestAuthorized === false) {
                     if ($attempt === null) {
                         $attempt = [
-                            'user_id' => (auth()->user()) ? auth()->user()->id : null,
+                            'user_id'      => (auth()->user()) ? auth()->user()->id : null,
                             'ip_address'   => $this->request->getIPAddress(),
                             'attempts'     => 1,
                             'hour_started' => time(),

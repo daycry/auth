@@ -16,12 +16,12 @@ use Daycry\Auth\Models\ControllerModel;
 class Api extends Entity
 {
     /**
-     * @var Controller[]|null
+     * @var list<Controller>|null
      */
     private ?array $controllers = null;
 
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */
@@ -46,7 +46,7 @@ class Api extends Entity
      *
      * @param string $controller 'all' returns all controllers.
      *
-     * @return Controller[]
+     * @return list<Controller>
      */
     public function getControllers(string $controller = 'all'): array
     {

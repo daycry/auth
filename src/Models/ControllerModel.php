@@ -41,7 +41,7 @@ class ControllerModel extends BaseModel
     /**
      * Returns all controllers.
      *
-     * @return Controller[]
+     * @return list<Controller>
      */
     public function getControllers(Api $api): ?array
     {

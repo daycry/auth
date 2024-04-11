@@ -46,9 +46,9 @@ abstract class BaseCommand extends FrameworkBaseCommand
      *
      * @return string The user input
      */
-    protected function prompt(string $field, $options = null, $validation = null): string
+    protected function prompt(string $field, $options = null, $validation = null, ?string $DBGroup = null): string
     {
-        return self::$io->prompt($field, $options, $validation);
+        return self::$io->prompt($field, $options, $validation, $DBGroup);
     }
 
     /**

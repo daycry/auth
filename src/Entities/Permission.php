@@ -16,7 +16,7 @@ namespace Daycry\Auth\Entities;
 class Permission extends Entity
 {
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */

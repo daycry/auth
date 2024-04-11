@@ -37,9 +37,9 @@ class GroupModel extends BaseModel
     }
 
     /**
-     * @param int[]|string[] $groupIds
+     * @param list<int>|list<string> $groupIds
      *
-     * @return Group[]
+     * @return list<Group>
      */
     public function getByIds(array $groupIds): array
     {

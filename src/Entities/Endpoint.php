@@ -14,7 +14,7 @@ namespace Daycry\Auth\Entities;
 class Endpoint extends Entity
 {
     /**
-     * @var string[]
+     * @var         list<string>
      * @phpstan-var list<string>
      * @psalm-var list<string>
      */

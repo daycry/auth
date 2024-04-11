@@ -106,7 +106,7 @@ class UserIdentityModel extends BaseModel
      * Create an identity with 6 digits code for auth action
      *
      * @phpstan-param array{type: string, name: string, extra: string} $data
-     * @param callable $codeGenerator generate secret code
+     * @param         callable                                         $codeGenerator generate secret code
      *
      * @return string secret
      */
@@ -145,8 +145,8 @@ class UserIdentityModel extends BaseModel
     /**
      * Generates a new personal access token for the user.
      *
-     * @param string   $name   Token name
-     * @param string[] $scopes Permissions the token grants
+     * @param string       $name   Token name
+     * @param list<string> $scopes Permissions the token grants
      */
     public function generateAccessToken(User $user, string $name, array $scopes = ['*']): AccessTokenIdentity
     {
@@ -211,7 +211,7 @@ class UserIdentityModel extends BaseModel
     }
 
     /**
-     * @return AccessTokenIdentity[]
+     * @return list<AccessTokenIdentity>
      */
     public function getAllAccessToken(User $user): array
     {
@@ -242,7 +242,7 @@ class UserIdentityModel extends BaseModel
     /**
      * Returns all identities.
      *
-     * @return UserIdentity[]
+     * @return list<UserIdentity>
      */
     public function getIdentities(User $user): array
     {
@@ -252,9 +252,9 @@ class UserIdentityModel extends BaseModel
     }
 
     /**
-     * @param int[]|string[] $userIds
+     * @param list<int>|list<string> $userIds
      *
-     * @return UserIdentity[]
+     * @return list<UserIdentity>
      */
     public function getIdentitiesByUserIds(array $userIds): array
     {
@@ -277,9 +277,9 @@ class UserIdentityModel extends BaseModel
     /**
      * Returns all identities for the specific types.
      *
-     * @param string[] $types
+     * @param list<string> $types
      *
-     * @return UserIdentity[]
+     * @return list<UserIdentity>
      */
     public function getIdentitiesByTypes(User $user, array $types): array
     {
@@ -365,7 +365,7 @@ class UserIdentityModel extends BaseModel
     /**
      * Force password reset for multiple users.
      *
-     * @param int[]|string[] $userIds
+     * @param list<int>|list<string> $userIds
      */
     public function forceMultiplePasswordReset(array $userIds): void
     {
