@@ -17,9 +17,11 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use Config\Services;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
+use Daycry\Auth\Result;
 
 /**
  * Authentication Filter.
@@ -102,6 +104,18 @@ class AuthFilter implements FilterInterface
 
         if (setting('Auth.recordActiveDate')) {
             $authenticator->recordActiveDate();
+        }
+
+        $accessToken = null;
+        if (service('settings')->get('Auth.accessTokenEnabled')) {
+            $accessToken = (Services::auth(false))->setAuthenticator('access_token')->attempt();
+            if (! $accessToken->isOK()) {
+                if (service('settings')->get('Auth.strictApiAndAuth')) {
+                    return service('response')
+                        ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
+                        ->setJson(['message' => ($accessToken instanceof Result) ? $accessToken->reason() : lang('Auth.badToken')]);
+                }
+            }
         }
     }
 
