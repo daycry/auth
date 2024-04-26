@@ -15,6 +15,7 @@ namespace Tests\Support;
 
 use CodeIgniter\Test\DatabaseTestTrait;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Database\Seeds\CoreSeeder;
 
 /**
  * @internal
@@ -24,6 +25,7 @@ abstract class DatabaseTestCase extends TestCase
     use DatabaseTestTrait;
 
     protected $namespace = '\Daycry\Auth';
+    protected $seed = CoreSeeder::class;
 
     /**
      * Auth Table names

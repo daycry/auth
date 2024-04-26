@@ -25,6 +25,10 @@ use Daycry\Exceptions\Exceptions\RuntimeException;
  */
 class JWT extends Base implements AuthenticatorInterface
 {
+    /**
+     * @var string Special ID Type.
+     *             This Authenticator is stateless, so no `auth_identities` record.
+     */
     public const ID_TYPE_JWT = 'jwt';
 
     protected mixed $payload;

@@ -75,7 +75,7 @@ class UserModelGenerator extends BaseCommand
         $class = $params[0] ?? CLI::getSegment(2) ?? 'UserModel';
 
         if (! $this->verifyChosenModelClassName($class, $params)) {
-            CLI::error('Cannot use `ShieldUserModel` as class name as this conflicts with the parent class.', 'light_gray', 'red');
+            CLI::error('Cannot use `AuthUserModel` as class name as this conflicts with the parent class.', 'light_gray', 'red');
 
             return 1;
         }
@@ -98,6 +98,6 @@ class UserModelGenerator extends BaseCommand
             $class .= 'Model';
         }
 
-        return strtolower(pascalize($class)) !== 'shieldusermodel';
+        return strtolower(pascalize($class)) !== 'authusermodel';
     }
 }

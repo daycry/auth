@@ -65,7 +65,7 @@ class ChainAuthFilter implements FilterInterface
             }
         }
 
-        if (auth()->getAuthenticator() instanceof Session) {
+        if (auth(setting('Auth.defaultAuthenticator'))->getAuthenticator() instanceof Session) {
             return redirect()->route('login');
         }
 
