@@ -21,6 +21,9 @@ use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Faker\Generator;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class UserModel extends BaseModel
 {
     protected $table;

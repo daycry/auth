@@ -136,7 +136,7 @@ class Auth
      */
     public function routes(RouteCollection &$routes, array $config = []): void
     {
-        $authRoutes = config('AuthRoutes')->routes;
+        $authRoutes = config('Auth')->routes;
 
         $namespace = $config['namespace'] ?? 'Daycry\Auth\Controllers';
 

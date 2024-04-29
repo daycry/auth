@@ -19,7 +19,6 @@ use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
-use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 
 /**
@@ -65,14 +64,14 @@ class ChainAuthFilter implements FilterInterface
             }
         }
 
-        if (auth()->getAuthenticator() instanceof Session) {
-            return redirect()->route('login');
+        if ($request->getHeaderLine('Accept') === 'application/json' || $request->getHeaderLine('Accept') === 'application/xml') {
+            return service('response')->setStatusCode(
+                401,
+                lang('Auth.invalidUser')
+            );
         }
 
-        return service('response')->setStatusCode(
-            401,
-            lang('Auth.invalidUser')
-        );
+        return redirect()->route('login');
     }
 
     /**
