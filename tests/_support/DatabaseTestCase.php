@@ -25,7 +25,7 @@ abstract class DatabaseTestCase extends TestCase
     use DatabaseTestTrait;
 
     protected $namespace = '\Daycry\Auth';
-    protected $seed = CoreSeeder::class;
+    protected $seed      = CoreSeeder::class;
 
     /**
      * Auth Table names

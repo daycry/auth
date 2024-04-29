@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Commands;
 
 use Daycry\Auth\Commands\UserCommand as User;
@@ -500,7 +509,8 @@ final class UserTest extends DatabaseTestCase
 
         command('auth:user list -e user9@example.com');
 
-        $this->assertStringContainsString('(user9@example.com)',
+        $this->assertStringContainsString(
+            '(user9@example.com)',
             $this->getOutputWithoutColorCode()
         );
     }

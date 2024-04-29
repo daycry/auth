@@ -66,7 +66,7 @@ final class GroupFilterTest extends FilterTestCase
     public function testFilterSuccessSession(): void
     {
         $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
-        //fake(GroupModel::class, ['name' => 'admin']);
+        // fake(GroupModel::class, ['name' => 'admin']);
 
         /** @var User $user */
         $user = fake(UserModel::class);

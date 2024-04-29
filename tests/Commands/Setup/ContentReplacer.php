@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Commands\Setup;
 
 use Daycry\Auth\Commands\Setup\ContentReplacer as ContentReplacerCommand;
@@ -28,8 +37,8 @@ final class ContentReplacer extends TestCase
             FILE;
 
         $replaces = [
-            'namespace Daycry\Auth\Config'    => 'namespace Config',
-            "use CodeIgniter\Config\BaseConfig;\n" => '',
+            'namespace Daycry\Auth\Config'           => 'namespace Config',
+            "use CodeIgniter\\Config\\BaseConfig;\n" => '',
             'extends BaseConfig'                     => 'extends \\Daycry\\Auth\\Config\\Auth',
         ];
         $output = $replacer->replace($content, $replaces);
@@ -150,9 +159,9 @@ final class ContentReplacer extends TestCase
             }
             FILE;
 
-            //d($expected);
-            //d('----------------------------------------------');
-            //dd($output);
+        // d($expected);
+        // d('----------------------------------------------');
+        // dd($output);
         $this->assertSame($expected, $output);
     }
 }

@@ -2,15 +2,23 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of Daycry Auth.
+ *
+ * (c) Daycry <daycry9@proton.me>
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ */
+
 namespace Tests\Authorization;
 
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
-use Daycry\Auth\Models\PermissionGroupModel;
 use Daycry\Auth\Models\PermissionModel;
-use Daycry\Exceptions\Exceptions\LogicException;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Exceptions\Exceptions\LogicException;
 use Locale;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
@@ -30,8 +38,8 @@ final class AuthorizableTest extends DatabaseTestCase
         parent::setUp();
 
         // Refresh should take care of this....
-        //db_connect()->table($this->tables['groups_users'])->truncate();
-        //db_connect()->table($this->tables['permissions_users'])->truncate();
+        // db_connect()->table($this->tables['groups_users'])->truncate();
+        // db_connect()->table($this->tables['permissions_users'])->truncate();
     }
 
     public function testAddGroupWithExistingGroups(): void
@@ -44,14 +52,14 @@ final class AuthorizableTest extends DatabaseTestCase
         $this->user->addGroup('admin', 'beta');
 
         $this->seeInDatabase($this->tables['groups_users'], [
-            'user_id' => $this->user->id,
-            'group_id'   => 1,
+            'user_id'  => $this->user->id,
+            'group_id' => 1,
         ]);
         $this->seeInDatabase($this->tables['groups_users'], [
-            'user_id' => $this->user->id,
-            'group_id'   => $beta->id,
+            'user_id'  => $this->user->id,
+            'group_id' => $beta->id,
         ]);
-        
+
         $this->assertTrue($this->user->inGroup('admin'));
         $this->assertTrue($this->user->inGroup('beta'));
         $this->assertFalse($this->user->inGroup('user'));
@@ -73,46 +81,46 @@ final class AuthorizableTest extends DatabaseTestCase
     {
         $this->hasInDatabase($this->tables['groups_users'], [
             'user_id'    => $this->user->id,
-            'group_id'      => 1,
+            'group_id'   => 1,
             'created_at' => Time::now()->toDateTimeString(),
         ]);
 
         $otherUser = fake(UserModel::class);
         $this->hasInDatabase($this->tables['groups_users'], [
             'user_id'    => $otherUser->id,
-            'group_id'      => 1,
+            'group_id'   => 1,
             'created_at' => Time::now()->toDateTimeString(),
         ]);
 
         $this->user->removeGroup('admin');
         $this->assertEmpty($this->user->getGroups());
         $this->dontSeeInDatabase($this->tables['groups_users'], [
-            'user_id' => $this->user->id,
-            'group_id'   => 'admin',
+            'user_id'  => $this->user->id,
+            'group_id' => 'admin',
         ]);
 
         // Make sure we didn't delete the group from anyone else
         $this->seeInDatabase($this->tables['groups_users'], [
-            'user_id' => $otherUser->id,
-            'group_id'   => 1,
+            'user_id'  => $otherUser->id,
+            'group_id' => 1,
         ]);
     }
 
     public function testAddPermissionWithNoExistingPermissions(): void
     {
         $adminAccess = fake(PermissionModel::class, ['name' => 'admin.access']);
-        $betaAccess = fake(PermissionModel::class, ['name' => 'beta.access']);
+        $betaAccess  = fake(PermissionModel::class, ['name' => 'beta.access']);
 
         $this->user->addPermission('admin.access', 'beta.access');
         // Make sure it doesn't record duplicates
         $this->user->addPermission('admin.access', 'beta.access');
 
         $this->seeInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $adminAccess->id,
         ]);
         $this->seeInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $betaAccess->id,
         ]);
 
@@ -127,14 +135,14 @@ final class AuthorizableTest extends DatabaseTestCase
         $usersManage = fake(PermissionModel::class, ['name' => 'users.manage']);
 
         $this->hasInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $adminAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
         $this->hasInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $usersManage->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->user->addPermission('admin.access', 'users.manage');
@@ -142,14 +150,14 @@ final class AuthorizableTest extends DatabaseTestCase
         $this->user->addPermission('admin.access', 'users.manage');
 
         $this->seeInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $adminAccess->id,
         ]);
         $this->seeInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $usersManage->id,
         ]);
-        
+
         $this->assertTrue($this->user->can('admin.access'));
         $this->assertTrue($this->user->can('users.manage'));
         $this->assertFalse($this->user->can('beta.access'));
@@ -164,7 +172,7 @@ final class AuthorizableTest extends DatabaseTestCase
 
     public function testRemovePermissionNoPermissions(): void
     {
-        $this->assertEquals(count($this->user->getPermissions()), count($this->user->removePermission('admin.access')->getPermissions()));
+        $this->assertSame(count($this->user->getPermissions()), count($this->user->removePermission('admin.access')->getPermissions()));
     }
 
     public function testRemovePermissionExistingPermissions(): void
@@ -172,28 +180,28 @@ final class AuthorizableTest extends DatabaseTestCase
         $adminAccess = fake(PermissionModel::class, ['name' => 'admin.access']);
 
         $this->hasInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $adminAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $otherUser = fake(UserModel::class);
         $this->hasInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $otherUser->id,
+            'user_id'       => $otherUser->id,
             'permission_id' => $adminAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->user->removePermission('admin.access');
         $this->assertEmpty($this->user->getPermissions());
         $this->dontSeeInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $this->user->id,
+            'user_id'       => $this->user->id,
             'permission_id' => $adminAccess->id,
         ]);
 
         // Make sure it didn't delete the other user's permission
         $this->seeInDatabase($this->tables['permissions_users'], [
-            'user_id'    => $otherUser->id,
+            'user_id'       => $otherUser->id,
             'permission_id' => $adminAccess->id,
         ]);
     }
@@ -213,9 +221,9 @@ final class AuthorizableTest extends DatabaseTestCase
         $adminAccess = fake(PermissionModel::class, ['name' => 'admin.access']);
 
         $this->hasInDatabase($this->tables['permissions_groups'], [
-            'group_id'    => 1,
+            'group_id'      => 1,
             'permission_id' => $adminAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->user->addGroup('admin');
@@ -228,9 +236,9 @@ final class AuthorizableTest extends DatabaseTestCase
         $adminAccess = fake(PermissionModel::class, ['name' => 'admin.*']);
 
         $this->hasInDatabase($this->tables['permissions_groups'], [
-            'group_id'    => 1,
+            'group_id'      => 1,
             'permission_id' => $adminAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->user->addGroup('admin');
@@ -268,25 +276,25 @@ final class AuthorizableTest extends DatabaseTestCase
         $this->user->addGroup('admin');
 
         $adminAccess = fake(PermissionModel::class, ['name' => 'admin.*']);
-        $betaAccess = fake(PermissionModel::class, ['name' => 'beta.*']);
+        $betaAccess  = fake(PermissionModel::class, ['name' => 'beta.*']);
         $usersAccess = fake(PermissionModel::class, ['name' => 'users.*']);
 
         $this->hasInDatabase($this->tables['permissions_groups'], [
-            'group_id'    => 1,
+            'group_id'      => 1,
             'permission_id' => $adminAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->hasInDatabase($this->tables['permissions_groups'], [
-            'group_id'    => 1,
+            'group_id'      => 1,
             'permission_id' => $betaAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->hasInDatabase($this->tables['permissions_groups'], [
-            'group_id'    => 1,
+            'group_id'      => 1,
             'permission_id' => $usersAccess->id,
-            'created_at' => Time::now()->toDateTimeString(),
+            'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
         $this->assertTrue($this->user->can('admin.access', 'beta.access'));
@@ -307,7 +315,7 @@ final class AuthorizableTest extends DatabaseTestCase
 
         $this->seeInDatabase($this->tables['groups_users'], [
             'user_id'    => $this->user->id,
-            'group_id'      => 1,
+            'group_id'   => 1,
             'created_at' => '2017-03-10 06:00:00',
         ]);
 
