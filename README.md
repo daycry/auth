@@ -3,7 +3,7 @@
 # CodeIgniter Auth
 
 [![Build status](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
-[![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg)](https://coveralls.io/github/daycry/auth)
+[![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
 [![Downloads](https://poser.pugx.org/daycry/auth/downloads)](https://packagist.org/packages/daycry/auth)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/daycry/auth)](https://packagist.org/packages/daycry/auth)
 [![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://packagist.org/packages/daycry/auth)

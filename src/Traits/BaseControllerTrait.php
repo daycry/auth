@@ -43,7 +43,7 @@ trait BaseControllerTrait
     private bool $_isRequestAuthorized = true;
 
     protected array $args;
-    protected ?stdClass $content = null;
+    protected mixed $content = null;
 
     /**
      * Extend this function to apply additional checking early on in the process.

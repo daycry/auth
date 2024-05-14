@@ -29,6 +29,10 @@ class GroupModel extends BaseModel
     protected $updatedField  = 'updated_at';
     protected $deletedField  = 'deleted_at';
 
+    protected $validationRules    = [];
+    protected $validationMessages = [];
+    protected $skipValidation     = false;
+
     protected function initialize(): void
     {
         parent::initialize();
