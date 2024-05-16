@@ -27,7 +27,6 @@ use Daycry\Exceptions\Interfaces\BaseExceptionInterface;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use ReflectionProperty;
-use stdClass;
 
 trait BaseControllerTrait
 {

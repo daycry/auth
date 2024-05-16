@@ -45,7 +45,7 @@ trait CheckQueryReturnTrait
         if ($this->validation === null) {
             return;
         }
-        
+
         $validationErrors = $this->validation->getErrors();
 
         if ($validationErrors !== []) {
