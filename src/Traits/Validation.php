@@ -13,12 +13,15 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use CodeIgniter\Validation\ValidationInterface;
 use Config\Services;
 use Config\Validation as ValidationConfig;
 use Daycry\Auth\Exceptions\ValidationException;
 
 trait Validation
 {
+    protected ValidationInterface $validator;
+
     protected function validation(string $rules, $data = null, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false)
     {
         $config ??= config('Validation');
