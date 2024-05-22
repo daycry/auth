@@ -20,7 +20,12 @@ use Daycry\Auth\Exceptions\ValidationException;
 
 trait Validation
 {
-    protected ValidationInterface $validator;
+    /**
+     * Once validation has been run, will hold the Validation instance.
+     *
+     * @var ValidationInterface|null
+     */
+    protected $validator;
 
     protected function validation(string $rules, $data = null, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false)
     {
