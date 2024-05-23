@@ -33,7 +33,7 @@ trait Validation
 
         $this->validator = Services::validation($config, $getShared);
 
-        $this->validate($rules, $data, $config, $filter, $dbGroup);
+        $this->runValidate($rules, $data, $config, $filter, $dbGroup);
     }
 
     protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
@@ -42,10 +42,10 @@ trait Validation
 
         $this->validator = Services::validation($config, $getShared)->withRequest($this->request);
 
-        $this->validate($rules, null, $config, $filter, $dbGroup);
+        $this->runValidate($rules, null, $config, $filter, $dbGroup);
     }
 
-    private function validate(string $rules, object|array|null $data = null, ?ValidationConfig $config = null, bool $filter = false, ?string $dbGroup = null)
+    private function runValidate(string $rules, object|array|null $data = null, ?ValidationConfig $config = null, bool $filter = false, ?string $dbGroup = null)
     {
         if ($data !== null) {
             $data = json_decode(json_encode($data), true);
