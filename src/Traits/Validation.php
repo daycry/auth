@@ -48,7 +48,7 @@ trait Validation
     private function runValidate(string $rules, object|array|null $data = null, ?ValidationConfig $config = null, bool $filter = false, ?string $dbGroup = null)
     {
         if ($data !== null) {
-            $data = json_decode(json_encode($data), true);
+            $data = get_object_vars($data);
         }
 
         $this->validator->setRuleGroup($rules);
