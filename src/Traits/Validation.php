@@ -27,25 +27,25 @@ trait Validation
      */
     protected $validator;
 
-    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null): array
+    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
         $this->validator = Services::validation($config, $getShared);
 
-        return $this->runValidate($rules, $data, $config, $filter, $dbGroup);
+        return $this->runValidate($rules, $data, $dbGroup);
     }
 
-    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null): array
+    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
-        $this->validator = Services::validation($config, $getShared)->withRequest($this->request);
+        $this->validator = Services::validation($config, $getShared)->withRequest(Services::request());
 
-        return $this->runValidate($rules, null, $config, $filter, $dbGroup);
+        return $this->runValidate($rules, null, $dbGroup);
     }
 
-    private function runValidate(string $rules, object|array|null $data = null, ?ValidationConfig $config = null, bool $filter = false, ?string $dbGroup = null)
+    private function runValidate(string $rules, object|array|null $data = null, ?string $dbGroup = null)
     {
         if ($data !== null) {
             $data = get_object_vars($data);
@@ -57,18 +57,6 @@ trait Validation
             throw ValidationException::validationData();
         }
 
-        $validatedData = $this->validator->getValidated();
-
-        if ($filter) {
-            if ($validatedData) {
-                foreach ($validatedData as $key => $value) {
-                    if (! array_key_exists($key, $config->{$rules})) {
-                        throw ValidationException::validationtMethodParamsError($key);
-                    }
-                }
-            }
-        }
-
-        return $validatedData;
+        return $this->validator->getValidated();
     }
 }
