@@ -27,7 +27,7 @@ trait Validation
      */
     protected $validator;
 
-    protected function validateData(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
+    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
     {
         $config ??= config('Validation');
 
@@ -36,7 +36,7 @@ trait Validation
         $this->validate($rules, $data, $config, $filter, $dbGroup);
     }
 
-    protected function validateRequest(string $rules, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
+    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
     {
         $config ??= config('Validation');
 
