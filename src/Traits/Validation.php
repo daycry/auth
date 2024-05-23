@@ -27,22 +27,22 @@ trait Validation
      */
     protected $validator;
 
-    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
+    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
         $this->validator = Services::validation($config, $getShared);
 
-        $this->runValidate($rules, $data, $config, $filter, $dbGroup);
+        return $this->runValidate($rules, $data, $config, $filter, $dbGroup);
     }
 
-    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null)
+    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
         $this->validator = Services::validation($config, $getShared)->withRequest($this->request);
 
-        $this->runValidate($rules, null, $config, $filter, $dbGroup);
+        return $this->runValidate($rules, null, $config, $filter, $dbGroup);
     }
 
     private function runValidate(string $rules, object|array|null $data = null, ?ValidationConfig $config = null, bool $filter = false, ?string $dbGroup = null)
@@ -68,5 +68,7 @@ trait Validation
                 }
             }
         }
+
+        return $validatedData;
     }
 }
