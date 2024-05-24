@@ -117,6 +117,27 @@ final class PermissionFilterTest extends FilterTestCase
         $this->assertSame($user->id, auth('jwt')->user()->id);
     }
 
+    public function testFilterAuthJWTNotAuthorizedJWTJson(): void
+    {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+
+        /** @var User $user */
+        $user = fake(UserModel::class);
+        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+
+        fake(PermissionModel::class, ['name' => 'admin.access']);
+        fake(PermissionModel::class, ['name' => 'admin.read']);
+        $user->addPermission('admin.read');
+
+        $jwt   = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt())->encode($user->id);
+
+        $result = $this->withHeaders(['Accept' => 'application/json', 'Authorization' => 'Bearer ' . $token])
+            ->get('protected-route');
+
+        $result->assertStatus(401);
+    }
+
     public function testFilterAuthJWTNotAuthorizedJWT(): void
     {
         $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
@@ -135,6 +156,6 @@ final class PermissionFilterTest extends FilterTestCase
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
             ->get('protected-route');
 
-        $result->assertStatus(401);
+        $result->assertStatus(302);
     }
 }

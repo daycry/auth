@@ -27,26 +27,36 @@ trait Validation
      */
     protected $validator;
 
-    protected function validation(string $rules, $data = null, ?ValidationConfig $config = null, bool $getShared = true, bool $filter = false)
+    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
-        $data ??= $this->content;
 
         $this->validator = Services::validation($config, $getShared);
 
-        $content = json_decode(json_encode($data), true);
-        if (! $this->validator->run($content, $rules)) {
+        return $this->runValidate($rules, $data, $dbGroup);
+    }
+
+    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
+    {
+        $config ??= config('Validation');
+
+        $this->validator = Services::validation($config, $getShared)->withRequest(Services::request());
+
+        return $this->runValidate($rules, null, $dbGroup);
+    }
+
+    private function runValidate(string $rules, object|array|null $data = null, ?string $dbGroup = null)
+    {
+        if ($data !== null) {
+            $data = get_object_vars($data);
+        }
+
+        $this->validator->setRuleGroup($rules);
+
+        if (! $this->validator->run($data, null, $dbGroup)) {
             throw ValidationException::validationData();
         }
 
-        if ($filter) {
-            if ($data) {
-                foreach ($data as $key => $value) {
-                    if (! array_key_exists($key, $config->{$rules})) {
-                        throw ValidationException::validationtMethodParamsError($key);
-                    }
-                }
-            }
-        }
+        return $this->validator->getValidated();
     }
 }

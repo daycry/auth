@@ -55,6 +55,9 @@
     <env name="COMPOSER_DISABLE_XDEBUG_WARN" value="1"/>
     <!-- Database configuration -->
     <env name="database.tests.strictOn" value="true"/>
+
+  <!-- Auth configuration -->
+    <env name="auth.enableInvalidAttempts" value="true"/>
   </php>
   <source>
     <include>
