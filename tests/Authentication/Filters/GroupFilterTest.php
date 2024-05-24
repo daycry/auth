@@ -121,6 +121,24 @@ final class GroupFilterTest extends FilterTestCase
 
         $result = $this->withHeaders(['Authorization' => 'Bearer ' . $token])->get('protected-route');
 
+        $result->assertStatus(302);
+    }
+
+    public function testFilterIncorrectGroupNoPreviousJWTJson(): void
+    {
+        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        fake(GroupModel::class, ['name' => 'beta']);
+
+        /** @var User $user */
+        $user = fake(UserModel::class);
+        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
+        $user->addGroup('beta');
+
+        $jwt   = service('settings')->get('Auth.jwtAdapter');
+        $token = (new $jwt())->encode($user->id);
+
+        $result = $this->withHeaders(['Accept' => 'application/json', 'Authorization' => 'Bearer ' . $token])->get('protected-route');
+
         $result->assertStatus(401);
     }
 }

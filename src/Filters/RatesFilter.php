@@ -48,7 +48,6 @@ class RatesFilter implements FilterInterface
         helper('checkEndpoint');
 
         $throttler = service('throttler');
-        $request   = Services::request();
         $router    = Services::router();
 
         $endpoint = checkEndpoint();
