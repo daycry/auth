@@ -97,14 +97,17 @@ abstract class Base
             if (service('settings')->get('Auth.recordLoginAttempt') >= Auth::RECORD_LOGIN_ATTEMPT_FAILURE) {
                 // Record a banned login attempt.
                 $identifier = $this->getLogCredentials($credentials);
-                $this->loginModel->recordLoginAttempt(
-                    $this->authType,
-                    $identifier,
-                    false,
-                    $this->ipAddress,
-                    $this->userAgent,
-                    $user->id
-                );
+
+                if ($identifier !== null) {
+                    $this->loginModel->recordLoginAttempt(
+                        $this->authType,
+                        $identifier,
+                        false,
+                        $this->ipAddress,
+                        $this->userAgent,
+                        $user->id
+                    );
+                }
             }
 
             $this->user = null;
@@ -120,14 +123,16 @@ abstract class Base
         if (service('settings')->get('Auth.recordLoginAttempt') === Auth::RECORD_LOGIN_ATTEMPT_ALL) {
             // Record a successful login attempt.
             $identifier = $this->getLogCredentials($credentials);
-            $this->loginModel->recordLoginAttempt(
-                $this->authType,
-                $identifier,
-                true,
-                $this->ipAddress,
-                $this->userAgent,
-                $this->user->id
-            );
+            if ($identifier !== null) {
+                $this->loginModel->recordLoginAttempt(
+                    $this->authType,
+                    $identifier,
+                    true,
+                    $this->ipAddress,
+                    $this->userAgent,
+                    $this->user->id
+                );
+            }
         }
 
         return $result;

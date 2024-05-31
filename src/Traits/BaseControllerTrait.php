@@ -117,7 +117,7 @@ trait BaseControllerTrait
     /**
      * Add the request to the log table.
      */
-    protected function _logRequest()
+    protected function _logRequest(): void
     {
         $reflectionClass = new ReflectionClass($this->router->controllerName());
 
@@ -129,6 +129,11 @@ trait BaseControllerTrait
             ->setAuthorized($this->_isRequestAuthorized)
             ->setResponseCode($this->response->getStatusCode())
             ->save();
+    }
+
+    protected function getToken(): array
+    {
+        return ['name' => csrf_token(), 'hash' => csrf_hash()];
     }
 
     /**
@@ -176,7 +181,7 @@ trait BaseControllerTrait
 
             if ($this->request->isAJAX()) {
                 return $this->response->setStatusCode($code)->setJSON(
-                    ['status' => false, 'error' => $message, 'token' => $this->_getToken()]
+                    ['status' => false, 'error' => $message, 'token' => $this->getToken()]
                 );
             }
 
