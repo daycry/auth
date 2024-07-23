@@ -314,9 +314,13 @@ final class AuthorizableTest extends DatabaseTestCase
         $this->user->addGroup('admin');
 
         $this->seeInDatabase($this->tables['groups_users'], [
+            'id'         => 1,
             'user_id'    => $this->user->id,
             'group_id'   => 1,
+            'until_at'   => null,
             'created_at' => '2017-03-10 06:00:00',
+            'updated_at' => '2017-03-10 06:00:00',
+            'deleted_at' => null,
         ]);
 
         Locale::setDefault($currentLocale);

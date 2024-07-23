@@ -35,7 +35,7 @@ final class GroupFilterTest extends FilterTestCase
     public function testFilterNotAuthorizedSession(): void
     {
         $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
-        $result = $this->call('get', 'protected-route');
+        $result = $this->call('GET', 'protected-route');
 
         $result->assertRedirectTo('/login');
 
@@ -47,7 +47,7 @@ final class GroupFilterTest extends FilterTestCase
     public function testFilterNotAuthorizedJWT(): void
     {
         $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
-        $result = $this->call('get', 'protected-route');
+        $result = $this->call('GET', 'protected-route');
 
         $result->assertStatus(401);
     }
@@ -55,7 +55,7 @@ final class GroupFilterTest extends FilterTestCase
     public function testFilterNotAuthorizedStoresRedirectToEntranceUrlIntoSession(): void
     {
         $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
-        $result = $this->call('get', 'protected-route');
+        $result = $this->call('GET', 'protected-route');
 
         $result->assertRedirectTo('/login');
 
