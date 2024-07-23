@@ -231,10 +231,8 @@ class SetupCommand extends BaseCommand
         $helpers    = $config->helpers;
         $newHelpers = array_unique(array_merge($helpers, ['auth', 'setting']));
 
-        $pattern = '/^    public \$helpers = \[.*\];/mu';
-        $replace = '    public $helpers = [\'' . implode("', '", $newHelpers) . '\'];';
         $content = file_get_contents($path);
-        $output  = preg_replace($pattern, $replace, $content);
+        $output  = $this->updateAutoloadHelpers($content, $newHelpers);
 
         // check if the content is updated
         if ($output === $content) {
@@ -250,6 +248,18 @@ class SetupCommand extends BaseCommand
         } else {
             $this->error("  Error updating file '{$cleanPath}'.");
         }
+    }
+
+    /**
+     * @param string       $content    The content of Config\Autoload.
+     * @param list<string> $newHelpers The list of helpers.
+     */
+    private function updateAutoloadHelpers(string $content, array $newHelpers): string
+    {
+        $pattern = '/^    public \$helpers = \[.*?\];/msu';
+        $replace = '    public $helpers = [\'' . implode("', '", $newHelpers) . '\'];';
+
+        return preg_replace($pattern, $replace, $content);
     }
 
     private function removeHelperLoadingInBaseController(): void
