@@ -17,9 +17,9 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
-use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
 use Config\Services;
+use Daycry\Auth\Entities\Endpoint;
 
 /**
  * Auth Rate-Limiting Filter.
@@ -55,7 +55,7 @@ class RatesFilter implements FilterInterface
         $limit = service('settings')->get('Auth.requestLimit');
         $time  = service('settings')->get('Auth.timeLimit');
 
-        if ($endpoint) {
+        if ($endpoint instanceof Endpoint) {
             $limit = ($endpoint->limit) ?: $limit;
             $time  = ($endpoint->time) ?: $time;
         }
@@ -80,29 +80,24 @@ class RatesFilter implements FilterInterface
                 break;
         }
 
-        $ignoreRates = false;
-
         if ($userId = auth()->id()) {
             $ignoreLimits = auth()->user()->ignore_rates;
         }
 
-        if (! $ignoreLimits) {
-            // Restrict an IP address to no more than 10 requests
-            // per minute on any auth-form pages (login, register, forgot, etc).
-            if ($throttler->check(md5($limited_uri), $limit, $time, 1) === false) {
-                return service('response')->setStatusCode(
-                    429,
-                    lang('Auth.throttled', [$throttler->getTokenTime()]) // message
-                );
-            }
+        // Restrict an IP address to no more than 10 requests
+        // per minute on any auth-form pages (login, register, forgot, etc).
+        if (! $ignoreLimits && $throttler->check(md5($limited_uri), $limit, $time, 1) === false) {
+            return service('response')->setStatusCode(
+                429,
+                lang('Auth.throttled', [$throttler->getTokenTime()]) // message
+            );
         }
     }
 
     /**
      * We don't have anything to do here.
      *
-     * @param Response|ResponseInterface $response
-     * @param array|null                 $arguments
+     * @param array|null $arguments
      */
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
     {

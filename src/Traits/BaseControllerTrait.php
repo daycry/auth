@@ -93,18 +93,15 @@ trait BaseControllerTrait
                 if ($this->_isRequestAuthorized === false) {
                     if ($attempt === null) {
                         $attempt = [
-                            'user_id'      => (auth()->user()) ? auth()->user()->id : null,
+                            'user_id'      => (auth()->user() !== null) ? auth()->user()->id : null,
                             'ip_address'   => $this->request->getIPAddress(),
                             'attempts'     => 1,
                             'hour_started' => time(),
                         ];
-
                         $attemptModel->save($attempt);
-                    } else {
-                        if ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
-                            $attempt->attempts++;
-                            $attemptModel->save($attempt);
-                        }
+                    } elseif ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
+                        $attempt->attempts++;
+                        $attemptModel->save($attempt);
                     }
                 }
             }

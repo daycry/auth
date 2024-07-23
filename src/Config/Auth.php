@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Config;
 
 use CodeIgniter\Config\BaseConfig;
+use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Authentication\Authenticators\Guest;
 use Daycry\Auth\Authentication\Authenticators\JWT;
@@ -260,7 +261,7 @@ class Auth extends BaseConfig
      */
     public array $actions = [
         'register' => null,
-        'login'    => \Daycry\Auth\Authentication\Actions\Email2FA::class,
+        'login'    => Email2FA::class,
     ];
 
     /**

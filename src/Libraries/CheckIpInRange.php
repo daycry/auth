@@ -71,7 +71,7 @@ class CheckIpInRange
                 $x[] = '0';
             }
             [$a, $b, $c, $d] = $x;
-            $range           = sprintf('%u.%u.%u.%u', empty($a) ? '0' : $a, empty($b) ? '0' : $b, empty($c) ? '0' : $c, empty($d) ? '0' : $d);
+            $range           = sprintf('%u.%u.%u.%u', $a === '' || $a === '0' ? '0' : $a, $b === '' || $b === '0' ? '0' : $b, $c === '' || $c === '0' ? '0' : $c, $d === '' || $d === '0' ? '0' : $d);
             $range_dec       = ip2long($range);
             $ip_dec          = ip2long($ip);
 
@@ -117,9 +117,8 @@ class CheckIpInRange
      */
     public static function ipv6_in_range($ip, $range_ip)
     {
-        $pieces      = explode('/', $range_ip, 2);
-        $left_piece  = $pieces[0];
-        $right_piece = $pieces[1];
+        $pieces     = explode('/', $range_ip, 2);
+        $left_piece = $pieces[0];
 
         // Extract out the main IP pieces
         $ip_pieces     = explode('::', $left_piece, 2);
@@ -129,7 +128,7 @@ class CheckIpInRange
         // Pad out the shorthand entries.
         $main_ip_pieces = explode(':', $main_ip_piece);
 
-        foreach ($main_ip_pieces as $key => $val) {
+        foreach (array_keys($main_ip_pieces) as $key) {
             $main_ip_pieces[$key] = str_pad($main_ip_pieces[$key], 4, '0', STR_PAD_LEFT);
         }
 
@@ -171,7 +170,7 @@ class CheckIpInRange
      */
     private static function ip2long6($ip)
     {
-        if (substr_count($ip, '::')) {
+        if (substr_count($ip, '::') !== 0) {
             $ip = str_replace('::', str_repeat(':0000', 8 - substr_count($ip, ':')) . ':', $ip);
         }
 
@@ -193,9 +192,8 @@ class CheckIpInRange
     // Get the ipv6 full format and return it as a decimal value.
     public static function get_ipv6_full($ip)
     {
-        $pieces      = explode('/', $ip, 2);
-        $left_piece  = $pieces[0];
-        $right_piece = $pieces[1];
+        $pieces     = explode('/', $ip, 2);
+        $left_piece = $pieces[0];
 
         // Extract out the main IP pieces
         $ip_pieces     = explode('::', $left_piece, 2);
@@ -205,7 +203,7 @@ class CheckIpInRange
         // Pad out the shorthand entries.
         $main_ip_pieces = explode(':', $main_ip_piece);
 
-        foreach ($main_ip_pieces as $key => $val) {
+        foreach (array_keys($main_ip_pieces) as $key) {
             $main_ip_pieces[$key] = str_pad($main_ip_pieces[$key], 4, '0', STR_PAD_LEFT);
         }
 

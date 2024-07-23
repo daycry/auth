@@ -44,7 +44,7 @@ class PermissionUser extends Entity
      */
     public function getUser()
     {
-        if ($this->user) {
+        if ($this->user instanceof User) {
             return $this->user;
         }
 
@@ -59,7 +59,7 @@ class PermissionUser extends Entity
      */
     public function getPermission()
     {
-        if ($this->permission) {
+        if ($this->permission instanceof Permission) {
             return $this->permission;
         }
 

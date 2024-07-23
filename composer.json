@@ -75,7 +75,8 @@
         "style": "@cs-fix",
         "test": [
             "Composer\\Config::disableProcessTimeout",
-            "vendor/bin/phpunit"
+            "vendor/bin/phpunit",
+            "@cs"
         ]
     },
     "config": {

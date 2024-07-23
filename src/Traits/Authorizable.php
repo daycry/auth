@@ -270,7 +270,7 @@ trait Authorizable
                 return true;
             }
 
-            if (! count($this->groupCache)) {
+            if (count($this->groupCache) === 0) {
                 return false;
             }
 
@@ -320,7 +320,6 @@ trait Authorizable
      */
     private function getAllUserGroups(): array
     {
-        /** @var GroupUserModel $GroupUserModel */
         $userGroupModel = model(GroupUserModel::class);
         $userGroups     = $userGroupModel->getForUser($this);
 
@@ -332,7 +331,7 @@ trait Authorizable
 
         $groupModel = model(GroupModel::class);
 
-        if ($ids) {
+        if ($ids !== []) {
             return $groupModel->getByIds($ids);
         }
 
@@ -344,7 +343,6 @@ trait Authorizable
      */
     private function getAllUserPermissions(): array
     {
-        /** @var GroupUserModel $GroupUserModel */
         $userPermissionsModel = model(PermissionUserModel::class);
         $userPermissions      = $userPermissionsModel->getForUser($this);
 
@@ -356,7 +354,7 @@ trait Authorizable
 
         $permissionModel = model(PermissionModel::class);
 
-        if ($ids) {
+        if ($ids !== []) {
             return $permissionModel->getByIds($ids);
         }
 
@@ -380,7 +378,7 @@ trait Authorizable
 
         $permissionModel = model(PermissionModel::class);
 
-        if ($ids) {
+        if ($ids !== []) {
             return $permissionModel->getByIds($ids);
         }
 

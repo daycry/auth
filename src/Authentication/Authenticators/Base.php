@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Authenticators;
 
-use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Config\Services;
@@ -46,7 +45,6 @@ abstract class Base
 
     public function __construct(UserModel $provider)
     {
-        /** @var IncomingRequest */
         $this->request = Services::request();
 
         $this->userIdentityModel = model(UserIdentityModel::class);
@@ -67,7 +65,7 @@ abstract class Base
      */
     protected function checkLogin(array $credentials): Result
     {
-        if (empty($credentials)) {
+        if ($credentials === []) {
             $this->forceLogin();
         }
 

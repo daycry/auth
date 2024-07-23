@@ -134,12 +134,11 @@ class AccessToken extends Base implements AuthenticatorInterface
      */
     public function loggedIn(): bool
     {
-        if (! empty($this->user)) {
+        if ($this->user instanceof User) {
             return true;
         }
 
-        /** @var IncomingRequest $request */
-        $request = service('request');
+        service('request');
 
         return $this->attempt([
             'token' => $this->getAccessToken(),
@@ -157,7 +156,7 @@ class AccessToken extends Base implements AuthenticatorInterface
     {
         $user = $this->provider->findById($userId);
 
-        if (empty($user)) {
+        if (! $user instanceof User) {
             throw AuthenticationException::forInvalidUser();
         }
 

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Exceptions;
 
+use Config\Services;
 use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class FailTooManyRequestsException extends RuntimeException
@@ -23,7 +24,7 @@ class FailTooManyRequestsException extends RuntimeException
     public static function forApiKeyLimit(string $key)
     {
         self::$authorized = false;
-        $parser           = \Config\Services::parser();
+        $parser           = Services::parser();
 
         return new self($parser->setData(['key' => $key])->renderString(lang('Auth.textRestApiKeyTimeLimit')));
     }

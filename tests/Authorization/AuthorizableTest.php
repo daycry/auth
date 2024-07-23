@@ -172,7 +172,7 @@ final class AuthorizableTest extends DatabaseTestCase
 
     public function testRemovePermissionNoPermissions(): void
     {
-        $this->assertSame(count($this->user->getPermissions()), count($this->user->removePermission('admin.access')->getPermissions()));
+        $this->assertCount(count($this->user->getPermissions()), $this->user->removePermission('admin.access')->getPermissions());
     }
 
     public function testRemovePermissionExistingPermissions(): void

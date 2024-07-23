@@ -45,7 +45,7 @@ class PermissionGroup extends Entity
      */
     public function getGroup()
     {
-        if ($this->group) {
+        if ($this->group instanceof Group) {
             return $this->group;
         }
 
@@ -60,7 +60,7 @@ class PermissionGroup extends Entity
      */
     public function getPermission()
     {
-        if ($this->permission) {
+        if ($this->permission instanceof Permission) {
             return $this->permission;
         }
 
