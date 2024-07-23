@@ -82,5 +82,5 @@ abstract class AbstractAuthFilter implements FilterInterface
     /**
      * Returns redirect response when the user does not have access authorizations.
      */
-    abstract protected function redirectToDeniedUrl(RequestInterface $request): Response|RedirectResponse;
+    abstract protected function redirectToDeniedUrl(RequestInterface $request): RedirectResponse|Response;
 }

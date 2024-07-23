@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * This file is part of Daycry Auth.
  *
@@ -19,7 +21,7 @@ use Daycry\Auth\Models\AttemptModel;
 
 class AttemptValidator
 {
-    public static function check(ResponseInterface &$response)
+    public static function check(ResponseInterface &$response): void
     {
         $request = Services::request();
 

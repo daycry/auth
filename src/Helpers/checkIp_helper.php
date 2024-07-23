@@ -25,7 +25,7 @@ if (! function_exists('checkIp')) {
         $return = false;
 
         foreach ($ips as $i) {
-            if (strpos($i, '/') !== false || strpos($i, '-') !== false || strpos($i, '*') !== false) {
+            if (str_contains($i, '/') || str_contains($i, '-') || str_contains($i, '*')) {
                 $return = CheckIpInRange::ipv4_in_range($ip, $i);
             } elseif ($ip === trim($i)) {
                 $return = true;

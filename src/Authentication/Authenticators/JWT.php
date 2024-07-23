@@ -188,7 +188,7 @@ class JWT extends Base implements AuthenticatorInterface
 
     private function parseHeader(?string $token)
     {
-        if (strpos($token, 'Bearer') === 0) {
+        if (str_starts_with($token, 'Bearer')) {
             $token = trim(substr($token, 6));
         }
 

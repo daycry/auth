@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * This file is part of Daycry Auth.
  *
@@ -15,7 +17,7 @@ use CodeIgniter\Database\Seeder;
 
 class CoreSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $groups = [
             [

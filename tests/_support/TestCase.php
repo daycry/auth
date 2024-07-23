@@ -59,7 +59,7 @@ abstract class TestCase extends CIUnitTestCase
         Factories::injectMock('config', 'Security', $config);
     }
 
-    protected function inkectMockAttributes(array $attributes = [])
+    protected function inkectMockAttributes(array $attributes = []): void
     {
         $config = config(Auth::class);
 

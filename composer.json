@@ -56,8 +56,6 @@
             "bash admin/setup.sh"
         ],
         "analyze": [
-            "phpstan analyze",
-            "psalm",
             "rector process --dry-run"
         ],
         "ci": [

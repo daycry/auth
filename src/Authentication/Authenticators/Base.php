@@ -142,10 +142,8 @@ abstract class Base
      * Force logging in by setting the WWW-Authenticate header
      *
      * @param string $nonce A server-specified data string which should be uniquely generated each time
-     *
-     * @return void
      */
-    protected function forceLogin($nonce = '')
+    protected function forceLogin($nonce = ''): void
     {
         $rest_auth  = \strtolower($this->method);
         $rest_realm = service('settings')->get('Auth.restRealm');

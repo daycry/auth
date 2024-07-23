@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * This file is part of Daycry Auth.
  *
@@ -35,7 +37,7 @@ class DiscoverCommand extends BaseCommand
     protected BaseConfig $config;
     protected array $allClasses = [];
 
-    public function run(array $params)
+    public function run(array $params): void
     {
         $this->timeStart = Time::now()->subSeconds(1);
         /** @var ClassFinderConfig $finderConfig */
@@ -107,7 +109,7 @@ class DiscoverCommand extends BaseCommand
         $namespaceConverted = (mb_substr($namespace, 0, 1) !== '\\') ? '\\' . $namespace : $namespace;
 
         foreach ($f->getMethods(ReflectionMethod::IS_PUBLIC) as $m) {
-            if (strpos($m->name, '__') !== 0 && $m->class === $namespace && ! in_array($m->name, service('settings')->get('Auth.excludeMethods'), true)) {
+            if (! str_starts_with($m->name, '__') && $m->class === $namespace && ! in_array($m->name, service('settings')->get('Auth.excludeMethods'), true)) {
                 $methods[] = $namespaceConverted . '::' . $m->name;
             }
         }
@@ -115,7 +117,7 @@ class DiscoverCommand extends BaseCommand
         return $methods;
     }
 
-    private function _checkClassController(Api $api, string $class, array $methods = [])
+    private function _checkClassController(Api $api, string $class, array $methods = []): void
     {
         $controllerModel = new ControllerModel();
         $controller      = $controllerModel->where('api_id', $api->id)->where('controller', $class)->first();

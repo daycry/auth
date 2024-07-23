@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * This file is part of Daycry Auth.
  *
@@ -51,7 +53,7 @@ trait BaseControllerTrait
     {
     }
 
-    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
+    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger): void
     {
         helper(['security', 'auth']);
 
