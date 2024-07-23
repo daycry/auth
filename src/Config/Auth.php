@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Config;
 
 use CodeIgniter\Config\BaseConfig;
+use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Authentication\Authenticators\Guest;
 use Daycry\Auth\Authentication\Authenticators\JWT;
@@ -260,7 +261,7 @@ class Auth extends BaseConfig
      */
     public array $actions = [
         'register' => null,
-        'login'    => \Daycry\Auth\Authentication\Actions\Email2FA::class,
+        'login'    => Email2FA::class,
     ];
 
     /**
@@ -696,7 +697,7 @@ class Auth extends BaseConfig
         $final_url = '';
 
         switch (true) {
-            case strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0: // URL begins with 'http' or 'https'. E.g. http://example.com
+            case str_starts_with($url, 'http://') || str_starts_with($url, 'https://')  : // URL begins with 'http' or 'https'. E.g. http://example.com
                 $final_url = $url;
                 break;
 

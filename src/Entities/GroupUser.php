@@ -44,7 +44,7 @@ class GroupUser extends Entity
      */
     public function getUser()
     {
-        if ($this->user) {
+        if ($this->user instanceof User) {
             return $this->user;
         }
 
@@ -59,7 +59,7 @@ class GroupUser extends Entity
      */
     public function getGroup()
     {
-        if ($this->group) {
+        if ($this->group instanceof Group) {
             return $this->group;
         }
 

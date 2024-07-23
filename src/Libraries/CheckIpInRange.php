@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * This file is part of Daycry Auth.
  *
@@ -51,10 +53,10 @@ class CheckIpInRange
      */
     public static function ipv4_in_range($ip, $range)
     {
-        if (strpos($range, '/') !== false) {
+        if (str_contains($range, '/')) {
             // $range is in IP/NETMASK format
             [$range, $netmask] = explode('/', $range, 2);
-            if (strpos($netmask, '.') !== false) {
+            if (str_contains($netmask, '.')) {
                 // $netmask is a 255.255.0.0 format
                 $netmask     = str_replace('*', '0', $netmask);
                 $netmask_dec = ip2long($netmask);
@@ -69,7 +71,7 @@ class CheckIpInRange
                 $x[] = '0';
             }
             [$a, $b, $c, $d] = $x;
-            $range           = sprintf('%u.%u.%u.%u', empty($a) ? '0' : $a, empty($b) ? '0' : $b, empty($c) ? '0' : $c, empty($d) ? '0' : $d);
+            $range           = sprintf('%u.%u.%u.%u', $a === '' || $a === '0' ? '0' : $a, $b === '' || $b === '0' ? '0' : $b, $c === '' || $c === '0' ? '0' : $c, $d === '' || $d === '0' ? '0' : $d);
             $range_dec       = ip2long($range);
             $ip_dec          = ip2long($ip);
 
@@ -83,14 +85,14 @@ class CheckIpInRange
             return ($ip_dec & $netmask_dec) === ($range_dec & $netmask_dec);
         }
         // range might be 255.255.*.* or 1.2.3.0-1.2.3.255
-        if (strpos($range, '*') !== false) { // a.b.*.* format
+        if (str_contains($range, '*')) { // a.b.*.* format
             // Just convert to A-B format by setting * to 0 for A and 255 for B
             $lower = str_replace('*', '0', $range);
             $upper = str_replace('*', '255', $range);
             $range = "{$lower}-{$upper}";
         }
 
-        if (strpos($range, '-') !== false) { // A-B format
+        if (str_contains($range, '-')) { // A-B format
             [$lower, $upper] = explode('-', $range, 2);
             $lower_dec       = (float) sprintf('%u', ip2long($lower));
             $upper_dec       = (float) sprintf('%u', ip2long($upper));
@@ -115,9 +117,8 @@ class CheckIpInRange
      */
     public static function ipv6_in_range($ip, $range_ip)
     {
-        $pieces      = explode('/', $range_ip, 2);
-        $left_piece  = $pieces[0];
-        $right_piece = $pieces[1];
+        $pieces     = explode('/', $range_ip, 2);
+        $left_piece = $pieces[0];
 
         // Extract out the main IP pieces
         $ip_pieces     = explode('::', $left_piece, 2);
@@ -127,7 +128,7 @@ class CheckIpInRange
         // Pad out the shorthand entries.
         $main_ip_pieces = explode(':', $main_ip_piece);
 
-        foreach ($main_ip_pieces as $key => $val) {
+        foreach (array_keys($main_ip_pieces) as $key) {
             $main_ip_pieces[$key] = str_pad($main_ip_pieces[$key], 4, '0', STR_PAD_LEFT);
         }
 
@@ -169,7 +170,7 @@ class CheckIpInRange
      */
     private static function ip2long6($ip)
     {
-        if (substr_count($ip, '::')) {
+        if (substr_count($ip, '::') !== 0) {
             $ip = str_replace('::', str_repeat(':0000', 8 - substr_count($ip, ':')) . ':', $ip);
         }
 
@@ -191,9 +192,8 @@ class CheckIpInRange
     // Get the ipv6 full format and return it as a decimal value.
     public static function get_ipv6_full($ip)
     {
-        $pieces      = explode('/', $ip, 2);
-        $left_piece  = $pieces[0];
-        $right_piece = $pieces[1];
+        $pieces     = explode('/', $ip, 2);
+        $left_piece = $pieces[0];
 
         // Extract out the main IP pieces
         $ip_pieces     = explode('::', $left_piece, 2);
@@ -203,7 +203,7 @@ class CheckIpInRange
         // Pad out the shorthand entries.
         $main_ip_pieces = explode(':', $main_ip_piece);
 
-        foreach ($main_ip_pieces as $key => $val) {
+        foreach (array_keys($main_ip_pieces) as $key) {
             $main_ip_pieces[$key] = str_pad($main_ip_pieces[$key], 4, '0', STR_PAD_LEFT);
         }
 

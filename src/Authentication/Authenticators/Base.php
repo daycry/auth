@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Authenticators;
 
-use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Config\Services;
@@ -46,7 +45,6 @@ abstract class Base
 
     public function __construct(UserModel $provider)
     {
-        /** @var IncomingRequest */
         $this->request = Services::request();
 
         $this->userIdentityModel = model(UserIdentityModel::class);
@@ -67,7 +65,7 @@ abstract class Base
      */
     protected function checkLogin(array $credentials): Result
     {
-        if (empty($credentials)) {
+        if ($credentials === []) {
             $this->forceLogin();
         }
 
@@ -142,10 +140,8 @@ abstract class Base
      * Force logging in by setting the WWW-Authenticate header
      *
      * @param string $nonce A server-specified data string which should be uniquely generated each time
-     *
-     * @return void
      */
-    protected function forceLogin($nonce = '')
+    protected function forceLogin($nonce = ''): void
     {
         $rest_auth  = \strtolower($this->method);
         $rest_realm = service('settings')->get('Auth.restRealm');

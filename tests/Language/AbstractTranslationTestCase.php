@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Language;
 
 use CodeIgniter\CLI\CLI;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -101,9 +102,8 @@ abstract class AbstractTranslationTestCase extends TestCase
     /**
      * This tests that all language files configured in the main CI4 repository
      * have a corresponding language file in the current locale.
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllConfiguredLanguageFilesAreTranslated(string $locale): void
     {
         $filesNotTranslated = array_diff(
@@ -126,9 +126,8 @@ abstract class AbstractTranslationTestCase extends TestCase
     /**
      * This tests that all translated language files in the current locale have a
      * corresponding language file in the main CI4 repository.
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllTranslatedLanguageFilesAreConfigured(string $locale): void
     {
         $filesNotConfigured = array_diff(
@@ -151,9 +150,8 @@ abstract class AbstractTranslationTestCase extends TestCase
     /**
      * This tests that all language keys defined by a language file in the main CI4
      * repository have corresponding keys in the current locale.
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllConfiguredLanguageKeysAreIncluded(string $locale): void
     {
         $keysNotIncluded = [];
@@ -184,9 +182,8 @@ abstract class AbstractTranslationTestCase extends TestCase
     /**
      * This tests that all included language keys in a language file for the current
      * locale have corresponding keys in the main CI4 repository.
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllIncludedLanguageKeysAreConfigured(string $locale): void
     {
         $keysNotConfigured = [];
@@ -218,9 +215,8 @@ abstract class AbstractTranslationTestCase extends TestCase
      * This tests that all included language keys in a language file for the current
      * locale that have corresponding keys in the main CI4 repository are really translated
      * and do not only copy the main repository's value.
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllIncludedLanguageKeysAreTranslated(string $locale): void
     {
         // These keys are usually not translated because they contain either
@@ -264,9 +260,8 @@ abstract class AbstractTranslationTestCase extends TestCase
     /**
      * This tests that the order of all language keys defined by a translation language file
      * resembles the order in the main CI4 repository.
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllConfiguredLanguageKeysAreInOrder(string $locale): void
     {
         $diffs = [];
@@ -306,9 +301,8 @@ abstract class AbstractTranslationTestCase extends TestCase
 
     /**
      * @see https://codeigniter4.github.io/CodeIgniter4/outgoing/localization.html#replacing-parameters
-     *
-     * @dataProvider localesProvider
      */
+    #[DataProvider('localesProvider')]
     final public function testAllLocalizationParametersAreNotTranslated(string $locale): void
     {
         $diffs = [];
@@ -333,7 +327,7 @@ abstract class AbstractTranslationTestCase extends TestCase
 
                 foreach ($matches as $match) {
                     foreach ($match as $parameter) {
-                        if (strpos($translated[$key], (string) $parameter) === false) {
+                        if (! str_contains($translated[$key], (string) $parameter)) {
                             $id = sprintf('%s.%s', substr($file, 0, -4), $key);
 
                             $diffs[$id] ??= [];
@@ -373,9 +367,7 @@ abstract class AbstractTranslationTestCase extends TestCase
         return [$locale => [$locale]];
     }
 
-    /**
-     * @dataProvider localesProvider
-     */
+    #[DataProvider('localesProvider')]
     final public function testLocaleHasCorrespondingTestCaseFile(string $locale): void
     {
         $class = array_flip(self::$locales)[$locale];

@@ -44,7 +44,7 @@ final class AuthSessionFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorized(): void
     {
-        $result = $this->call('get', 'protected-route');
+        $result = $this->call('GET', 'protected-route');
 
         $result->assertRedirectTo('/login');
 

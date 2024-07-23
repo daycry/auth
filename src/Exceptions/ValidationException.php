@@ -13,13 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Exceptions;
 
+use Config\Services;
 use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class ValidationException extends RuntimeException
 {
     public static function validationtMethodParamsError($param)
     {
-        $parser = \Config\Services::parser();
+        $parser = Services::parser();
 
         return new self($parser->setData(['param' => $param])->renderString(lang('Auth.invalidParamsForMethod')));
     }

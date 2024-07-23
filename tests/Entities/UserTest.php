@@ -376,7 +376,7 @@ final class UserTest extends DatabaseTestCase
 
     public function testAddUserGroups(): void
     {
-        $group = fake(GroupModel::class, ['name' => 'foo']);
+        fake(GroupModel::class, ['name' => 'foo']);
 
         $groups = $this->user->getGroups();
         $this->assertCount(0, $groups);
@@ -415,7 +415,7 @@ final class UserTest extends DatabaseTestCase
 
     public function testUserNotInGroups(): void
     {
-        $group = fake(GroupModel::class, ['name' => 'foo']);
+        fake(GroupModel::class, ['name' => 'foo']);
 
         $groups = $this->user->getGroups();
         $this->assertCount(0, $groups);
@@ -564,7 +564,7 @@ final class UserTest extends DatabaseTestCase
     public function testSyncUserPermissions(): void
     {
         $permissionFoo = fake(PermissionModel::class, ['name' => 'foo']);
-        $permissionBar = fake(PermissionModel::class, ['name' => 'bar']);
+        fake(PermissionModel::class, ['name' => 'bar']);
 
         fake(PermissionUserModel::class, ['permission_id' => $permissionFoo->id, 'user_id' => $this->user->id, 'until_at' => null]);
 

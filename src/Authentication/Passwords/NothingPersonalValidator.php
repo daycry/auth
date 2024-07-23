@@ -86,7 +86,7 @@ class NothingPersonalValidator extends BaseValidator implements PasswordValidato
 
             // might be john.doe@example.com and we want all the needles we can get
             $emailParts = $this->strip_explode($localPart);
-            if (! empty($domain)) {
+            if ($domain !== null && $domain !== '' && $domain !== '0') {
                 $emailParts[] = $domain;
             }
             $needles = [...$needles, ...$emailParts];
@@ -132,8 +132,8 @@ class NothingPersonalValidator extends BaseValidator implements PasswordValidato
                     }
 
                     // look both ways in case password is subset of needle
-                    if (strpos($haystack, $needle) !== false
-                        || strpos($needle, $haystack) !== false) {
+                    if (str_contains($haystack, $needle)
+                        || str_contains($needle, $haystack)) {
                         $valid = false;
                         break 2;
                     }

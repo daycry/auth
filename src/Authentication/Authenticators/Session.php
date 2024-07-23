@@ -225,7 +225,7 @@ class Session extends Base implements AuthenticatorInterface
             throw new LogicException('Cannot get the User.');
         }
 
-        if (empty($token) || $token !== $identity->secret) {
+        if ($token === '' || $token === '0' || $token !== $identity->secret) {
             return false;
         }
 
@@ -395,7 +395,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $user = $this->provider->findById($userId);
 
-        if (empty($user)) {
+        if (! $user instanceof User) {
             throw AuthenticationException::forInvalidUser();
         }
 
@@ -487,7 +487,7 @@ class Session extends Base implements AuthenticatorInterface
 
             // Reset so it doesn't mess up future calls.
             $this->shouldRemember = false;
-        } elseif ($this->getRememberMeToken()) {
+        } elseif ($this->getRememberMeToken() !== null && $this->getRememberMeToken() !== '' && $this->getRememberMeToken() !== '0') {
             $this->removeRememberCookie();
 
             // @TODO delete the token record.
@@ -638,7 +638,7 @@ class Session extends Base implements AuthenticatorInterface
 
             $identity = $this->userIdentityModel->getIdentityByType($this->user, $action->getType());
 
-            if ($identity) {
+            if ($identity instanceof UserIdentity) {
                 $this->userState = self::STATE_PENDING;
 
                 $this->setSessionKey('auth_action', $actionClass);

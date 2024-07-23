@@ -35,7 +35,7 @@ class GroupFilter extends AbstractAuthFilter
     /**
      * If the user does not belong to the group, redirect to the configured URL with an error message.
      */
-    protected function redirectToDeniedUrl(RequestInterface $request): Response|RedirectResponse
+    protected function redirectToDeniedUrl(RequestInterface $request): RedirectResponse|Response
     {
         /** @var Auth $config */
         $config = config('Auth');

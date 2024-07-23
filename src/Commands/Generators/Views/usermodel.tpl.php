@@ -11,5 +11,11 @@ class {class} extends AuthUserModel
     protected function initialize(): void
     {
         parent::initialize();
+
+        $this->allowedFields = [
+            ...$this->allowedFields,
+
+            // 'first_name',
+        ];
     }
 }

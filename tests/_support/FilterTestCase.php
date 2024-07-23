@@ -61,7 +61,7 @@ abstract class FilterTestCase extends DatabaseTestCase
     {
         $routes = service('routes');
 
-        $filterString = ! empty($this->routeFilter)
+        $filterString = isset($this->routeFilter) && ($this->routeFilter !== '' && $this->routeFilter !== '0')
             ? $this->routeFilter
             : $this->alias;
 

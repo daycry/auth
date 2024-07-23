@@ -40,7 +40,7 @@ final class AuthAccessTokenFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorized(): void
     {
-        $result = $this->call('get', 'protected-route');
+        $result = $this->call('GET', 'protected-route');
 
         $result->assertStatus(401);
 

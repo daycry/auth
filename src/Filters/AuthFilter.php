@@ -109,12 +109,10 @@ class AuthFilter implements FilterInterface
         $accessToken = null;
         if (service('settings')->get('Auth.accessTokenEnabled')) {
             $accessToken = (Services::auth(false))->setAuthenticator('access_token')->attempt();
-            if (! $accessToken->isOK()) {
-                if (service('settings')->get('Auth.strictApiAndAuth')) {
-                    return service('response')
-                        ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
-                        ->setJson(['message' => ($accessToken instanceof Result) ? $accessToken->reason() : lang('Auth.badToken')]);
-                }
+            if (! $accessToken->isOK() && service('settings')->get('Auth.strictApiAndAuth')) {
+                return service('response')
+                    ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
+                    ->setJson(['message' => ($accessToken instanceof Result) ? $accessToken->reason() : lang('Auth.badToken')]);
             }
         }
     }

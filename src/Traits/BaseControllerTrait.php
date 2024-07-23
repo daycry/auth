@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * This file is part of Daycry Auth.
  *
@@ -51,7 +53,7 @@ trait BaseControllerTrait
     {
     }
 
-    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
+    public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger): void
     {
         helper(['security', 'auth']);
 
@@ -91,18 +93,15 @@ trait BaseControllerTrait
                 if ($this->_isRequestAuthorized === false) {
                     if ($attempt === null) {
                         $attempt = [
-                            'user_id'      => (auth()->user()) ? auth()->user()->id : null,
+                            'user_id'      => (auth()->user() !== null) ? auth()->user()->id : null,
                             'ip_address'   => $this->request->getIPAddress(),
                             'attempts'     => 1,
                             'hour_started' => time(),
                         ];
-
                         $attemptModel->save($attempt);
-                    } else {
-                        if ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
-                            $attempt->attempts++;
-                            $attemptModel->save($attempt);
-                        }
+                    } elseif ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
+                        $attempt->attempts++;
+                        $attemptModel->save($attempt);
                     }
                 }
             }

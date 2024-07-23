@@ -27,7 +27,7 @@ trait Validation
      */
     protected $validator;
 
-    protected function dataValidation(string $rules, object|array $data, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
+    protected function dataValidation(string $rules, array|object $data, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
@@ -45,7 +45,7 @@ trait Validation
         return $this->runValidate($rules, null, $dbGroup);
     }
 
-    private function runValidate(string $rules, object|array|null $data = null, ?string $dbGroup = null)
+    private function runValidate(string $rules, array|object|null $data = null, ?string $dbGroup = null)
     {
         if ($data !== null) {
             $data = get_object_vars($data);
