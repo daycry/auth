@@ -48,7 +48,9 @@ trait Validation
     private function runValidate(string $rules, array|object|null $data = null, ?string $dbGroup = null)
     {
         if ($data !== null) {
-            $data = get_object_vars($data);
+            if (is_object($data)) {
+                $data = get_object_vars($data);
+            }
         }
 
         $this->validator->setRuleGroup($rules);
