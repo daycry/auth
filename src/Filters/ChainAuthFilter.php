@@ -20,6 +20,7 @@ use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Config\Auth;
+use Exception;
 
 /**
  * Chain Authentication Filter.
@@ -56,11 +57,15 @@ class ChainAuthFilter implements FilterInterface
         $chain  = $config->authenticationChain;
 
         foreach ($chain as $alias) {
-            if (auth($alias)->loggedIn()) {
-                // Make sure Auth uses this Authenticator
-                auth()->setAuthenticator($alias);
+            try {
+                if (auth($alias)->loggedIn()) {
+                    // Make sure Auth uses this Authenticator
+                    auth()->setAuthenticator($alias);
 
-                return;
+                    return;
+                }
+            } catch (Exception $e) {
+                continue;
             }
         }
 
