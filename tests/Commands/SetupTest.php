@@ -83,31 +83,31 @@ final class SetupTest extends TestCase
 
         $this->assertStringContainsString(
             '  Created: vfs://root/Config/Auth.php',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: vfs://root/Config/Autoload.php',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: vfs://root/Config/Routes.php',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: We have updated file \'vfs://root/Config/Security.php\' for security reasons.',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: vfs://root/Config/Email.php',
-            $result
+            $result,
         );
         $this->assertStringContainsString(
             'Running all new migrations...',
-            $result
+            $result,
         );
     }
 
@@ -132,22 +132,22 @@ final class SetupTest extends TestCase
 
         $this->assertStringContainsString(
             'Created: vfs://root/Config/Auth.php',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: vfs://root/Config/Autoload.php',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: vfs://root/Config/Routes.php',
-            $result
+            $result,
         );
 
         $this->assertStringContainsString(
             'Updated: We have updated file \'vfs://root/Config/Security.php\' for security reasons.',
-            $result
+            $result,
         );
     }
 
@@ -159,7 +159,7 @@ final class SetupTest extends TestCase
         $root = vfsStream::setup('root');
         vfsStream::copyFromFileSystem(
             APPPATH,
-            $root
+            $root,
         );
 
         return $root->url() . '/';

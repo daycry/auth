@@ -72,7 +72,7 @@ class ChainAuthFilter implements FilterInterface
         if ($request->getHeaderLine('Accept') === 'application/json' || $request->getHeaderLine('Accept') === 'application/xml') {
             return service('response')->setStatusCode(
                 401,
-                lang('Auth.invalidUser')
+                lang('Auth.invalidUser'),
             );
         }
 

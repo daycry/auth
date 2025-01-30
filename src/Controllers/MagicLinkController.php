@@ -221,7 +221,7 @@ class MagicLinkController extends BaseController implements AuthController
     private function recordLoginAttempt(
         string $identifier,
         bool $success,
-        $userId = null
+        $userId = null,
     ): void {
         /** @var LoginModel $loginModel */
         $loginModel = model(LoginModel::class);
@@ -232,7 +232,7 @@ class MagicLinkController extends BaseController implements AuthController
             $success,
             $this->request->getIPAddress(),
             (string) $this->request->getUserAgent(),
-            $userId
+            $userId,
         );
     }
 

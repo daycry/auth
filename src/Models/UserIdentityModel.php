@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Authentication\Authenticators\Session;
@@ -20,7 +21,6 @@ use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\DatabaseException;
-use Daycry\Exceptions\Exceptions\LogicException;
 use Faker\Generator;
 
 class UserIdentityModel extends BaseModel
@@ -97,7 +97,7 @@ class UserIdentityModel extends BaseModel
     {
         if ($user->id === null) {
             throw new LogicException(
-                '"$user->id" is null. You should not use the incomplete User object.'
+                '"$user->id" is null. You should not use the incomplete User object.',
             );
         }
     }
@@ -113,7 +113,7 @@ class UserIdentityModel extends BaseModel
     public function createCodeIdentity(
         User $user,
         array $data,
-        callable $codeGenerator
+        callable $codeGenerator,
     ): string {
         $this->checkUserId($user);
 

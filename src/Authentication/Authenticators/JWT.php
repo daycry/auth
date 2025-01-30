@@ -13,12 +13,12 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Authenticators;
 
+use CodeIgniter\Exceptions\RuntimeException;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
-use Daycry\Exceptions\Exceptions\RuntimeException;
 
 /**
  * Stateless JWT Authenticator
@@ -71,7 +71,7 @@ class JWT extends Base implements AuthenticatorInterface
                 'success' => false,
                 'reason'  => lang(
                     'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]]
+                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
                 ),
             ]);
         }

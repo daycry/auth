@@ -112,7 +112,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $this->assertFalse($result->isOK());
         $this->assertSame(
             \lang('Auth.noToken', [service('settings')->get('Auth.authenticatorHeader')['jwt']]),
-            $result->reason()
+            $result->reason(),
         );
     }
 
@@ -243,7 +243,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage(
-            'Daycry\Auth\Authentication\Authenticators\Base::recordActiveDate() requires logged in user before calling.'
+            'Daycry\Auth\Authentication\Authenticators\Base::recordActiveDate() requires logged in user before calling.',
         );
 
         $this->auth->recordActiveDate();

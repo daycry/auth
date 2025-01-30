@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Exceptions\AuthorizationException;
@@ -21,7 +22,6 @@ use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\PermissionGroupModel;
 use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\PermissionUserModel;
-use Daycry\Exceptions\Exceptions\LogicException;
 
 trait Authorizable
 {
@@ -255,7 +255,7 @@ trait Authorizable
             if (! str_contains($permission, '.')) {
                 throw new LogicException(
                     'A permission must be a string consisting of a scope and action, like `users.create`.'
-                    . ' Invalid permission: ' . $permission
+                    . ' Invalid permission: ' . $permission,
                 );
             }
 

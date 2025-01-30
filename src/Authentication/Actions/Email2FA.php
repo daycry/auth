@@ -96,7 +96,7 @@ class Email2FA implements ActionInterface
         $email->setMessage($this->view(
             setting('Auth.views')['action_email_2fa_email'],
             ['code'  => $identity->secret, 'user' => $user, 'ipAddress' => $ipAddress, 'userAgent' => $userAgent, 'date' => $date],
-            ['debug' => false]
+            ['debug' => false],
         ));
 
         if ($email->send(false) === false) {
@@ -161,7 +161,7 @@ class Email2FA implements ActionInterface
                 'name'  => 'login',
                 'extra' => lang('Auth.need2FA'),
             ],
-            $generator
+            $generator,
         );
     }
 
@@ -175,7 +175,7 @@ class Email2FA implements ActionInterface
 
         return $identityModel->getIdentityByType(
             $user,
-            $this->type
+            $this->type,
         );
     }
 

@@ -23,7 +23,7 @@ class Utils
 
         return array_map(
             static fn ($header) => $header->getValueLine(),
-            $request->headers()
+            $request->headers(),
         );
     }
 

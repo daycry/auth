@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Authenticators;
 
 use CodeIgniter\Config\Factories;
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\Test\Mock\MockEvents;
 use Config\Services;
 use Daycry\Auth\Authentication\Authentication;
@@ -24,7 +25,6 @@ use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
-use Daycry\Exceptions\Exceptions\LogicException;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -366,7 +366,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage(
-            'The user has User Info in Session, so already logged in or in pending login state.'
+            'The user has User Info in Session, so already logged in or in pending login state.',
         );
 
         $this->user->createEmailIdentity([

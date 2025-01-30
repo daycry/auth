@@ -65,7 +65,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Specify a valid action: create,activate,deactivate,changename,changeemail,delete,password,list,addgroup,removegroup',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
     }
 
@@ -80,7 +80,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user1" created',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
 
         $users = model(UserModel::class);
@@ -112,11 +112,11 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'The Username field must contain a unique value.',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
         $this->assertStringContainsString(
             'User creation aborted',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
 
         $users = model(UserModel::class);
@@ -141,7 +141,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             "The passwords don't match",
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
 
         $users = model(UserModel::class);
@@ -182,7 +182,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user2" activated',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $user = $users->findByCredentials(['email' => 'user2@example.com']);
@@ -206,7 +206,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user3" deactivated',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -231,7 +231,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Username "user4" changed to "newuser4"',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -256,11 +256,11 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'The Username field must be at least 3 characters in length.',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
         $this->assertStringContainsString(
             'User name change aborted',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
 
         $users = model(UserModel::class);
@@ -285,7 +285,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Email for "user5" changed to newuser5@example.jp',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -310,11 +310,11 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'The Email Address field must contain a valid email address.',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
         $this->assertStringContainsString(
             'User email change aborted',
-            $this->io->getFirstOutput()
+            $this->io->getFirstOutput(),
         );
 
         $users = model(UserModel::class);
@@ -336,7 +336,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user6" deleted',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -358,7 +358,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user6" deleted',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -380,7 +380,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             "User doesn't exist",
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -405,7 +405,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Password for "user7" set',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $user = $users->findByCredentials(['email' => 'user7@example.com']);
@@ -431,7 +431,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Password for "user7" set',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $user = $users->findByCredentials(['email' => 'user7@example.com']);
@@ -457,7 +457,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             "The passwords don't match",
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $user = $users->findByCredentials(['email' => 'user7@example.com']);
@@ -483,12 +483,12 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             '(user8@example.com)',
-            $this->getOutputWithoutColorCode()
+            $this->getOutputWithoutColorCode(),
         );
 
         $this->assertStringContainsString(
             '(user9@example.com)',
-            $this->getOutputWithoutColorCode()
+            $this->getOutputWithoutColorCode(),
         );
     }
 
@@ -511,7 +511,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             '(user9@example.com)',
-            $this->getOutputWithoutColorCode()
+            $this->getOutputWithoutColorCode(),
         );
     }
 
@@ -529,7 +529,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user10" added to group "admin"',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -551,7 +551,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Addition of the user "user10" to the group "admin" cancelled',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -577,7 +577,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'User "user11" removed from group "admin"',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);
@@ -603,7 +603,7 @@ final class UserTest extends DatabaseTestCase
 
         $this->assertStringContainsString(
             'Removal of the user "user11" from the group "admin" cancelled',
-            $this->io->getLastOutput()
+            $this->io->getLastOutput(),
         );
 
         $users = model(UserModel::class);

@@ -57,7 +57,7 @@ abstract class BaseCommand extends FrameworkBaseCommand
     protected function write(
         string $text = '',
         ?string $foreground = null,
-        ?string $background = null
+        ?string $background = null,
     ): void {
         self::$io->write($text, $foreground, $background);
     }
@@ -68,7 +68,7 @@ abstract class BaseCommand extends FrameworkBaseCommand
     protected function error(
         string $text,
         string $foreground = 'light_red',
-        ?string $background = null
+        ?string $background = null,
     ): void {
         self::$io->error($text, $foreground, $background);
     }

@@ -14,9 +14,9 @@ declare(strict_types=1);
 namespace Tests\Models;
 
 use CodeIgniter\Database\Exceptions\DataException;
+use CodeIgniter\Exceptions\LogicException;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Exceptions\Exceptions\LogicException;
 use Tests\Support\DatabaseTestCase;
 
 /**

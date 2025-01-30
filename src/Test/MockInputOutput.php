@@ -84,7 +84,7 @@ final class MockInputOutput extends InputOutput
     public function write(
         string $text = '',
         ?string $foreground = null,
-        ?string $background = null
+        ?string $background = null,
     ): void {
         CITestStreamFilter::registration();
         CITestStreamFilter::addOutputFilter();

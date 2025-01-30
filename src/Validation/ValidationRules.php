@@ -44,13 +44,13 @@ class ValidationRules
         $usernameRules            = $this->config->usernameValidationRules;
         $usernameRules['rules'][] = sprintf(
             'is_unique[%s.username]',
-            $this->tables['users']
+            $this->tables['users'],
         );
 
         $emailRules            = $this->config->emailValidationRules;
         $emailRules['rules'][] = sprintf(
             'is_unique[%s.secret]',
-            $this->tables['identities']
+            $this->tables['identities'],
         );
 
         $passwordRules            = $this->getPasswordRules();
