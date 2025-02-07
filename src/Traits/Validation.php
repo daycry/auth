@@ -27,7 +27,7 @@ trait Validation
      */
     protected $validator;
 
-    protected function dataValidation(string $rules, array|object $data, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
+    protected function dataValidation(array|string $rules, array|object $data, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
@@ -36,7 +36,7 @@ trait Validation
         return $this->runValidate($rules, $data, $dbGroup);
     }
 
-    protected function requestValidation(string $rules, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
+    protected function requestValidation(array|string $rules, ?ValidationConfig $config = null, bool $getShared = true, ?string $dbGroup = null): array
     {
         $config ??= config('Validation');
 
@@ -45,7 +45,7 @@ trait Validation
         return $this->runValidate($rules, null, $dbGroup);
     }
 
-    private function runValidate(string $rules, array|object|null $data = null, ?string $dbGroup = null)
+    private function runValidate(array|string $rules, array|object|null $data = null, ?string $dbGroup = null)
     {
         if ($data !== null) {
             if (is_object($data)) {
@@ -53,7 +53,11 @@ trait Validation
             }
         }
 
-        $this->validator->setRuleGroup($rules);
+        if (is_string($rules)) {
+            $this->validator->setRuleGroup($rules);
+        } else {
+            $this->validator->setRules($rules);
+        }
 
         if (! $this->validator->run($data, null, $dbGroup)) {
             throw ValidationException::validationData();

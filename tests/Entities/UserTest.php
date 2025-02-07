@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Entities;
 
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\Login;
@@ -26,7 +27,6 @@ use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\PermissionUserModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Exceptions\Exceptions\LogicException;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -113,7 +113,7 @@ final class UserTest extends DatabaseTestCase
     {
         fake(
             UserIdentityModel::class,
-            ['user_id' => $this->user->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD, 'secret' => 'foo@example.com']
+            ['user_id' => $this->user->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD, 'secret' => 'foo@example.com'],
         );
 
         // No logins found.
@@ -121,11 +121,11 @@ final class UserTest extends DatabaseTestCase
 
         fake(
             LoginModel::class,
-            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id]
+            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id],
         );
         $login2 = fake(
             LoginModel::class,
-            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id]
+            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id],
         );
         fake(
             LoginModel::class,
@@ -134,7 +134,7 @@ final class UserTest extends DatabaseTestCase
                 'identifier' => $this->user->email,
                 'user_id'    => $this->user->id,
                 'success'    => false,
-            ]
+            ],
         );
 
         $last = $this->user->lastLogin();
@@ -148,7 +148,7 @@ final class UserTest extends DatabaseTestCase
     {
         fake(
             UserIdentityModel::class,
-            ['user_id' => $this->user->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD, 'secret' => 'foo@example.com']
+            ['user_id' => $this->user->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD, 'secret' => 'foo@example.com'],
         );
 
         // No logins found.
@@ -156,7 +156,7 @@ final class UserTest extends DatabaseTestCase
 
         $login1 = fake(
             LoginModel::class,
-            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id]
+            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id],
         );
 
         // The very most login is skipped.
@@ -164,7 +164,7 @@ final class UserTest extends DatabaseTestCase
 
         fake(
             LoginModel::class,
-            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id]
+            ['id_type' => 'email', 'identifier' => $this->user->email, 'user_id' => $this->user->id],
         );
         fake(
             LoginModel::class,
@@ -173,7 +173,7 @@ final class UserTest extends DatabaseTestCase
                 'identifier' => $this->user->email,
                 'user_id'    => $this->user->id,
                 'success'    => false,
-            ]
+            ],
         );
 
         $previous = $this->user->previousLogin();

@@ -37,7 +37,7 @@ class InputOutput
     public function write(
         string $text = '',
         ?string $foreground = null,
-        ?string $background = null
+        ?string $background = null,
     ): void {
         CLI::write($text, $foreground, $background);
     }

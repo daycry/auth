@@ -80,7 +80,7 @@ abstract class Base
                     ($identifier) ?: null,
                     false,
                     $this->ipAddress,
-                    $this->userAgent ?: null
+                    $this->userAgent ?: null,
                 );
             }
 
@@ -103,7 +103,7 @@ abstract class Base
                         false,
                         $this->ipAddress,
                         $this->userAgent,
-                        $user->id
+                        $user->id,
                     );
                 }
             }
@@ -128,7 +128,7 @@ abstract class Base
                     true,
                     $this->ipAddress,
                     $this->userAgent,
-                    $this->user->id
+                    $this->user->id,
                 );
             }
         }
@@ -157,7 +157,7 @@ abstract class Base
                 header(
                     'WWW-Authenticate: Digest realm="' . $rest_realm
                     . '", qop="auth", nonce="' . $nonce
-                    . '", opaque="' . md5($rest_realm) . '"'
+                    . '", opaque="' . md5($rest_realm) . '"',
                 );
             }
             // @codeCoverageIgnoreEnd
@@ -181,7 +181,7 @@ abstract class Base
     {
         if (! $this->user instanceof User) {
             throw new InvalidArgumentException(
-                __METHOD__ . '() requires logged in user before calling.'
+                __METHOD__ . '() requires logged in user before calling.',
             );
         }
 

@@ -108,7 +108,7 @@ abstract class AbstractTranslationTestCase extends TestCase
     {
         $filesNotTranslated = array_diff(
             $this->expectedSets(),
-            $this->foundSets($locale)
+            $this->foundSets($locale),
         );
 
         sort($filesNotTranslated);
@@ -119,7 +119,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             $count > 1 ? 'files' : 'file',
             implode('", "', $filesNotTranslated),
             $count > 1 ? 'are' : 'is',
-            $locale
+            $locale,
         ));
     }
 
@@ -132,7 +132,7 @@ abstract class AbstractTranslationTestCase extends TestCase
     {
         $filesNotConfigured = array_diff(
             $this->foundSets($locale),
-            $this->expectedSets()
+            $this->expectedSets(),
         );
 
         sort($filesNotConfigured);
@@ -143,7 +143,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             $count > 1 ? 'files' : 'file',
             implode('", "', $filesNotConfigured),
             $locale,
-            $count > 1 ? 'are' : 'is'
+            $count > 1 ? 'are' : 'is',
         ));
     }
 
@@ -159,7 +159,7 @@ abstract class AbstractTranslationTestCase extends TestCase
         foreach ($this->foundSets($locale) as $file) {
             $missing = array_diff_key(
                 $this->loadFile($file),
-                $this->loadFile($file, $locale)
+                $this->loadFile($file, $locale),
             );
 
             foreach (array_keys($missing) as $key) {
@@ -175,7 +175,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             $count > 1 ? 'keys' : 'key',
             implode('", "', $keysNotIncluded),
             $count > 1 ? 'are' : 'is',
-            $locale
+            $locale,
         ));
     }
 
@@ -191,7 +191,7 @@ abstract class AbstractTranslationTestCase extends TestCase
         foreach ($this->foundSets($locale) as $file) {
             $extra = array_diff_key(
                 $this->loadFile($file, $locale),
-                $this->loadFile($file)
+                $this->loadFile($file),
             );
 
             foreach (array_keys($extra) as $key) {
@@ -207,7 +207,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             $count > 1 ? 'keys' : 'key',
             implode('", "', $keysNotConfigured),
             $locale,
-            $count > 1 ? 'are' : 'is'
+            $count > 1 ? 'are' : 'is',
         ));
     }
 
@@ -253,7 +253,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             $count > 1 ? 'keys' : 'key',
             implode('", "', $keysNotTranslated),
             $locale,
-            $count > 1 ? 'differ' : 'differs'
+            $count > 1 ? 'differ' : 'differs',
         ));
     }
 
@@ -283,7 +283,7 @@ abstract class AbstractTranslationTestCase extends TestCase
                             "\n%s:\n%s\n%s",
                             $file,
                             CLI::color("-'{$expectedKey}' => '{$original[$expectedKey]}';", 'red'),
-                            CLI::color("+'{$actualKey}' => '{$translated[$actualKey]}';", 'green')
+                            CLI::color("+'{$actualKey}' => '{$translated[$actualKey]}';", 'green'),
                         );
                         break;
                     }
@@ -295,7 +295,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             "Failed asserting that the translated language keys in \"%s\" locale are ordered correctly.\n%s\n%s",
             $locale,
             CLI::color('--- Original', 'red') . "\n" . CLI::color('+++ Translated', 'green'),
-            implode("\n", $diffs)
+            implode("\n", $diffs),
         ));
     }
 
@@ -348,8 +348,8 @@ abstract class AbstractTranslationTestCase extends TestCase
             implode("\n", array_map(
                 static fn (string $key, array $values): string => sprintf('  * %s => %s', $key, implode(', ', $values)),
                 array_keys($diffs),
-                array_values($diffs)
-            ))
+                array_values($diffs),
+            )),
         ));
     }
 
@@ -374,7 +374,7 @@ abstract class AbstractTranslationTestCase extends TestCase
 
         $this->assertTrue(class_exists($class, false), sprintf(
             'Failed asserting that test class "%s" is existing.',
-            $class
+            $class,
         ));
     }
 

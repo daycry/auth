@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Exceptions;
 
-use Daycry\Exceptions\Exceptions\RuntimeException;
+use CodeIgniter\Exceptions\RuntimeException;
 
 class BadInputException extends RuntimeException
 {

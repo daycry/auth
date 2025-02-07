@@ -13,12 +13,12 @@ declare(strict_types=1);
 
 namespace Tests\Authorization;
 
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Exceptions\Exceptions\LogicException;
 use Locale;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;

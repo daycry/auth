@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use CodeIgniter\Exceptions\ExceptionInterface;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -25,7 +26,6 @@ use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\AttemptModel;
 use Daycry\Auth\Validators\AttemptValidator;
 use Daycry\Encryption\Encryption;
-use Daycry\Exceptions\Interfaces\BaseExceptionInterface;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use ReflectionProperty;
@@ -142,7 +142,7 @@ trait BaseControllerTrait
      *
      * @param array $params The params passed to the controller method
      *
-     * @throws BaseExceptionInterface
+     * @throws ExceptionInterface
      */
     public function _remap(string $method, ...$params)
     {
@@ -166,7 +166,7 @@ trait BaseControllerTrait
             }
 
             return $this->response->setBody($data);
-        } catch (BaseExceptionInterface $ex) {
+        } catch (ExceptionInterface $ex) {
             if (property_exists($ex, 'authorized')) {
                 $this->_isRequestAuthorized = (new ReflectionProperty($ex, 'authorized'))->getValue();
             }
@@ -180,7 +180,7 @@ trait BaseControllerTrait
 
             if ($this->request->isAJAX()) {
                 return $this->response->setStatusCode($code)->setJSON(
-                    ['status' => false, 'error' => $message, 'token' => $this->getToken()]
+                    ['status' => false, 'error' => $message, 'token' => $this->getToken()],
                 );
             }
 

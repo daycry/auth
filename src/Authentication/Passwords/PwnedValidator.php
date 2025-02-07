@@ -55,7 +55,7 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
 
             $response = $client->get(
                 'range/' . $rangeHash,
-                ['headers' => ['Accept' => 'text/plain']]
+                ['headers' => ['Accept' => 'text/plain']],
             );
         } catch (HTTPException $e) {
             $exception = AuthenticationException::forHIBPCurlFail($e);

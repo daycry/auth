@@ -72,7 +72,7 @@ abstract class FilterTestCase extends DatabaseTestCase
                 $routes->get('protected-route', static function (): void {
                     echo 'Protected';
                 });
-            }
+            },
         );
         $routes->get('open-route', static function (): void {
             echo 'Open';

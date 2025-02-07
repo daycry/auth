@@ -143,7 +143,7 @@ class UserCommand extends BaseCommand
         if ($action === null || ! in_array($action, $this->validActions, true)) {
             $this->write(
                 'Specify a valid action: ' . implode(',', $this->validActions),
-                'red'
+                'red',
             );
 
             return EXIT_ERROR;
@@ -275,13 +275,13 @@ class UserCommand extends BaseCommand
             'Password',
             null,
             $this->validationRules['password']['rules'],
-            config('Auth')->DBGroup
+            config('Auth')->DBGroup,
         );
         $passwordConfirm = $this->prompt(
             'Password confirmation',
             null,
             $this->validationRules['password']['rules'],
-            config('Auth')->DBGroup
+            config('Auth')->DBGroup,
         );
 
         if ($password !== $passwordConfirm) {
@@ -372,7 +372,7 @@ class UserCommand extends BaseCommand
     private function changename(
         ?string $username = null,
         ?string $email = null,
-        ?string $newUsername = null
+        ?string $newUsername = null,
     ): void {
         $user = $this->findUser('Change username', $username, $email);
 
@@ -413,7 +413,7 @@ class UserCommand extends BaseCommand
     private function changeemail(
         ?string $username = null,
         ?string $email = null,
-        ?string $newEmail = null
+        ?string $newEmail = null,
     ): void {
         $user = $this->findUser('Change email', $username, $email);
 
@@ -464,7 +464,7 @@ class UserCommand extends BaseCommand
 
         $confirm = $this->prompt(
             'Delete the user "' . $user->username . '" (' . $user->email . ') ?',
-            ['y', 'n']
+            ['y', 'n'],
         );
 
         if ($confirm === 'y') {
@@ -502,12 +502,12 @@ class UserCommand extends BaseCommand
             $password = $this->prompt(
                 'Password',
                 null,
-                $this->validationRules['password']['rules']
+                $this->validationRules['password']['rules'],
             );
             $passwordConfirm = $this->prompt(
                 'Password confirmation',
                 null,
-                $this->validationRules['password']['rules']
+                $this->validationRules['password']['rules'],
             );
 
             if ($password !== $passwordConfirm) {
@@ -539,7 +539,7 @@ class UserCommand extends BaseCommand
             ->join(
                 $this->tables['identities'],
                 $this->tables['users'] . '.id = ' . $this->tables['identities'] . '.user_id',
-                'LEFT'
+                'LEFT',
             )
             ->groupStart()
             ->where($this->tables['identities'] . '.type', Session::ID_TYPE_EMAIL_PASSWORD)
@@ -580,7 +580,7 @@ class UserCommand extends BaseCommand
 
         $confirm = $this->prompt(
             'Add the user "' . $user->username . '" to the group "' . $group . '" ?',
-            ['y', 'n']
+            ['y', 'n'],
         );
 
         if ($confirm === 'y') {
@@ -590,7 +590,7 @@ class UserCommand extends BaseCommand
         } else {
             $this->write(
                 'Addition of the user "' . $user->username . '" to the group "' . $group . '" cancelled',
-                'yellow'
+                'yellow',
             );
         }
     }
@@ -612,7 +612,7 @@ class UserCommand extends BaseCommand
 
         $confirm = $this->prompt(
             'Remove the user "' . $user->username . '" from the group "' . $group . '" ?',
-            ['y', 'n']
+            ['y', 'n'],
         );
 
         if ($confirm === 'y') {
@@ -642,7 +642,7 @@ class UserCommand extends BaseCommand
                 $email = $this->prompt(
                     'Email',
                     null,
-                    'required'
+                    'required',
                 );
             }
         }
@@ -653,7 +653,7 @@ class UserCommand extends BaseCommand
             ->join(
                 $this->tables['identities'],
                 $this->tables['users'] . '.id = ' . $this->tables['identities'] . '.user_id',
-                'LEFT'
+                'LEFT',
             )
             ->groupStart()
             ->where($this->tables['identities'] . '.type', Session::ID_TYPE_EMAIL_PASSWORD)

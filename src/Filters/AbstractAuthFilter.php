@@ -52,7 +52,7 @@ abstract class AbstractAuthFilter implements FilterInterface
 
             return service('response')->setStatusCode(
                 401,
-                lang('Auth.invalidUser') // message
+                lang('Auth.invalidUser'), // message
             );
         }
 

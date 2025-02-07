@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Exceptions;
 
+use CodeIgniter\Exceptions\RuntimeException;
 use Config\Services;
-use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class FailTooManyRequestsException extends RuntimeException
 {

@@ -89,7 +89,7 @@ class RatesFilter implements FilterInterface
         if (! $ignoreLimits && $throttler->check(md5($limited_uri), $limit, $time, 1) === false) {
             return service('response')->setStatusCode(
                 429,
-                lang('Auth.throttled', [$throttler->getTokenTime()]) // message
+                lang('Auth.throttled', [$throttler->getTokenTime()]), // message
             );
         }
     }

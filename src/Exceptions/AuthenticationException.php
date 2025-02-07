@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Exceptions;
 
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\Exceptions\HTTPException;
-use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class AuthenticationException extends RuntimeException
 {

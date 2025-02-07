@@ -40,5 +40,5 @@ $options = [
 return Factory::create(new CodeIgniter4(), $overrides, $options)->forLibrary(
     'Daycry Auth',
     'Daycry',
-    'daycry9@proton.me'
+    'daycry9@proton.me',
 );

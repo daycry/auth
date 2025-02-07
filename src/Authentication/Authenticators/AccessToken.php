@@ -63,7 +63,7 @@ class AccessToken extends Base implements AuthenticatorInterface
                 'success' => false,
                 'reason'  => lang(
                     'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]]
+                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
                 ),
             ]);
         }
@@ -86,7 +86,7 @@ class AccessToken extends Base implements AuthenticatorInterface
         if (
             $token->last_used_at
             && $token->last_used_at->isBefore(
-                Time::now()->subSeconds(service('settings')->get('Auth.unusedAccessTokenLifetime'))
+                Time::now()->subSeconds(service('settings')->get('Auth.unusedAccessTokenLifetime')),
             )
         ) {
             return new Result([
@@ -161,7 +161,7 @@ class AccessToken extends Base implements AuthenticatorInterface
         }
 
         $user->setAccessToken(
-            $user->getAccessToken($this->getAccessToken())
+            $user->getAccessToken($this->getAccessToken()),
         );
 
         $this->login($user);

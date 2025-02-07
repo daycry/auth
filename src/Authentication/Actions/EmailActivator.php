@@ -51,7 +51,7 @@ class EmailActivator implements ActionInterface
         $userEmail = $user->email;
         if ($userEmail === null) {
             throw new LogicException(
-                'Email Activation needs user email address. user_id: ' . $user->id
+                'Email Activation needs user email address. user_id: ' . $user->id,
             );
         }
 
@@ -73,7 +73,7 @@ class EmailActivator implements ActionInterface
         $email->setMessage($this->view(
             setting('Auth.views')['action_email_activate_email'],
             ['code'  => $code, 'user' => $user, 'ipAddress' => $ipAddress, 'userAgent' => $userAgent, 'date' => $date],
-            ['debug' => false]
+            ['debug' => false],
         ));
 
         if ($email->send(false) === false) {
@@ -156,7 +156,7 @@ class EmailActivator implements ActionInterface
                 'name'  => 'register',
                 'extra' => lang('Auth.needVerification'),
             ],
-            $generator
+            $generator,
         );
     }
 
@@ -170,7 +170,7 @@ class EmailActivator implements ActionInterface
 
         return $identityModel->getIdentityByType(
             $user,
-            $this->type
+            $this->type,
         );
     }
 

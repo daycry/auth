@@ -73,10 +73,10 @@ class Passwords
     {
         return password_hash(
             base64_encode(
-                hash('sha384', $password, true)
+                hash('sha384', $password, true),
             ),
             $this->config->hashAlgorithm,
-            $this->getHashOptions()
+            $this->getHashOptions(),
         );
     }
 

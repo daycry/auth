@@ -19,7 +19,6 @@
         "daycry/class-finder": "^2.0",
         "daycry/cronjob": "^2.0",
         "daycry/encryption": "^2.0",
-        "daycry/exceptions": "^1",
         "daycry/jwt": "^1.0"
     },
     "require-dev":
