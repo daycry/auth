@@ -37,18 +37,10 @@ trait BaseControllerTrait
     protected Router $router;
     protected ?Logger $_logger = null;
     protected Encryption $encryption;
-
-    /**
-     * The authorization Request
-     */
     private bool $_isRequestAuthorized = true;
-
     protected array $args;
     protected mixed $content = null;
 
-    /**
-     * Extend this function to apply additional checking early on in the process.
-     */
     protected function earlyChecks(): void
     {
     }
@@ -70,52 +62,26 @@ trait BaseControllerTrait
         }
 
         $this->args    = Utils::getAllParams();
-        $this->content = (! empty($this->args['body'])) ? $this->args['body'] : null;
+        $this->content = $this->args['body'] ?? null;
 
-        // Extend this function to apply additional checking early on in the process
         $this->earlyChecks();
     }
 
-    /**
-     * De-constructor.
-     *
-     * @return void
-     */
     public function __destruct()
     {
         if ($this->request) {
             $this->_logRequest();
 
             if (service('settings')->get('Auth.enableInvalidAttempts') === true) {
-                $attemptModel = new AttemptModel();
-                $attempt      = $attemptModel->where('ip_address', $this->request->getIPAddress())->first();
-
-                if ($this->_isRequestAuthorized === false) {
-                    if ($attempt === null) {
-                        $attempt = [
-                            'user_id'      => (auth()->user() !== null) ? auth()->user()->id : null,
-                            'ip_address'   => $this->request->getIPAddress(),
-                            'attempts'     => 1,
-                            'hour_started' => time(),
-                        ];
-                        $attemptModel->save($attempt);
-                    } elseif ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
-                        $attempt->attempts++;
-                        $attemptModel->save($attempt);
-                    }
-                }
+                $this->handleInvalidAttempts();
             }
         }
 
-        // reset previous validation at end
         if ($this->validator) {
             $this->validator->reset();
         }
     }
 
-    /**
-     * Add the request to the log table.
-     */
     protected function _logRequest(): void
     {
         $reflectionClass = new ReflectionClass($this->router->controllerName());
@@ -135,15 +101,6 @@ trait BaseControllerTrait
         return ['name' => csrf_token(), 'hash' => csrf_hash()];
     }
 
-    /**
-     * Requests are not made to methods directly, the request will be for
-     * an "object". This simply maps the object and method to the correct
-     * Controller method.
-     *
-     * @param array $params The params passed to the controller method
-     *
-     * @throws ExceptionInterface
-     */
     public function _remap(string $method, ...$params)
     {
         try {
@@ -167,24 +124,50 @@ trait BaseControllerTrait
 
             return $this->response->setBody($data);
         } catch (ExceptionInterface $ex) {
-            if (property_exists($ex, 'authorized')) {
-                $this->_isRequestAuthorized = (new ReflectionProperty($ex, 'authorized'))->getValue();
-            }
-
-            $message = ($this->validator && $this->validator->getErrors()) ? $this->validator->getErrors() : $ex->getMessage();
-            $code    = ($ex->getCode()) ?: 400;
-
-            if (method_exists($this, 'fail')) {
-                return $this->fail($message, $code);
-            }
-
-            if ($this->request->isAJAX()) {
-                return $this->response->setStatusCode($code)->setJSON(
-                    ['status' => false, 'error' => $message, 'token' => $this->getToken()],
-                );
-            }
-
-            throw $ex;
+            $this->handleException($ex);
         }
+    }
+
+    private function handleInvalidAttempts(): void
+    {
+        $attemptModel = new AttemptModel();
+        $attempt      = $attemptModel->where('ip_address', $this->request->getIPAddress())->first();
+
+        if ($this->_isRequestAuthorized === false) {
+            if ($attempt === null) {
+                $attempt = [
+                    'user_id'      => auth()->user()?->id,
+                    'ip_address'   => $this->request->getIPAddress(),
+                    'attempts'     => 1,
+                    'hour_started' => time(),
+                ];
+                $attemptModel->save($attempt);
+            } elseif ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
+                $attempt->attempts++;
+                $attemptModel->save($attempt);
+            }
+        }
+    }
+
+    private function handleException(ExceptionInterface $ex)
+    {
+        if (property_exists($ex, 'authorized')) {
+            $this->_isRequestAuthorized = (new ReflectionProperty($ex, 'authorized'))->getValue();
+        }
+
+        $message = $this->validator?->getErrors() ?: $ex->getMessage();
+        $code    = $ex->getCode() ?: 400;
+
+        if (method_exists($this, 'fail')) {
+            return $this->fail($message, $code);
+        }
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setStatusCode($code)->setJSON(
+                ['status' => false, 'error' => $message, 'token' => $this->getToken()],
+            );
+        }
+
+        throw $ex;
     }
 }
