@@ -71,11 +71,10 @@ class DiscoverCommand extends BaseCommand
         if ($allControllers) {
             $forRemove = array_diff($allControllers, $this->allClasses);
 
-            foreach ($forRemove as $remove) {
-                $controller = $controllerModel->where('api_id', $api->id)->where('controller', $remove)->first();
-                if ($controller) {
-                    $controllerModel->where('id', $controller->id)->delete();
-                }
+            if (! empty($forRemove)) {
+                $controllerModel->where('api_id', $api->id)
+                    ->whereIn('controller', $forRemove)
+                    ->delete();
             }
         }
 
@@ -150,11 +149,10 @@ class DiscoverCommand extends BaseCommand
         if ($allMethods) {
             $forRemove = array_diff($allMethods, $methods);
 
-            foreach ($forRemove as $remove) {
-                $endpoint = $endpointModel->where('controller_id', $controller->id)->where('method', $remove)->first();
-                if ($endpoint) {
-                    $endpointModel->where('id', $endpoint->id)->delete();
-                }
+            if (! empty($forRemove)) {
+                $endpointModel->where('controller_id', $controller->id)
+                    ->whereIn('method', $forRemove)
+                    ->delete();
             }
         }
 

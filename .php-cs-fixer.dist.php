@@ -21,7 +21,10 @@ $finder = Finder::create()
         __DIR__ . '/src/',
         __DIR__ . '/tests/',
     ])
-    ->exclude('build')
+    ->exclude([
+        'build',
+        'Views',
+    ])
     ->append([
         __FILE__,
         __DIR__ . '/rector.php',

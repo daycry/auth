@@ -49,10 +49,15 @@ class PermissionUserModel extends BaseModel
      */
     public function getForUser(User $user): ?array
     {
+        $now = Time::now()->format('Y-m-d H:i:s');
+
         return $this->where('user_id', $user->id)
+            ->groupStart()
             ->where('until_at', null)
-            ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
-            ->orderBy($this->primaryKey)->findAll();
+            ->orWhere('until_at >', $now)
+            ->groupEnd()
+            ->orderBy($this->primaryKey)
+            ->findAll();
     }
 
     /**

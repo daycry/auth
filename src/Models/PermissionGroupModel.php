@@ -49,10 +49,15 @@ class PermissionGroupModel extends BaseModel
      */
     public function getForGroup(Group $group): ?array
     {
+        $now = Time::now()->format('Y-m-d H:i:s');
+
         return $this->where('group_id', $group->id)
+            ->groupStart()
             ->where('until_at', null)
-            ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
-            ->orderBy($this->primaryKey)->findAll();
+            ->orWhere('until_at >', $now)
+            ->groupEnd()
+            ->orderBy($this->primaryKey)
+            ->findAll();
     }
 
     /**
