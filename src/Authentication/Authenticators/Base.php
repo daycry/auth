@@ -54,7 +54,10 @@ abstract class Base
         $this->loginModel = model(LoginModel::class);
 
         $this->ipAddress = $this->request->getIPAddress();
-        $this->userAgent = (string) $this->request->getUserAgent();
+        if(method_exists($this->request, 'getUserAgent'))
+        {
+            $this->userAgent = (string) $this->request->getUserAgent();
+        }
     }
 
     /**
