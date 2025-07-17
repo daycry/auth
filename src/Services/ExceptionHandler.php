@@ -46,7 +46,7 @@ class ExceptionHandler
     ): ResponseInterface {
         // Extract authorization status from exception if available
         if (property_exists($ex, 'authorized')) {
-            $authorized = (new ReflectionProperty($ex, 'authorized'))->getValue();
+            $authorized = (new ReflectionProperty($ex, 'authorized'))->getValue($ex);
             $this->requestLogger->setRequestAuthorized($authorized);
         } else {
             $this->requestLogger->setRequestAuthorized(false);
