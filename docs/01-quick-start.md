@@ -1,8 +1,8 @@
-# 🚀 Quick Start Guide
+# Quick Start Guide
 
 This guide will help you set up Daycry Auth in your CodeIgniter 4 project in just a few minutes.
 
-## 📋 Requirements
+## Requirements
 
 - PHP 8.1 or higher
 - CodeIgniter 4.4 or higher
