@@ -30,7 +30,7 @@ source_suffix = {
 master_doc = 'index'
 
 # Patterns to exclude when building docs
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/ipynb_checkpoints']
 
 # HTML theme options
 html_theme = 'sphinx_rtd_theme'
