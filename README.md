@@ -4,6 +4,7 @@
 
 [![Build status](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
 [![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
+[![Documentation Status](https://readthedocs.org/projects/authentication-for-codeigniter-4/badge/?version=latest)](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://poser.pugx.org/daycry/auth/downloads)](https://packagist.org/packages/daycry/auth)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/daycry/auth)](https://packagist.org/packages/daycry/auth)
 [![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://packagist.org/packages/daycry/auth)
@@ -60,6 +61,22 @@ and authorization purposes in web applications.
 * Users can be granted additional Permissions
 
 See the [An Official Auth Library](https://forum.codeigniter.com/showthread.php?tid=82003) for more Info.
+
+## 📚 Documentation
+
+Complete documentation is available online at:
+
+**[https://authentication-for-codeigniter-4.readthedocs.io/](https://authentication-for-codeigniter-4.readthedocs.io/)**
+
+The documentation includes:
+- 🚀 [Quick Start Guide](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/01-quick-start.html)
+- ⚙️ [Configuration Options](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/02-configuration.html)
+- 🔐 [Authentication Methods](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/03-authentication.html)
+- 🛡️ [Security Filters](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/04-filters.html)
+- 🎮 [Controllers Guide](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/05-controllers.html)
+- 👥 [Authorization System](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/06-authorization.html)
+- 📊 [Logging & Monitoring](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/07-logging.html)
+- 🧪 [Testing Guide](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/08-testing.html)
 
 ## Getting Started
 
