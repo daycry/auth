@@ -13,23 +13,17 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
-use App\Controllers\BaseController;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\Response;
-use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Interfaces\ActionInterface;
-use Daycry\Auth\Interfaces\AuthController;
-use Daycry\Auth\Traits\BaseControllerTrait;
 
 /**
  * Class ActionController
  *
  * A generic controller to handle Authentication Actions.
  */
-class ActionController extends BaseController implements AuthController
+class ActionController extends BaseAuthController
 {
-    use BaseControllerTrait;
-
     protected ?ActionInterface $action = null;
 
     /**
@@ -41,8 +35,7 @@ class ActionController extends BaseController implements AuthController
      */
     public function _remap(string $method, ...$params)
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
+        $authenticator = $this->getSessionAuthenticator();
 
         // Grab our action instance if one has been set.
         $this->action = $authenticator->getAction();
@@ -87,5 +80,14 @@ class ActionController extends BaseController implements AuthController
     public function verify()
     {
         return $this->action->verify($this->request);
+    }
+
+    /**
+     * ActionController doesn't use validation rules directly
+     * as it delegates to action objects
+     */
+    protected function getValidationRules(): array
+    {
+        return [];
     }
 }

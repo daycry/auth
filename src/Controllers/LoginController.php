@@ -13,39 +13,30 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
-use App\Controllers\BaseController;
 use CodeIgniter\HTTP\RedirectResponse;
-use Daycry\Auth\Authentication\Authenticators\Session;
-use Daycry\Auth\Interfaces\AuthController;
-use Daycry\Auth\Traits\BaseControllerTrait;
-use Daycry\Auth\Traits\Viewable;
+use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Validation\ValidationRules;
 
-class LoginController extends BaseController implements AuthController
+class LoginController extends BaseAuthController
 {
-    use BaseControllerTrait;
-    use Viewable;
-
     /**
      * Displays the form the login to the site.
-     *
-     * @return RedirectResponse|string
      */
-    public function loginView()
+    public function loginView(): ResponseInterface
     {
-        if (auth()->loggedIn()) {
-            return redirect()->to(config('Auth')->loginRedirect());
+        // Check if already logged in
+        if ($redirect = $this->redirectIfLoggedIn()) {
+            return $redirect;
         }
 
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
-        // If an action has been defined, start it up.
-        if ($authenticator->hasAction()) {
-            return redirect()->route('auth-action-show');
+        // Check if there's a pending post-auth action
+        if ($this->hasPostAuthAction()) {
+            return $this->redirectToAuthAction();
         }
 
-        return $this->view(setting('Auth.views')['login']);
+        $content = $this->view(setting('Auth.views')['login']);
+
+        return $this->response->setBody($content);
     }
 
     /**
@@ -53,35 +44,23 @@ class LoginController extends BaseController implements AuthController
      */
     public function loginAction(): RedirectResponse
     {
-        // Validate here first, since some things,
-        // like the password, can only be validated properly here.
-        $rules = $this->getValidationRules();
+        // Validate input
+        $rules    = $this->getValidationRules();
+        $postData = $this->request->getPost();
 
-        if (! $this->validateData($this->request->getPost(), $rules, [], config('Auth')->DBGroup)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        if (! $this->validateRequest($postData, $rules)) {
+            return $this->handleValidationError(config('Auth')->loginRoute());
         }
 
-        /** @var array $credentials */
-        $credentials             = $this->request->getPost(setting('Auth.validFields')) ?? [];
-        $credentials             = array_filter($credentials);
-        $credentials['password'] = $this->request->getPost('password');
-        $remember                = (bool) $this->request->getPost('remember');
+        // Extract credentials and remember preference
+        $credentials = $this->extractLoginCredentials();
+        $remember    = $this->shouldRememberUser();
 
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
+        // Attempt authentication
+        $authenticator = $this->getSessionAuthenticator();
+        $result        = $authenticator->remember($remember)->attempt($credentials);
 
-        // Attempt to login
-        $result = $authenticator->remember($remember)->attempt($credentials);
-        if (! $result->isOK()) {
-            return redirect()->route('login')->withInput()->with('error', $result->reason());
-        }
-
-        // If an action has been defined for login, start it up.
-        if ($authenticator->hasAction()) {
-            return redirect()->route('auth-action-show')->withCookies();
-        }
-
-        return redirect()->to(config('Auth')->loginRedirect())->withCookies();
+        return $this->handleAuthResult($result, config('Auth')->loginRoute());
     }
 
     /**
@@ -102,12 +81,11 @@ class LoginController extends BaseController implements AuthController
      */
     public function logoutAction(): RedirectResponse
     {
-        // Capture logout redirect URL before auth logout,
-        // otherwise you cannot check the user in `logoutRedirect()`.
+        // Capture logout redirect URL before auth logout
         $url = config('Auth')->logoutRedirect();
 
         auth()->logout();
 
-        return redirect()->to($url)->with('message', lang('Auth.successLogout'));
+        return $this->handleSuccess($url, lang('Auth.successLogout'));
     }
 }

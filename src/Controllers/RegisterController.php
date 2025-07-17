@@ -13,16 +13,12 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
-use App\Controllers\BaseController;
 use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\RedirectResponse;
-use Daycry\Auth\Authentication\Authenticators\Session;
+use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\ValidationException;
-use Daycry\Auth\Interfaces\AuthController;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Auth\Traits\BaseControllerTrait;
-use Daycry\Auth\Traits\Viewable;
 use Daycry\Auth\Validation\ValidationRules;
 
 /**
@@ -31,37 +27,34 @@ use Daycry\Auth\Validation\ValidationRules;
  * Handles displaying registration form,
  * and handling actual registration flow.
  */
-class RegisterController extends BaseController implements AuthController
+class RegisterController extends BaseAuthController
 {
-    use BaseControllerTrait;
-    use Viewable;
-
     /**
      * Displays the registration form.
-     *
-     * @return RedirectResponse|string
      */
-    public function registerView()
+    public function registerView(): ResponseInterface
     {
-        if (auth()->loggedIn()) {
-            return redirect()->to(config('Auth')->registerRedirect());
+        // Check if already logged in
+        if ($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) {
+            return $redirect;
         }
 
         // Check if registration is allowed
         if (! setting('Auth.allowRegistration')) {
-            return redirect()->back()->withInput()
-                ->with('error', lang('Auth.registerDisabled'));
+            return $this->handleError(
+                $this->request->getUri()->getPath(),
+                lang('Auth.registerDisabled'),
+            );
         }
 
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
-        // If an action has been defined, start it up.
-        if ($authenticator->hasAction()) {
-            return redirect()->route('auth-action-show');
+        // Check if there's a pending post-auth action
+        if ($this->hasPostAuthAction()) {
+            return $this->redirectToAuthAction();
         }
 
-        return $this->view(setting('Auth.views')['register']);
+        $content = $this->view(setting('Auth.views')['register']);
+
+        return $this->response->setBody($content);
     }
 
     /**
@@ -69,27 +62,29 @@ class RegisterController extends BaseController implements AuthController
      */
     public function registerAction(): RedirectResponse
     {
-        if (auth()->loggedIn()) {
-            return redirect()->to(config('Auth')->registerRedirect());
+        // Check if already logged in
+        if ($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) {
+            return $redirect;
         }
 
         // Check if registration is allowed
         if (! setting('Auth.allowRegistration')) {
-            return redirect()->back()->withInput()
-                ->with('error', lang('Auth.registerDisabled'));
+            return $this->handleError(
+                config('Auth')->registerRoute(),
+                lang('Auth.registerDisabled'),
+            );
         }
 
-        $users = $this->getUserProvider();
+        // Validate input
+        $rules    = $this->getValidationRules();
+        $postData = $this->request->getPost();
 
-        // Validate here first, since some things,
-        // like the password, can only be validated properly here.
-        $rules = $this->getValidationRules();
-
-        if (! $this->validateData($this->request->getPost(), $rules, [], config('Auth')->DBGroup)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        if (! $this->validateRequest($postData, $rules)) {
+            return $this->handleValidationError(config('Auth')->registerRoute());
         }
 
         // Save the user
+        $users             = $this->getUserProvider();
         $allowedPostFields = array_keys($rules);
         $user              = $this->getUserEntity();
         $user->fill($this->request->getPost($allowedPostFields));
@@ -102,10 +97,14 @@ class RegisterController extends BaseController implements AuthController
         try {
             $users->save($user);
         } catch (ValidationException $e) {
-            return redirect()->back()->withInput()->with('errors', $users->errors());
+            return $this->handleError(
+                config('Auth')->registerRoute(),
+                'Registration failed',
+                true,
+            )->with('errors', $users->errors());
         }
 
-        // To get the complete user object with ID, we need to get from the database
+        // Get complete user object with ID
         $user = $users->findById($users->getInsertID());
 
         // Add to default group
@@ -113,25 +112,24 @@ class RegisterController extends BaseController implements AuthController
 
         Events::trigger('register', $user);
 
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
+        // Start authentication process
+        $authenticator = $this->getSessionAuthenticator();
         $authenticator->startLogin($user);
 
-        // If an action has been defined for register, start it up.
+        // Check for post-registration action
         $hasAction = $authenticator->startUpAction('register', $user);
         if ($hasAction) {
-            return redirect()->route('auth-action-show');
+            return $this->redirectToAuthAction();
         }
 
-        // Set the user active
+        // Set the user active and complete login
         $user->activate();
-
         $authenticator->completeLogin($user);
 
-        // Success!
-        return redirect()->to(config('Auth')->registerRedirect())
-            ->with('message', lang('Auth.registerSuccess'));
+        return $this->handleSuccess(
+            config('Auth')->registerRedirect(),
+            lang('Auth.registerSuccess'),
+        );
     }
 
     /**

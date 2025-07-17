@@ -40,20 +40,7 @@ abstract class AbstractAuthFilter implements FilterInterface
         }
 
         if (! auth()->loggedIn()) {
-            if (auth()->getAuthenticator() instanceof Session) {
-                // Set the entrance url to redirect a user after successful login
-                if (uri_string() !== route_to('login')) {
-                    $session = session();
-                    $session->setTempdata('beforeLoginUrl', current_url(), 300);
-                }
-
-                return redirect()->route('login');
-            }
-
-            return service('response')->setStatusCode(
-                401,
-                lang('Auth.invalidUser'), // message
-            );
+            return $this->handleUnauthenticated($request);
         }
 
         if ($this->isAuthorized($arguments)) {
@@ -61,6 +48,37 @@ abstract class AbstractAuthFilter implements FilterInterface
         }
 
         return $this->redirectToDeniedUrl($request);
+    }
+
+    /**
+     * Handle unauthenticated requests
+     */
+    private function handleUnauthenticated(RequestInterface $request)
+    {
+        if (auth()->getAuthenticator() instanceof Session) {
+            // Set the entrance url to redirect a user after successful login
+            if (uri_string() !== route_to('login')) {
+                session()->setTempdata('beforeLoginUrl', current_url(), 300);
+            }
+
+            return redirect()->route('login');
+        }
+
+        return service('response')->setStatusCode(
+            401,
+            lang('Auth.invalidUser'), // message
+        );
+    }
+
+    /**
+     * Check if request expects JSON response
+     */
+    protected function expectsJson(RequestInterface $request): bool
+    {
+        $acceptHeader = $request->getHeaderLine('Accept');
+
+        return str_contains($acceptHeader, 'application/json')
+               || str_contains($acceptHeader, 'application/xml');
     }
 
     /**

@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Interfaces;
 
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Result;
 
 interface AuthenticatorInterface

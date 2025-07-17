@@ -41,8 +41,7 @@ class AuthFilter implements FilterInterface
 
         $endpoint = checkEndpoint();
 
-        $alias = ($arguments) ? $arguments[0] : service('settings')->get('Auth.defaultAuthenticator');
-        $alias = ($endpoint && $endpoint->auth) ? $endpoint->auth : $alias;
+        $alias = $this->determineAuthenticator($arguments, $endpoint);
 
         /** @var AuthenticatorInterface $authenticator */
         $authenticator = auth($alias)->getAuthenticator();
@@ -51,49 +50,76 @@ class AuthFilter implements FilterInterface
         $config = config(Auth::class);
 
         if ($authenticator instanceof Session) {
-            if (auth($alias)->loggedIn()) {
-                if (setting('Auth.recordActiveDate')) {
-                    $authenticator->recordActiveDate();
-                }
-
-                // Block inactive users when Email Activation is enabled
-                $user = $authenticator->getUser();
-
-                if ($user->isBanned()) {
-                    $error = $user->getBanMessage() ?? lang('Auth.logOutBannedUser');
-                    $authenticator->logout();
-
-                    return redirect()->to($config->logoutRedirect())
-                        ->with('error', $error);
-                }
-
-                if ($user !== null && ! $user->isActivated()) {
-                    // If an action has been defined for register, start it up.
-                    /** @var Session $authenticator */
-                    $hasAction = $authenticator->startUpAction('register', $user);
-                    if ($hasAction) {
-                        return redirect()->route('auth-action-show')
-                            ->with('error', lang('Auth.activationBlocked'));
-                    }
-                }
-
-                return;
-            }
-
-            /** @var Session $authenticator */
-            if ($authenticator->isPending()) {
-                return redirect()->route('auth-action-show')
-                    ->with('error', $authenticator->getPendingMessage());
-            }
-
-            if (uri_string() !== route_to('login')) {
-                $session = session();
-                $session->setTempdata('beforeLoginUrl', current_url(), 300);
-            }
-
-            return redirect()->route('login');
+            return $this->handleSessionAuthentication($authenticator, $config);
         }
 
+        return $this->handleTokenAuthentication($authenticator);
+    }
+
+    /**
+     * Determine which authenticator to use
+     *
+     * @param mixed $endpoint
+     */
+    private function determineAuthenticator(?array $arguments, $endpoint): string
+    {
+        $alias = $arguments ? $arguments[0] : service('settings')->get('Auth.defaultAuthenticator');
+
+        return ($endpoint && $endpoint->auth) ? $endpoint->auth : $alias;
+    }
+
+    /**
+     * Handle session-based authentication
+     */
+    private function handleSessionAuthentication(Session $authenticator, Auth $config)
+    {
+        if (auth()->loggedIn()) {
+            if (setting('Auth.recordActiveDate')) {
+                $authenticator->recordActiveDate();
+            }
+
+            $user = $authenticator->getUser();
+
+            // Check if user is banned
+            if ($user->isBanned()) {
+                $error = $user->getBanMessage() ?? lang('Auth.logOutBannedUser');
+                $authenticator->logout();
+
+                return redirect()->to($config->logoutRedirect())
+                    ->with('error', $error);
+            }
+
+            // Check if user needs activation
+            if ($user !== null && ! $user->isActivated()) {
+                $hasAction = $authenticator->startUpAction('register', $user);
+                if ($hasAction) {
+                    return redirect()->route('auth-action-show')
+                        ->with('error', lang('Auth.activationBlocked'));
+                }
+            }
+
+            return;
+        }
+
+        // Handle pending actions
+        if ($authenticator->isPending()) {
+            return redirect()->route('auth-action-show')
+                ->with('error', $authenticator->getPendingMessage());
+        }
+
+        // Save current URL for redirect after login
+        if (uri_string() !== route_to('login')) {
+            session()->setTempdata('beforeLoginUrl', current_url(), 300);
+        }
+
+        return redirect()->route('login');
+    }
+
+    /**
+     * Handle token-based authentication
+     */
+    private function handleTokenAuthentication(AuthenticatorInterface $authenticator)
+    {
         $result = $authenticator->attempt();
 
         if (! $result->isOK()) {
@@ -106,14 +132,27 @@ class AuthFilter implements FilterInterface
             $authenticator->recordActiveDate();
         }
 
-        $accessToken = null;
+        // Handle additional access token validation if enabled
         if (service('settings')->get('Auth.accessTokenEnabled')) {
-            $accessToken = (Services::auth(false))->setAuthenticator('access_token')->attempt();
-            if (! $accessToken->isOK() && service('settings')->get('Auth.strictApiAndAuth')) {
-                return service('response')
-                    ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
-                    ->setJson(['message' => ($accessToken instanceof Result) ? $accessToken->reason() : lang('Auth.badToken')]);
-            }
+            return $this->validateAccessToken();
+        }
+    }
+
+    /**
+     * Validate access token when enabled
+     */
+    private function validateAccessToken()
+    {
+        $accessToken = (Services::auth(false))->setAuthenticator('access_token')->attempt();
+
+        if (! $accessToken->isOK() && service('settings')->get('Auth.strictApiAndAuth')) {
+            return service('response')
+                ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
+                ->setJson([
+                    'message' => ($accessToken instanceof Result)
+                        ? $accessToken->reason()
+                        : lang('Auth.badToken'),
+                ]);
         }
     }
 

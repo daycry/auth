@@ -40,7 +40,7 @@ class GroupFilter extends AbstractAuthFilter
         /** @var Auth $config */
         $config = config('Auth');
 
-        if ($request->getHeaderLine('Accept') === 'application/json' || $request->getHeaderLine('Accept') === 'application/xml') {
+        if ($this->expectsJson($request)) {
             return service('response')->setStatusCode(
                 401,
                 lang('Auth.notEnoughPrivilege'), // message
