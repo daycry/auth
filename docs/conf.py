@@ -10,7 +10,6 @@ extensions = [
     'myst_parser',
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
 ]
 
 # MyST parser configuration
@@ -18,10 +17,6 @@ myst_enable_extensions = [
     "colon_fence",
     "deflist",
     "html_admonition",
-    "html_image",
-    "linkify",
-    "replacements",
-    "smartquotes",
     "substitution",
     "tasklist",
 ]
