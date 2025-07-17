@@ -27,7 +27,7 @@ class Groups
      */
     public function info(string $group): ?Group
     {
-        return (new GroupModel())->find(['name' => $group])->first();
+        return model(GroupModel::class)->where('name', $group)->first();
     }
 
     /**

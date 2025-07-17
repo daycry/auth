@@ -23,12 +23,15 @@ class GroupModel extends BaseModel
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
         'name',
+        'description',
     ];
-    protected $useTimestamps      = true;
-    protected $createdField       = 'created_at';
-    protected $updatedField       = 'updated_at';
-    protected $deletedField       = 'deleted_at';
-    protected $validationRules    = [];
+    protected $useTimestamps   = true;
+    protected $createdField    = 'created_at';
+    protected $updatedField    = 'updated_at';
+    protected $deletedField    = 'deleted_at';
+    protected $validationRules = [
+        'name' => 'required|max_length[30]',
+    ];
     protected $validationMessages = [];
     protected $skipValidation     = false;
 
