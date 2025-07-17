@@ -13,18 +13,15 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
-use App\Controllers\BaseController;
 use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
-use Daycry\Auth\Interfaces\AuthController;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Auth\Traits\BaseControllerTrait;
-use Daycry\Auth\Traits\Viewable;
 
 /**
  * Handles "Magic Link" logins - an email-based
@@ -34,11 +31,8 @@ use Daycry\Auth\Traits\Viewable;
  * be used on it's own without an email/password
  * login strategy.
  */
-class MagicLinkController extends BaseController implements AuthController
+class MagicLinkController extends BaseAuthController
 {
-    use BaseControllerTrait;
-    use Viewable;
-
     /**
      * @var UserModel
      */
@@ -55,39 +49,45 @@ class MagicLinkController extends BaseController implements AuthController
     /**
      * Displays the view to enter their email address
      * so an email can be sent to them.
-     *
-     * @return RedirectResponse|string
      */
-    public function loginView()
+    public function loginView(): ResponseInterface
     {
         if (! setting('Auth.allowMagicLinkLogins')) {
-            return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
+            return $this->handleError(
+                config('Auth')->loginRoute(),
+                lang('Auth.magicLinkDisabled'),
+            );
         }
 
-        if (auth()->loggedIn()) {
-            return redirect()->to(config('Auth')->loginRedirect());
+        if ($redirect = $this->redirectIfLoggedIn()) {
+            return $redirect;
         }
 
-        return $this->view(setting('Auth.views')['magic-link-login']);
+        $content = $this->view(setting('Auth.views')['magic-link-login']);
+
+        return $this->response->setBody($content);
     }
 
     /**
      * Receives the email from the user, creates the hash
      * to a user identity, and sends an email to the given
      * email address.
-     *
-     * @return RedirectResponse|string
      */
-    public function loginAction()
+    public function loginAction(): RedirectResponse
     {
         if (! setting('Auth.allowMagicLinkLogins')) {
-            return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
+            return $this->handleError(
+                config('Auth')->loginRoute(),
+                lang('Auth.magicLinkDisabled'),
+            );
         }
 
         // Validate email format
-        $rules = $this->getValidationRules();
-        if (! $this->validateData($this->request->getPost(), $rules, [], config('Auth')->DBGroup)) {
-            return redirect()->route('magic-link')->with('errors', $this->validator->getErrors());
+        $rules    = $this->getValidationRules();
+        $postData = $this->request->getPost();
+
+        if (! $this->validateRequest($postData, $rules)) {
+            return $this->handleValidationError('magic-link');
         }
 
         // Check if the user exists
@@ -95,7 +95,7 @@ class MagicLinkController extends BaseController implements AuthController
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
         if ($user === null) {
-            return redirect()->route('magic-link')->with('error', lang('Auth.invalidEmail'));
+            return $this->handleError('magic-link', lang('Auth.invalidEmail'));
         }
 
         /** @var UserIdentityModel $identityModel */
@@ -127,18 +127,24 @@ class MagicLinkController extends BaseController implements AuthController
         $email = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
         $email->setTo($user->email);
         $email->setSubject(lang('Auth.magicLinkSubject'));
-        $email->setMessage($this->view(setting('Auth.views')['magic-link-email'], ['token' => $token, 'ipAddress' => $ipAddress, 'userAgent' => $userAgent, 'date' => $date]));
+        $email->setMessage($this->view(setting('Auth.views')['magic-link-email'], [
+            'token'     => $token,
+            'ipAddress' => $ipAddress,
+            'userAgent' => $userAgent,
+            'date'      => $date,
+        ]));
 
         if ($email->send(false) === false) {
             log_message('error', $email->printDebugger(['headers']));
 
-            return redirect()->route('magic-link')->with('error', lang('Auth.unableSendEmailToUser', [$user->email]));
+            return $this->handleError('magic-link', lang('Auth.unableSendEmailToUser', [$user->email]));
         }
 
         // Clear the email
         $email->clear();
 
-        return $this->displayMessage();
+        // Redirect to message page instead of returning the view directly
+        return redirect()->route('magic-link-message');
     }
 
     /**
@@ -147,6 +153,16 @@ class MagicLinkController extends BaseController implements AuthController
     protected function displayMessage(): string
     {
         return $this->view(setting('Auth.views')['magic-link-message']);
+    }
+
+    /**
+     * Shows the message view (public route)
+     */
+    public function messageView(): ResponseInterface
+    {
+        $content = $this->view(setting('Auth.views')['magic-link-message']);
+
+        return $this->response->setBody($content);
     }
 
     /**

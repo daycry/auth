@@ -24,18 +24,13 @@ use Daycry\Auth\Config\Auth;
 class PermissionFilter extends AbstractAuthFilter
 {
     /**
-     * Ensures the user is logged in and a member of one or
-     * more groups as specified in the filter.
+     * Ensures the user is logged in and has one or more
+     * of the specified permissions.
      */
     protected function isAuthorized(array $arguments): bool
     {
-        foreach ($arguments as $permission) {
-            if (auth()->user()->can($permission)) {
-                return true;
-            }
-        }
-
-        return false;
+        // Use the native can() method which accepts multiple permissions via variadic params
+        return auth()->user()->can(...$arguments);
     }
 
     /**
@@ -46,7 +41,7 @@ class PermissionFilter extends AbstractAuthFilter
         /** @var Auth $config */
         $config = config('Auth');
 
-        if ($request->getHeaderLine('Accept') === 'application/json' || $request->getHeaderLine('Accept') === 'application/xml') {
+        if ($this->expectsJson($request)) {
             return service('response')->setStatusCode(
                 401,
                 lang('Auth.notEnoughPrivilege'), // message

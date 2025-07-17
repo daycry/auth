@@ -52,45 +52,53 @@ class RatesFilter implements FilterInterface
 
         $endpoint = checkEndpoint();
 
-        $limit = service('settings')->get('Auth.requestLimit');
-        $time  = service('settings')->get('Auth.timeLimit');
+        $limit = service('settings')->get('Auth.requestLimit') ?? 10;
+        $time  = service('settings')->get('Auth.timeLimit') ?? 60;
 
         if ($endpoint instanceof Endpoint) {
-            $limit = ($endpoint->limit) ?: $limit;
-            $time  = ($endpoint->time) ?: $time;
+            $limit = $endpoint->limit ?: $limit;
+            $time  = $endpoint->time ?: $time;
         }
 
-        switch (service('settings')->get('Auth.limitMethod')) {
-            case 'IP_ADDRESS':
-                $api_key     = $request->getIPAddress();
-                $limited_uri = 'ip-address:' . $request->getIPAddress();
-                break;
+        $limitMethod = service('settings')->get('Auth.limitMethod') ?? 'ROUTED_URL';
+        $limited_uri = $this->buildLimitedUri($request, $router, $limitMethod);
 
-            case 'USER':
-                $limited_uri = 'user:' . auth()->user()->username;
-                break;
-
-            case 'METHOD_NAME':
-                $limited_uri = 'method-name:' . $router->controllerName() . '::' . $router->methodName();
-                break;
-
-            case 'ROUTED_URL':
-            default:
-                $limited_uri = 'uri:' . $request->getPath() . ':' . $request->getMethod(); // It's good to differentiate GET from PUT
-                break;
-        }
-
+        $ignoreLimits = false;
         if ($userId = auth()->id()) {
-            $ignoreLimits = auth()->user()->ignore_rates;
+            $ignoreLimits = auth()->user()->ignore_rates ?? false;
         }
 
-        // Restrict an IP address to no more than 10 requests
-        // per minute on any auth-form pages (login, register, forgot, etc).
+        // Restrict requests based on the configured method and limits
         if (! $ignoreLimits && $throttler->check(md5($limited_uri), $limit, $time, 1) === false) {
             return service('response')->setStatusCode(
                 429,
                 lang('Auth.throttled', [$throttler->getTokenTime()]), // message
             );
+        }
+    }
+
+    /**
+     * Build the URI used for rate limiting based on the configured method
+     *
+     * @param mixed $router
+     */
+    private function buildLimitedUri(RequestInterface $request, $router, string $limitMethod): string
+    {
+        switch ($limitMethod) {
+            case 'IP_ADDRESS':
+                return 'ip-address:' . $request->getIPAddress();
+
+            case 'USER':
+                $username = auth()->user()->username ?? 'anonymous';
+
+                return 'user:' . $username;
+
+            case 'METHOD_NAME':
+                return 'method-name:' . $router->controllerName() . '::' . $router->methodName();
+
+            case 'ROUTED_URL':
+            default:
+                return 'uri:' . $request->getUri()->getPath() . ':' . $request->getMethod();
         }
     }
 

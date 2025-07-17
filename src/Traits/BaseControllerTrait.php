@@ -17,90 +17,101 @@ use CodeIgniter\Exceptions\ExceptionInterface;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\Router\Router;
 use Config\Mimes;
 use Config\Services;
-use Daycry\Auth\Interfaces\AuthController;
-use Daycry\Auth\Libraries\Logger;
 use Daycry\Auth\Libraries\Utils;
-use Daycry\Auth\Models\AttemptModel;
-use Daycry\Auth\Validators\AttemptValidator;
+use Daycry\Auth\Services\AttemptHandler;
+use Daycry\Auth\Services\ExceptionHandler;
+use Daycry\Auth\Services\RequestLogger;
 use Daycry\Encryption\Encryption;
 use Psr\Log\LoggerInterface;
-use ReflectionClass;
-use ReflectionProperty;
 
+/**
+ * BaseControllerTrait that delegates to specialized services
+ *
+ * This version follows Single Responsibility Principle by using dedicated services
+ * for logging, attempt handling, and exception management.
+ */
 trait BaseControllerTrait
 {
     use Validation;
 
-    protected Router $router;
-    protected ?Logger $_logger = null;
     protected Encryption $encryption;
-    private bool $_isRequestAuthorized = true;
+    protected RequestLogger $requestLogger;
+    protected AttemptHandler $attemptHandler;
+    protected ExceptionHandler $exceptionHandler;
     protected array $args;
     protected mixed $content = null;
 
+    /**
+     * Hook for early checks - can be overridden by implementing classes
+     */
     protected function earlyChecks(): void
     {
+        // Override in child classes if needed
     }
 
+    /**
+     * Initialize controller with services
+     */
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger): void
     {
+        // Load required helpers
         helper(['security', 'auth']);
 
-        $this->_logger    = Services::log();
-        $this->router     = Services::router();
-        $this->encryption = new Encryption();
+        // Initialize services
+        $this->encryption       = new Encryption();
+        $this->requestLogger    = new RequestLogger();
+        $this->attemptHandler   = new AttemptHandler();
+        $this->exceptionHandler = new ExceptionHandler();
 
+        // Call parent initialization
         parent::initController($request, $response, $logger);
 
+        // Set response format if method exists (for API controllers)
         if (method_exists($this, 'setFormat')) {
             $output = $this->request->negotiate('media', setting('Format.supportedResponseFormats'));
             $output = Mimes::guessExtensionFromType($output);
             $this->setFormat($output);
         }
 
+        // Extract request parameters
         $this->args    = Utils::getAllParams();
         $this->content = $this->args['body'] ?? null;
 
+        // Run early checks
         $this->earlyChecks();
     }
 
+    /**
+     * Cleanup and logging on destruction
+     */
     public function __destruct()
     {
-        if ($this->request) {
-            $this->_logRequest();
+        if (isset($this->request) && $this->request) {
+            $this->requestLogger->logRequest($this->response);
 
-            if (service('settings')->get('Auth.enableInvalidAttempts') === true) {
-                $this->handleInvalidAttempts();
+            if (! $this->requestLogger->isRequestAuthorized()) {
+                $this->attemptHandler->handleInvalidAttempt($this->request);
             }
         }
 
-        if ($this->validator) {
+        if (isset($this->validator) && $this->validator) {
             $this->validator->reset();
         }
     }
 
-    protected function _logRequest(): void
-    {
-        $reflectionClass = new ReflectionClass($this->router->controllerName());
-
-        if ($reflectionClass->implementsInterface(AuthController::class)) {
-            $this->_logger->setLogAuthorized(false);
-        }
-
-        $this->_logger
-            ->setAuthorized($this->_isRequestAuthorized)
-            ->setResponseCode($this->response->getStatusCode())
-            ->save();
-    }
-
+    /**
+     * Get CSRF token for forms
+     */
     protected function getToken(): array
     {
         return ['name' => csrf_token(), 'hash' => csrf_hash()];
     }
 
+    /**
+     * Main request handler with exception management
+     */
     public function _remap(string $method, ...$params)
     {
         try {
@@ -108,66 +119,48 @@ trait BaseControllerTrait
                 throw PageNotFoundException::forPageNotFound();
             }
 
-            if (service('settings')->get('Auth.enableInvalidAttempts') === true) {
-                AttemptValidator::check($this->response);
-            }
+            // Validate attempts if enabled
+            $this->attemptHandler->validateAttempts($this->response);
 
+            // Execute the method
             $data = $this->{$method}(...$params);
 
+            // Handle different response types
             if ($data instanceof ResponseInterface) {
                 return $data;
             }
 
-            if ($this->request->isAJAX() && (is_array($data) || is_object($data))) {
+            // Return JSON for AJAX requests
+            if (method_exists($this->request, 'isAJAX') && $this->request->isAJAX() && (is_array($data) || is_object($data))) {
                 return $this->response->setJSON($data);
             }
 
+            // Return regular response
             return $this->response->setBody($data);
         } catch (ExceptionInterface $ex) {
-            $this->handleException($ex);
-        }
-    }
-
-    private function handleInvalidAttempts(): void
-    {
-        $attemptModel = new AttemptModel();
-        $attempt      = $attemptModel->where('ip_address', $this->request->getIPAddress())->first();
-
-        if ($this->_isRequestAuthorized === false) {
-            if ($attempt === null) {
-                $attempt = [
-                    'user_id'      => auth()->user()?->id,
-                    'ip_address'   => $this->request->getIPAddress(),
-                    'attempts'     => 1,
-                    'hour_started' => time(),
-                ];
-                $attemptModel->save($attempt);
-            } elseif ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
-                $attempt->attempts++;
-                $attemptModel->save($attempt);
-            }
-        }
-    }
-
-    private function handleException(ExceptionInterface $ex)
-    {
-        if (property_exists($ex, 'authorized')) {
-            $this->_isRequestAuthorized = (new ReflectionProperty($ex, 'authorized'))->getValue();
-        }
-
-        $message = $this->validator?->getErrors() ?: $ex->getMessage();
-        $code    = $ex->getCode() ?: 400;
-
-        if (method_exists($this, 'fail')) {
-            return $this->fail($message, $code);
-        }
-
-        if ($this->request->isAJAX()) {
-            return $this->response->setStatusCode($code)->setJSON(
-                ['status' => false, 'error' => $message, 'token' => $this->getToken()],
+            return $this->exceptionHandler->handleException(
+                $ex,
+                $this->request,
+                $this->response,
+                $this->validator ?? null,
+                $this,
             );
         }
+    }
 
-        throw $ex;
+    /**
+     * Mark request as unauthorized
+     */
+    protected function setRequestUnauthorized(): void
+    {
+        $this->requestLogger->setRequestAuthorized(false);
+    }
+
+    /**
+     * Check if request is authorized
+     */
+    protected function isRequestAuthorized(): bool
+    {
+        return $this->requestLogger->isRequestAuthorized();
     }
 }

@@ -23,6 +23,9 @@ use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
 use Daycry\Auth\Authentication\Passwords\CompositionValidator;
 use Daycry\Auth\Authentication\Passwords\DictionaryValidator;
 use Daycry\Auth\Authentication\Passwords\NothingPersonalValidator;
+use Daycry\Auth\Interfaces\ActionInterface;
+use Daycry\Auth\Interfaces\AuthenticatorInterface;
+use Daycry\Auth\Interfaces\PasswordValidatorInterface;
 use Daycry\Auth\Models\UserModel;
 
 class Auth extends BaseConfig
@@ -471,9 +474,9 @@ class Auth extends BaseConfig
      * The PasswordValidator class runs the password through all of these
      * classes, each getting the opportunity to pass/fail the password.
      * You can add custom classes as long as they adhere to the
-     * CodeIgniter\Shield\Authentication\Passwords\ValidatorInterface.
+     * Daycry\Auth\Interfaces\PasswordValidatorInterface.
      *
-     * @var list<class-string<ValidatorInterface>>
+     * @var list<class-string<PasswordValidatorInterface>>
      */
     public array $passwordValidators = [
         CompositionValidator::class,
