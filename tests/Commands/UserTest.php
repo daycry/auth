@@ -15,6 +15,7 @@ namespace Tests\Commands;
 
 use Daycry\Auth\Commands\UserCommand as User;
 use Daycry\Auth\Entities\User as UserEntity;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Test\MockInputOutput;
 use Tests\Support\DatabaseTestCase;
@@ -121,7 +122,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'userx@example.com']);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(UserEntity::class, $user);
     }
 
     public function testCreatePasswordNotMatch(): void
@@ -146,7 +147,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'userx@example.com']);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(UserEntity::class, $user);
     }
 
     /**
@@ -156,7 +157,7 @@ final class UserTest extends DatabaseTestCase
     {
         /** @var UserEntity $user */
         $user = fake(UserModel::class, ['username' => $userData['username']]);
-        $user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($user, [
             'email'    => $userData['email'],
             'password' => $userData['password'],
         ]);
@@ -319,7 +320,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'invalid']);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(UserEntity::class, $user);
     }
 
     public function testDelete(): void
@@ -341,7 +342,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user6@example.com']);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(UserEntity::class, $user);
     }
 
     public function testDeleteById(): void
@@ -363,7 +364,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user6@example.com']);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(UserEntity::class, $user);
     }
 
     public function testDeleteUserNotExist(): void
@@ -385,7 +386,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user6@example.com']);
-        $this->assertNotNull($user);
+        $this->assertInstanceOf(UserEntity::class, $user);
     }
 
     public function testPassword(): void
@@ -534,6 +535,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user10@example.com']);
+        $this->assertInstanceOf(UserEntity::class, $user);
         $this->assertTrue($user->inGroup('admin'));
     }
 
@@ -556,6 +558,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user10@example.com']);
+        $this->assertInstanceOf(UserEntity::class, $user);
         $this->assertFalse($user->inGroup('admin'));
     }
 
@@ -568,7 +571,9 @@ final class UserTest extends DatabaseTestCase
         ]);
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user11@example.com']);
+        $this->assertInstanceOf(UserEntity::class, $user);
         $user->addGroup('admin');
+        $this->assertInstanceOf(UserEntity::class, $user);
         $this->assertTrue($user->inGroup('admin'));
 
         $this->setMockIo(['y']);
@@ -582,6 +587,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user11@example.com']);
+        $this->assertInstanceOf(UserEntity::class, $user);
         $this->assertFalse($user->inGroup('admin'));
     }
 
@@ -594,7 +600,9 @@ final class UserTest extends DatabaseTestCase
         ]);
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user11@example.com']);
+        $this->assertInstanceOf(UserEntity::class, $user);
         $user->addGroup('admin');
+        $this->assertInstanceOf(UserEntity::class, $user);
         $this->assertTrue($user->inGroup('admin'));
 
         $this->setMockIo(['n']);
@@ -608,6 +616,7 @@ final class UserTest extends DatabaseTestCase
 
         $users = model(UserModel::class);
         $user  = $users->findByCredentials(['email' => 'user11@example.com']);
+        $this->assertInstanceOf(UserEntity::class, $user);
         $this->assertTrue($user->inGroup('admin'));
     }
 }

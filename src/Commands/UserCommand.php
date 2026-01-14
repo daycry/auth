@@ -544,7 +544,7 @@ class UserCommand extends BaseCommand
             ->groupStart()
             ->where($this->tables['identities'] . '.type', Session::ID_TYPE_EMAIL_PASSWORD)
             ->orGroupStart()
-            ->where($this->tables['identities'] . '.type', null)
+            ->where($this->tables['identities'] . '.type')
             ->groupEnd()
             ->groupEnd()
             ->asArray();
@@ -658,7 +658,7 @@ class UserCommand extends BaseCommand
             ->groupStart()
             ->where($this->tables['identities'] . '.type', Session::ID_TYPE_EMAIL_PASSWORD)
             ->orGroupStart()
-            ->where($this->tables['identities'] . '.type', null)
+            ->where($this->tables['identities'] . '.type')
             ->groupEnd()
             ->groupEnd()
             ->asArray();

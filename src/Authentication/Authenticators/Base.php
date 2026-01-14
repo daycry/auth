@@ -20,22 +20,18 @@ use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
+use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
 
 abstract class Base
 {
-    protected ?string $authType = null;
-    protected ?string $method   = null;
-    protected UserModel $provider;
-    protected ?User $user = null;
-    protected LoginModel $loginModel;
+    protected ?string $authType  = null;
+    protected ?string $method    = null;
+    protected ?User $user        = null;
     protected ?string $ipAddress = null;
     protected ?string $userAgent = null;
-    protected Request $request;
-    protected UserIdentityModel $userIdentityModel;
 
     abstract public function check(array $credentials): Result;
 
@@ -43,21 +39,27 @@ abstract class Base
 
     abstract public function getLogCredentials(array $credentials): mixed;
 
-    public function __construct(UserModel $provider)
-    {
-        $this->request = Services::request();
-
-        $this->userIdentityModel = model(UserIdentityModel::class);
-
-        $this->provider = $provider;
-
-        $this->loginModel = model(LoginModel::class);
-
+    public function __construct(
+        protected UserProviderInterface $provider,
+        protected Request $request,
+        protected UserIdentityModel $userIdentityModel,
+        protected LoginModel $loginModel,
+    ) {
         $this->ipAddress = $this->request->getIPAddress();
 
         if (method_exists($this->request, 'getUserAgent')) {
             $this->userAgent = (string) $this->request->getUserAgent();
         }
+    }
+
+    public static function instance(UserProviderInterface $provider): static
+    {
+        return new static(
+            $provider,
+            Services::request(),
+            model(UserIdentityModel::class),
+            model(LoginModel::class),
+        );
     }
 
     /**

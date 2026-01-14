@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Helpers;
 
+use Daycry\Auth\Entities\Endpoint;
 use Tests\Support\DatabaseTestCase;
 
 /**
@@ -59,7 +60,7 @@ final class AllHelpersIntegrationTest extends DatabaseTestCase
     {
         // Test checkEndpoint() function
         $endpoint = checkEndpoint();
-        $this->assertNull($endpoint); // No endpoint configured by default
+        $this->assertNotInstanceOf(Endpoint::class, $endpoint); // No endpoint configured by default
     }
 
     public function testCheckIpHelperFunctionality(): void
@@ -107,6 +108,6 @@ final class AllHelpersIntegrationTest extends DatabaseTestCase
 
         // Non-existent endpoint
         $endpoint = checkEndpoint();
-        $this->assertNull($endpoint);
+        $this->assertNotInstanceOf(Endpoint::class, $endpoint);
     }
 }

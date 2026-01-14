@@ -23,6 +23,10 @@ if (! function_exists('checkEndpoint')) {
      */
     function checkEndpoint(): ?Endpoint
     {
+        if (! service('settings')->get('Auth.enableDiscovery')) {
+            return null;
+        }
+
         $apiModel = model(ApiModel::class);
         /** @var Api|null $api */
         $api = $apiModel->where('url', site_url())->first();

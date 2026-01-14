@@ -61,10 +61,10 @@ final class UserModelTest extends DatabaseTestCase
         $users->save($user);
 
         $user = $users->findByCredentials(['email' => '']);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(User::class, $user);
 
         $user = $users->findByCredentials([]);
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(User::class, $user);
     }
 
     public function testInsertUserObject(): void
@@ -199,6 +199,7 @@ final class UserModelTest extends DatabaseTestCase
         $user->username = 'bar';
         $user->email    = 'bar@bar.com';
         $user->active   = true;
+        $this->assertInstanceOf(User::class, $user);
 
         $userArray = $user->toArray();
         // Fix value type

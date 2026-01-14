@@ -54,7 +54,7 @@ final class ForcePasswordResetTest extends TestCase
     {
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret123']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret123']);
 
         /** @var UserIdentityModel $identity */
         $identity = model(UserIdentityModel::class);
@@ -69,7 +69,7 @@ final class ForcePasswordResetTest extends TestCase
     {
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret123']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret123']);
         $user->forcePasswordReset();
 
         $this->assertTrue($user->requiresPasswordReset());
@@ -79,7 +79,7 @@ final class ForcePasswordResetTest extends TestCase
     {
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret123']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret123']);
         $user->forcePasswordReset();
         $user->undoForcePasswordReset();
 
@@ -90,7 +90,7 @@ final class ForcePasswordResetTest extends TestCase
     {
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret123']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret123']);
         $user->forcePasswordReset();
 
         $result = $this->actingAs($user)->get('profile');
@@ -105,7 +105,7 @@ final class ForcePasswordResetTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             /** @var User $user */
             $user = fake(UserModel::class);
-            $user->createEmailIdentity([
+            model(UserIdentityModel::class)->createEmailIdentity($user, [
                 'email' => 'foo' . $i . '@example.com', 'password' => $i . 'secret123',
             ]);
 

@@ -9,6 +9,7 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 - [🏷️ JWT Authenticator](#️-jwt-authenticator)
 - [✨ Magic Link Authentication](#-magic-link-authentication)
 - [👤 Guest Authenticator](#-guest-authenticator)
+- [🛠️ Custom Authenticators & DI](#️-custom-authenticators--di)
 - [⚙️ Authenticator Configuration](#️-authenticator-configuration)
 
 ## 🖥️ Session Authenticator
@@ -544,6 +545,76 @@ public array $filters = [
     'auth-rates' => [
         'before' => ['auth/*']
     ]
+];
+```
+
+## 🛠️ Custom Authenticators & Dependency Injection
+
+Version 1.1 introduces a **Factory Method** pattern to instantiate authenticators with full Dependency Injection support. This improves testability and extensibility.
+
+### Creating a Custom Authenticator
+
+To create a new authenticator, implement `Daycry\Auth\Interfaces\AuthenticatorInterface`. We recommend extending `Daycry\Auth\Authentication\Authenticators\Base`.
+
+#### 1. Implementation with `instance()`
+
+The `Authentication` factory checks for a static `instance(UserModel $provider)` method. Use this to inject dependencies.
+
+```php
+<?php
+
+namespace App\Authentication\Authenticators;
+
+use Daycry\Auth\Authentication\Authenticators\Base;
+use Daycry\Auth\Interfaces\AuthenticatorInterface;
+use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Models\LoginModel;
+use CodeIgniter\HTTP\Request;
+use App\Libraries\MyCustomService;
+
+class CustomAuthenticator extends Base implements AuthenticatorInterface
+{
+    public const ID_TYPE_CUSTOM = 'custom_auth';
+
+    public function __construct(
+        UserModel $provider,
+        Request $request,
+        UserIdentityModel $userIdentityModel,
+        LoginModel $loginModel,
+        protected MyCustomService $myService // Your custom dependency
+    ) {
+        $this->method = self::ID_TYPE_CUSTOM;
+        // Pass core dependencies to Base constructor
+        parent::__construct($provider, $request, $userIdentityModel, $loginModel);
+    }
+
+    /**
+     * Factory Method for instantiation
+     */
+    public static function instance(UserModel $provider): static
+    {
+        return new static(
+            $provider,
+            service('request'),
+            model(UserIdentityModel::class),
+            model(LoginModel::class),
+            new MyCustomService() // Inject your service here
+        );
+    }
+
+    // ... Implement other abstract methods ...
+}
+```
+
+#### 2. Registration
+
+Register your authenticator in `app/Config/Auth.php`:
+
+```php
+public array $authenticators = [
+    // ...
+    'custom' => \App\Authentication\Authenticators\CustomAuthenticator::class,
 ];
 ```
 

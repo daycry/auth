@@ -67,17 +67,17 @@ final class SetupTest extends TestCase
         $command->run([]);
 
         $auth = file_get_contents($appFolder . 'Config/Auth.php');
-        $this->assertStringContainsString('namespace Config;', $auth);
-        $this->assertStringContainsString('use Daycry\Auth\Config\Auth as BaseAuth;', $auth);
+        $this->assertStringContainsString('namespace Config;', (string) $auth);
+        $this->assertStringContainsString('use Daycry\Auth\Config\Auth as BaseAuth;', (string) $auth);
 
         $autoload = file_get_contents($appFolder . 'Config/Autoload.php');
-        $this->assertStringContainsString('$helpers = [\'auth\', \'setting\'];', $autoload);
+        $this->assertStringContainsString('$helpers = [\'auth\', \'setting\'];', (string) $autoload);
 
         $routes = file_get_contents($appFolder . 'Config/Routes.php');
-        $this->assertStringContainsString('service(\'auth\')->routes($routes);', $routes);
+        $this->assertStringContainsString('service(\'auth\')->routes($routes);', (string) $routes);
 
         $security = file_get_contents($appFolder . 'Config/Security.php');
-        $this->assertStringContainsString('$csrfProtection = \'session\';', $security);
+        $this->assertStringContainsString('$csrfProtection = \'session\';', (string) $security);
 
         $result = $this->getOutputWithoutColorCode();
 

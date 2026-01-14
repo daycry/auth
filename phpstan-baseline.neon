@@ -1,0 +1,1690 @@
+parameters:
+	ignoreErrors:
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Authentication/Actions/Email2FA.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 1
+			path: src/Authentication/Actions/Email2FA.php
+
+		-
+			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\RuntimeException not found.
+			identifier: class.notFound
+			count: 4
+			path: src/Authentication/Actions/Email2FA.php
+
+		-
+			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\RuntimeException.
+			identifier: class.notFound
+			count: 4
+			path: src/Authentication/Actions/Email2FA.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Authentication/Actions/EmailActivator.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 1
+			path: src/Authentication/Actions/EmailActivator.php
+
+		-
+			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\LogicException not found.
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Actions/EmailActivator.php
+
+		-
+			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\RuntimeException not found.
+			identifier: class.notFound
+			count: 3
+			path: src/Authentication/Actions/EmailActivator.php
+
+		-
+			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\LogicException.
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Actions/EmailActivator.php
+
+		-
+			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\RuntimeException.
+			identifier: class.notFound
+			count: 3
+			path: src/Authentication/Actions/EmailActivator.php
+
+		-
+			rawMessage: 'Call to an undefined method CodeIgniter\HTTP\Request::getGetPost().'
+			identifier: method.notFound
+			count: 1
+			path: src/Authentication/Authenticators/AccessToken.php
+
+		-
+			rawMessage: 'Call to an undefined method CodeIgniter\HTTP\Request::getVar().'
+			identifier: method.notFound
+			count: 1
+			path: src/Authentication/Authenticators/AccessToken.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Authenticators/AccessToken.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: src/Authentication/Authenticators/AccessToken.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: src/Authentication/Authenticators/AccessToken.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 4
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 4
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: 'PHPDoc tag @param references unknown parameter: $password'
+			identifier: parameter.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: 'PHPDoc tag @param references unknown parameter: $username'
+			identifier: parameter.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: 'Unsafe usage of new static() in abstract class Daycry\Auth\Authentication\Authenticators\Base in static method instance().'
+			identifier: new.staticInAbstractClassStaticMethod
+			count: 1
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: 'Unsafe usage of new static().'
+			identifier: new.static
+			count: 1
+			path: src/Authentication/Authenticators/Base.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: src/Authentication/Authenticators/JWT.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: src/Authentication/Authenticators/JWT.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials (array{token?: string}) of method Daycry\Auth\Authentication\Authenticators\JWT::attempt() should be contravariant with parameter $credentials (array) of method Daycry\Auth\Interfaces\AuthenticatorInterface::attempt()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Authentication/Authenticators/JWT.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials (array{token?: string}) of method Daycry\Auth\Authentication\Authenticators\JWT::check() should be contravariant with parameter $credentials (array) of method Daycry\Auth\Authentication\Authenticators\Base::check()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Authentication/Authenticators/JWT.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials (array{token?: string}) of method Daycry\Auth\Authentication\Authenticators\JWT::check() should be contravariant with parameter $credentials (array) of method Daycry\Auth\Interfaces\AuthenticatorInterface::check()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Authentication/Authenticators/JWT.php
+
+		-
+			rawMessage: Access to property $csrfProtection on an unknown class Daycry\Auth\Authentication\Authenticators\Security.
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\RememberModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Call to method hash() on an unknown class Daycry\Auth\Authentication\Authenticators\Passwords.'
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Call to method needsRehash() on an unknown class Daycry\Auth\Authentication\Authenticators\Passwords.'
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Call to method noCache() on an unknown class Daycry\Auth\Authentication\Authenticators\Response.'
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Call to method verify() on an unknown class Daycry\Auth\Authentication\Authenticators\Passwords.'
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $passwords contains unknown class Daycry\Auth\Authentication\Authenticators\Passwords.
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $response contains unknown class Daycry\Auth\Authentication\Authenticators\Response.
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $securityConfig contains unknown class Daycry\Auth\Authentication\Authenticators\Security.
+			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Daycry\Auth\Authentication\Authenticators\Passwords is not subtype of type Daycry\Auth\Authentication\Passwords.
+			identifier: varTag.type
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Daycry\Auth\Authentication\Authenticators\Response is not subtype of type CodeIgniter\HTTP\ResponseInterface.
+			identifier: varTag.type
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Daycry\Auth\Authentication\Authenticators\Security is not subtype of type Config\Security.
+			identifier: varTag.type
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials (array{email?: string, username?: string, password?: string}) of method Daycry\Auth\Authentication\Authenticators\Session::attempt() should be contravariant with parameter $credentials (array) of method Daycry\Auth\Interfaces\AuthenticatorInterface::attempt()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials (array{email?: string, username?: string, password?: string}) of method Daycry\Auth\Authentication\Authenticators\Session::check() should be contravariant with parameter $credentials (array) of method Daycry\Auth\Authentication\Authenticators\Base::check()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials (array{email?: string, username?: string, password?: string}) of method Daycry\Auth\Authentication\Authenticators\Session::check() should be contravariant with parameter $credentials (array) of method Daycry\Auth\Interfaces\AuthenticatorInterface::check()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Unsafe usage of new static().'
+			identifier: new.static
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Variable $sessionData in isset() always exists and is not nullable.'
+			identifier: isset.variable
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: 'Call to method Daycry\Auth\Result::isOK() with incorrect case: isOk'
+			identifier: method.nameCase
+			count: 1
+			path: src/Authentication/Passwords.php
+
+		-
+			rawMessage: PHPDoc tag @var with type string is not subtype of type uppercase-string.
+			identifier: varTag.type
+			count: 1
+			path: src/Authentication/Passwords/PwnedValidator.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 13
+			path: src/Authentication/Services/RememberMe.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 13
+			path: src/Authentication/Services/RememberMe.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authorization/Groups.php
+
+		-
+			rawMessage: 'Call to function is_string() with non-falsy-string will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/CLI/CustomCLI.php
+
+		-
+			rawMessage: Result of && is always false.
+			identifier: booleanAnd.alwaysFalse
+			count: 1
+			path: src/CLI/CustomCLI.php
+
+		-
+			rawMessage: 'Return type (int|string|null) of method Daycry\Auth\Collectors\Auth::getBadgeValue() should be covariant with return type (int|null) of method CodeIgniter\Debug\Toolbar\Collectors\BaseCollector::getBadgeValue()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Collectors/Auth.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: src/Commands/DiscoverCommand.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: src/Commands/DiscoverCommand.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Daycry\ClassFinder\Config\ClassFinder is not subtype of type null.
+			identifier: varTag.type
+			count: 1
+			path: src/Commands/DiscoverCommand.php
+
+		-
+			rawMessage: 'Parameter #1 $name of function config expects a valid class string, ''ClassFinder'' given.'
+			identifier: codeigniter.configArgumentType
+			count: 1
+			path: src/Commands/DiscoverCommand.php
+
+		-
+			rawMessage: 'PHPDoc type array of property Daycry\Auth\Commands\SetupCommand::$arguments is not the same as PHPDoc type array<string, string> of overridden property CodeIgniter\CLI\BaseCommand::$arguments.'
+			identifier: property.phpDocType
+			count: 1
+			path: src/Commands/SetupCommand.php
+
+		-
+			rawMessage: 'PHPDoc type array of property Daycry\Auth\Commands\SetupCommand::$options is not the same as PHPDoc type array<string, string> of overridden property CodeIgniter\CLI\BaseCommand::$options.'
+			identifier: property.phpDocType
+			count: 1
+			path: src/Commands/SetupCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 9
+			path: src/Commands/UserCommand.php
+
+		-
+			rawMessage: Class Daycry\Auth\Authentication\Authenticators\Guest not found.
+			identifier: class.notFound
+			count: 1
+			path: src/Config/Auth.php
+
+		-
+			rawMessage: 'Property Daycry\Auth\Config\Auth::$authenticators (array<string, class-string<Daycry\Auth\Interfaces\AuthenticatorInterface>>) does not accept default value of type array<string, string>.'
+			identifier: property.defaultValue
+			count: 1
+			path: src/Config/Auth.php
+
+		-
+			rawMessage: Instanceof between Daycry\Auth\Interfaces\ActionInterface and Daycry\Auth\Interfaces\ActionInterface will always evaluate to true.
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Controllers/ActionController.php
+
+		-
+			rawMessage: 'Parameter #2 $params (list<string>) of method Daycry\Auth\Controllers\ActionController::_remap() should be contravariant with parameter $params (mixed) of method Daycry\Auth\Controllers\BaseAuthController::_remap()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Controllers/ActionController.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Controllers\BaseAuthController::getSessionAuthenticator() should return Daycry\Auth\Authentication\Authenticators\Session but returns Daycry\Auth\Interfaces\AuthenticatorInterface.'
+			identifier: return.type
+			count: 1
+			path: src/Controllers/BaseAuthController.php
+
+		-
+			rawMessage: 'Parameter #4 $validator of method Daycry\Auth\Services\ExceptionHandler::handleException() expects CodeIgniter\Validation\Validation|null, CodeIgniter\Validation\ValidationInterface|null given.'
+			identifier: argument.type
+			count: 1
+			path: src/Controllers/BaseAuthController.php
+
+		-
+			rawMessage: 'Property CodeIgniter\Controller::$request (CodeIgniter\HTTP\CLIRequest|CodeIgniter\HTTP\IncomingRequest) in isset() is not nullable.'
+			identifier: isset.property
+			count: 1
+			path: src/Controllers/BaseAuthController.php
+
+		-
+			rawMessage: Right side of && is always true.
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 2
+			path: src/Controllers/BaseAuthController.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginRoute().'
+			identifier: method.notFound
+			count: 2
+			path: src/Controllers/LoginController.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginRoute().'
+			identifier: method.notFound
+			count: 2
+			path: src/Controllers/MagicLinkController.php
+
+		-
+			rawMessage: '''
+				Call to deprecated function random_string():
+				The type 'basic', 'md5', and 'sha1' are deprecated. They are not cryptographically secure.
+			'''
+			identifier: function.deprecated
+			count: 1
+			path: src/Controllers/MagicLinkController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Controllers/MagicLinkController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Controllers/MagicLinkController.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 1
+			path: src/Controllers/MagicLinkController.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginPage().'
+			identifier: method.notFound
+			count: 1
+			path: src/Controllers/OauthController.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::registerRoute().'
+			identifier: method.notFound
+			count: 3
+			path: src/Controllers/RegisterController.php
+
+		-
+			rawMessage: 'Call to function assert() with false and ''Config Auth…'' will always evaluate to false.'
+			identifier: function.impossibleType
+			count: 1
+			path: src/Controllers/RegisterController.php
+
+		-
+			rawMessage: Instanceof between null and Daycry\Auth\Models\UserModel will always evaluate to false.
+			identifier: instanceof.alwaysFalse
+			count: 1
+			path: src/Controllers/RegisterController.php
+
+		-
+			rawMessage: 'Parameter #1 $name of function model expects a valid class string, array|bool|float|int|object|string|null given.'
+			identifier: codeigniter.modelArgumentType
+			count: 1
+			path: src/Controllers/RegisterController.php
+
+		-
+			rawMessage: Access to property $DBGroup on an unknown class Daycry\Auth\Database\Migrations\Auth.
+			identifier: class.notFound
+			count: 2
+			path: src/Database/Migrations/2023-12-07-000001_create_core_tables.php
+
+		-
+			rawMessage: Access to property $tables on an unknown class Daycry\Auth\Database\Migrations\Auth.
+			identifier: class.notFound
+			count: 1
+			path: src/Database/Migrations/2023-12-07-000001_create_core_tables.php
+
+		-
+			rawMessage: 'Call to an undefined method CodeIgniter\Database\ConnectionInterface::disableForeignKeyChecks().'
+			identifier: method.notFound
+			count: 2
+			path: src/Database/Migrations/2023-12-07-000001_create_core_tables.php
+
+		-
+			rawMessage: 'Call to an undefined method CodeIgniter\Database\ConnectionInterface::enableForeignKeyChecks().'
+			identifier: method.notFound
+			count: 2
+			path: src/Database/Migrations/2023-12-07-000001_create_core_tables.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $authConfig contains unknown class Daycry\Auth\Database\Migrations\Auth.
+			identifier: class.notFound
+			count: 1
+			path: src/Database/Migrations/2023-12-07-000001_create_core_tables.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Daycry\Auth\Database\Migrations\Auth is not subtype of type Daycry\Auth\Config\Auth.
+			identifier: varTag.type
+			count: 1
+			path: src/Database/Migrations/2023-12-07-000001_create_core_tables.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\ControllerModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/Api.php
+
+		-
+			rawMessage: 'Parameter #1 $value (bool|int|string) of method Daycry\Auth\Entities\Cast\IntBoolCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\BaseCast::set()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/IntBoolCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (bool|int|string) of method Daycry\Auth\Entities\Cast\IntBoolCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\CastInterface::set()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/IntBoolCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (int) of method Daycry\Auth\Entities\Cast\IntBoolCast::get() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\BaseCast::get()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/IntBoolCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (int) of method Daycry\Auth\Entities\Cast\IntBoolCast::get() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\CastInterface::get()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/IntBoolCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (bool|int|string) of method Daycry\Auth\Entities\Cast\SerializeCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\BaseCast::set()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/SerializeCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (bool|int|string) of method Daycry\Auth\Entities\Cast\SerializeCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\CastInterface::set()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/SerializeCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (string) of method Daycry\Auth\Entities\Cast\SerializeCast::get() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\BaseCast::get()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/SerializeCast.php
+
+		-
+			rawMessage: 'Parameter #1 $value (string) of method Daycry\Auth\Entities\Cast\SerializeCast::get() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\CastInterface::get()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Entities/Cast/SerializeCast.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\EndpointModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/Controller.php
+
+		-
+			rawMessage: 'PHPDoc type array<string, class-string> of property Daycry\Auth\Entities\Entity::$castHandlers is not the same as PHPDoc type array<string, string> of overridden property CodeIgniter\Entity\Entity::$castHandlers.'
+			identifier: property.phpDocType
+			count: 1
+			path: src/Entities/Entity.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/GroupUser.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: src/Entities/GroupUser.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: src/Entities/GroupUser.php
+
+		-
+			rawMessage: 'Cannot call method where() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: src/Entities/GroupUser.php
+
+		-
+			rawMessage: 'Parameter #1 $name of function model expects a valid class string, *ERROR* given.'
+			identifier: codeigniter.modelArgumentType
+			count: 1
+			path: src/Entities/GroupUser.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/PermissionGroup.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PermissionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/PermissionGroup.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PermissionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/PermissionUser.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: src/Entities/PermissionUser.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: src/Entities/PermissionUser.php
+
+		-
+			rawMessage: 'Cannot call method where() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: src/Entities/PermissionUser.php
+
+		-
+			rawMessage: 'Parameter #1 $name of function model expects a valid class string, *ERROR* given.'
+			identifier: codeigniter.modelArgumentType
+			count: 1
+			path: src/Entities/PermissionUser.php
+
+		-
+			rawMessage: Access to property $group_id on an unknown class Daycry\Auth\Models\UserGroup.
+			identifier: class.notFound
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Access to property $permission_id on an unknown class Daycry\Auth\Models\UserGroup.
+			identifier: class.notFound
+			count: 2
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Interfaces\UserProviderInterface::update().'
+			identifier: method.notFound
+			count: 2
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Models\UserIdentityModel::getAllAccessTokens().'
+			identifier: method.notFound
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Models\UserIdentityModel::revokeAllAccessTokens().'
+			identifier: method.notFound
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 3
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\GroupUserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PermissionGroupModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PermissionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 3
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PermissionUserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 10
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Parameter #1 $type of method Daycry\Auth\Entities\User::saveGroupsOrPermissions() expects ''group''|''permission'', ''group_id'' given.'
+			identifier: argument.type
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Parameter #1 $type of method Daycry\Auth\Entities\User::saveGroupsOrPermissions() expects ''group''|''permission'', ''permission_id'' given.'
+			identifier: argument.type
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Variable $permissions in isset() always exists and is not nullable.'
+			identifier: isset.variable
+			count: 2
+			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Return type (CodeIgniter\HTTP\Response|void) of method Daycry\Auth\Filters\AbstractAuthFilter::before() should be covariant with return type (CodeIgniter\HTTP\RequestInterface|CodeIgniter\HTTP\ResponseInterface|string|null) of method CodeIgniter\Filters\FilterInterface::before()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/AbstractAuthFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\AbstractAuthFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/AbstractAuthFilter.php
+
+		-
+			rawMessage: 'Call to an undefined static method Config\Services::auth().'
+			identifier: staticMethod.notFound
+			count: 1
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: Call to function config with Daycry\Auth\Config\Auth::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: 'Call to method CodeIgniter\HTTP\ResponseInterface::setJSON() with incorrect case: setJson'
+			identifier: method.nameCase
+			count: 2
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Filters\AuthFilter::before() should return CodeIgniter\HTTP\RequestInterface|CodeIgniter\HTTP\ResponseInterface|string|null but empty return statement found.'
+			identifier: return.empty
+			count: 1
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\AuthFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/AuthFilter.php
+
+		-
+			rawMessage: Call to function config with Daycry\Auth\Config\Auth::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Filters/ChainAuthFilter.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Filters\ChainAuthFilter::before() should return CodeIgniter\HTTP\RedirectResponse|void but returns CodeIgniter\HTTP\ResponseInterface.'
+			identifier: return.type
+			count: 1
+			path: src/Filters/ChainAuthFilter.php
+
+		-
+			rawMessage: 'Return type (CodeIgniter\HTTP\RedirectResponse|void) of method Daycry\Auth\Filters\ChainAuthFilter::before() should be covariant with return type (CodeIgniter\HTTP\RequestInterface|CodeIgniter\HTTP\ResponseInterface|string|null) of method CodeIgniter\Filters\FilterInterface::before()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/ChainAuthFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\ChainAuthFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/ChainAuthFilter.php
+
+		-
+			rawMessage: Call to function config with Daycry\Auth\Config\Auth::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Filters/ForcePasswordResetFilter.php
+
+		-
+			rawMessage: 'Return type (CodeIgniter\HTTP\RedirectResponse|void) of method Daycry\Auth\Filters\ForcePasswordResetFilter::before() should be covariant with return type (CodeIgniter\HTTP\RequestInterface|CodeIgniter\HTTP\ResponseInterface|string|null) of method CodeIgniter\Filters\FilterInterface::before()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/ForcePasswordResetFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\ForcePasswordResetFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/ForcePasswordResetFilter.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Filters\GroupFilter::redirectToDeniedUrl() should return CodeIgniter\HTTP\Response but returns CodeIgniter\HTTP\ResponseInterface.'
+			identifier: return.type
+			count: 1
+			path: src/Filters/GroupFilter.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Filters\PermissionFilter::redirectToDeniedUrl() should return CodeIgniter\HTTP\Response but returns CodeIgniter\HTTP\ResponseInterface.'
+			identifier: return.type
+			count: 1
+			path: src/Filters/PermissionFilter.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: src/Filters/RatesFilter.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: src/Filters/RatesFilter.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Filters\RatesFilter::before() should return CodeIgniter\HTTP\RedirectResponse|void but returns CodeIgniter\HTTP\ResponseInterface.'
+			identifier: return.type
+			count: 1
+			path: src/Filters/RatesFilter.php
+
+		-
+			rawMessage: 'Return type (CodeIgniter\HTTP\RedirectResponse|void) of method Daycry\Auth\Filters\RatesFilter::before() should be covariant with return type (CodeIgniter\HTTP\RequestInterface|CodeIgniter\HTTP\ResponseInterface|string|null) of method CodeIgniter\Filters\FilterInterface::before()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/RatesFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\RatesFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/RatesFilter.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\ApiModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Helpers/checkEndpoint_helper.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: src/Helpers/checkEndpoint_helper.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: src/Helpers/checkEndpoint_helper.php
+
+		-
+			rawMessage: 'PHPDoc tag @param has invalid value (string): Unexpected token "\n     ", expected variable at offset 62 on line 4'
+			identifier: phpDoc.parseError
+			count: 1
+			path: src/Interfaces/JWTAdapterInterface.php
+
+		-
+			rawMessage: 'Parameter #2 of function sprintf is expected to be int by placeholder #1 ("%%u"), string given.'
+			identifier: argument.type
+			count: 1
+			path: src/Libraries/CheckIpInRange.php
+
+		-
+			rawMessage: 'Parameter #3 of function sprintf is expected to be int by placeholder #2 ("%%u"), string given.'
+			identifier: argument.type
+			count: 1
+			path: src/Libraries/CheckIpInRange.php
+
+		-
+			rawMessage: 'Parameter #4 of function sprintf is expected to be int by placeholder #3 ("%%u"), string given.'
+			identifier: argument.type
+			count: 1
+			path: src/Libraries/CheckIpInRange.php
+
+		-
+			rawMessage: 'Parameter #5 of function sprintf is expected to be int by placeholder #4 ("%%u"), string given.'
+			identifier: argument.type
+			count: 1
+			path: src/Libraries/CheckIpInRange.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 2
+			path: src/Libraries/Logger.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 2
+			path: src/Libraries/Logger.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Interfaces\UserProviderInterface::addToDefaultGroup().'
+			identifier: method.notFound
+			count: 1
+			path: src/Libraries/Oauth/OauthManager.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Interfaces\UserProviderInterface::getInsertID().'
+			identifier: method.notFound
+			count: 1
+			path: src/Libraries/Oauth/OauthManager.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Libraries/Oauth/OauthManager.php
+
+		-
+			rawMessage: 'Parameter #1 $token of method League\OAuth2\Client\Provider\AbstractProvider::getResourceOwner() expects League\OAuth2\Client\Token\AccessToken, League\OAuth2\Client\Token\AccessTokenInterface given.'
+			identifier: argument.type
+			count: 1
+			path: src/Libraries/Oauth/OauthManager.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: src/Models/BaseModel.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: src/Models/BaseModel.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Models\GroupUserModel::getForUser() has invalid return type Daycry\Auth\Models\UserGroup.'
+			identifier: class.notFound
+			count: 1
+			path: src/Models/GroupUserModel.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Models\GroupUserModel::getForUser() should return list<Daycry\Auth\Models\UserGroup>|null but returns list<Daycry\Auth\Entities\GroupUser>.'
+			identifier: return.type
+			count: 1
+			path: src/Models/GroupUserModel.php
+
+		-
+			rawMessage: PHPDoc tag @param for parameter $userId with type int|string|null is not subtype of native type int|null.
+			identifier: parameter.phpDocType
+			count: 1
+			path: src/Models/LoginModel.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Models\PermissionGroupModel::getForGroup() has invalid return type Daycry\Auth\Models\UserGroup.'
+			identifier: class.notFound
+			count: 1
+			path: src/Models/PermissionGroupModel.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Models\PermissionGroupModel::getForGroup() should return list<Daycry\Auth\Models\UserGroup>|null but returns list<Daycry\Auth\Entities\PermissionGroup>.'
+			identifier: return.type
+			count: 1
+			path: src/Models/PermissionGroupModel.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Models\PermissionUserModel::getForUser() has invalid return type Daycry\Auth\Models\UserGroup.'
+			identifier: class.notFound
+			count: 1
+			path: src/Models/PermissionUserModel.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Models\PermissionUserModel::getForUser() should return list<Daycry\Auth\Models\UserGroup>|null but returns list<Daycry\Auth\Entities\PermissionUser>.'
+			identifier: return.type
+			count: 1
+			path: src/Models/PermissionUserModel.php
+
+		-
+			rawMessage: '''
+				Call to deprecated function random_string():
+				The type 'basic', 'md5', and 'sha1' are deprecated. They are not cryptographically secure.
+			'''
+			identifier: function.deprecated
+			count: 1
+			path: src/Models/UserIdentityModel.php
+
+		-
+			rawMessage: 'Call to method hash() on an unknown class Daycry\Auth\Models\Passwords.'
+			identifier: class.notFound
+			count: 1
+			path: src/Models/UserIdentityModel.php
+
+		-
+			rawMessage: PHPDoc tag @throws with type Daycry\Auth\Models\ValidationException is not subtype of Throwable
+			identifier: throws.notThrowable
+			count: 1
+			path: src/Models/UserIdentityModel.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $passwords contains unknown class Daycry\Auth\Models\Passwords.
+			identifier: class.notFound
+			count: 1
+			path: src/Models/UserIdentityModel.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Daycry\Auth\Models\Passwords is not subtype of type Daycry\Auth\Authentication\Passwords.
+			identifier: varTag.type
+			count: 1
+			path: src/Models/UserIdentityModel.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: PHPDoc tag @throws with type Daycry\Auth\Models\ValidationException is not subtype of Throwable
+			identifier: throws.notThrowable
+			count: 3
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: 'Parameter #1 $data (array|Daycry\Auth\Entities\User) of method Daycry\Auth\Models\UserModel::insert() should be contravariant with parameter $row (array<int|string, bool|float|int|object|string|null>|object|null) of method CodeIgniter\Model::insert()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: 'Parameter #1 $data (array|Daycry\Auth\Entities\User) of method Daycry\Auth\Models\UserModel::save() should be contravariant with parameter $data (array|object) of method Daycry\Auth\Interfaces\UserProviderInterface::save()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: 'Parameter #1 $data (array|Daycry\Auth\Entities\User) of method Daycry\Auth\Models\UserModel::save() should be contravariant with parameter $row (array<int|string, bool|float|int|object|string|null>|object) of method CodeIgniter\BaseModel::save()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: 'Parameter #2 $data (array|Daycry\Auth\Entities\User) of method Daycry\Auth\Models\UserModel::update() should be contravariant with parameter $row (array<int|string, bool|float|int|object|string|null>|object|null) of method CodeIgniter\Model::update()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: 'Return type (int|string|true) of method Daycry\Auth\Models\UserModel::insert() should be covariant with return type (($returnID is true ? int|string|false : bool)) of method CodeIgniter\Model::insert()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 2
+			path: src/Services/AttemptHandler.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 2
+			path: src/Services/AttemptHandler.php
+
+		-
+			rawMessage: 'Call to an undefined static method Config\Services::log().'
+			identifier: staticMethod.notFound
+			count: 1
+			path: src/Services/RequestLogger.php
+
+		-
+			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\LogicException not found.
+			identifier: class.notFound
+			count: 1
+			path: src/Test/MockInputOutput.php
+
+		-
+			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\LogicException.
+			identifier: class.notFound
+			count: 1
+			path: src/Test/MockInputOutput.php
+
+		-
+			rawMessage: 'Call to method Daycry\Auth\Result::isOK() with incorrect case: isOk'
+			identifier: method.nameCase
+			count: 2
+			path: src/Validation/PasswordValidationRules.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 2
+			path: src/Validators/AttemptValidator.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 2
+			path: src/Validators/AttemptValidator.php
+
+		-
+			rawMessage: Access to property $recordLoginAttempt on an unknown class Tests\Authentication\Authenticators\AuthToken.
+			identifier: class.notFound
+			count: 2
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $authenticator contains unknown class Tests\Authentication\Authenticators\AccessTokens.
+			identifier: class.notFound
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $config contains unknown class Tests\Authentication\Authenticators\AuthToken.
+			identifier: class.notFound
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Tests\Authentication\Authenticators\AccessTokens is not subtype of native type Daycry\Auth\Interfaces\AuthenticatorInterface.
+			identifier: varTag.nativeType
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Tests\Authentication\Authenticators\AuthToken is not subtype of type Daycry\Auth\Config\Auth.
+			identifier: varTag.type
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: 'Property Tests\Authentication\Authenticators\AccessTokenAuthenticatorTest::$auth (Daycry\Auth\Authentication\Authenticators\AccessToken) does not accept Tests\Authentication\Authenticators\AccessTokens.'
+			identifier: assign.propertyType
+			count: 1
+			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
+
+		-
+			rawMessage: Access to property $recordLoginAttempt on an unknown class Tests\Authentication\Authenticators\AuthJWT.
+			identifier: class.notFound
+			count: 2
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Result'' and Daycry\Auth\Result will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: 'PHPDoc tag @param references unknown parameter: $clock'
+			identifier: parameter.notFound
+			count: 1
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $config contains unknown class Tests\Authentication\Authenticators\AuthJWT.
+			identifier: class.notFound
+			count: 1
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Tests\Authentication\Authenticators\AuthJWT is not subtype of type Daycry\Auth\Config\Auth.
+			identifier: varTag.type
+			count: 1
+			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
+
+		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
+			count: 2
+			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Result'' and Daycry\Auth\Result will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 8
+			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 2
+			path: tests/Authentication/Filters/AuthJWTFilterTest.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 2
+			path: tests/Authentication/Filters/AuthJWTFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
+			identifier: argument.type
+			count: 2
+			path: tests/Authentication/Filters/AuthJWTFilterTest.php
+
+		-
+			rawMessage: 'Return type of method Tests\Authentication\Filters\ForcePasswordResetTest::actingAs() has typehint with internal class Tests\Authentication\Filters\ForcePasswordResetTest.'
+			identifier: return.internalClass
+			count: 2
+			path: tests/Authentication/Filters/ForcePasswordResetTest.php
+
+		-
+			rawMessage: Variable $users might not be defined.
+			identifier: variable.undefined
+			count: 1
+			path: tests/Authentication/Filters/ForcePasswordResetTest.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 2
+			path: tests/Authentication/Filters/GroupFilterTest.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 2
+			path: tests/Authentication/Filters/GroupFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Accept: ''application/json'', Authorization: non-falsy-string} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Filters/GroupFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Filters/GroupFilterTest.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 3
+			path: tests/Authentication/Filters/PermissionFilterTest.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 3
+			path: tests/Authentication/Filters/PermissionFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Accept: ''application/json'', Authorization: non-falsy-string} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Filters/PermissionFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
+			identifier: argument.type
+			count: 2
+			path: tests/Authentication/Filters/PermissionFilterTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Collectors\\Auth'' and Daycry\Auth\Collectors\Auth will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Collectors/AuthCollectorTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/SetupTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/SetupTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/UserTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/UserTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\User'' and Daycry\Auth\Entities\User will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Commands/UserTest.php
+
+		-
+			rawMessage: 'Call to an undefined static method Config\Services::settings().'
+			identifier: staticMethod.notFound
+			count: 1
+			path: tests/Controllers/BaseAuthControllerTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method __construct() of class CodeIgniter\HTTP\Response:
+				4.5.0 The param $config is no longer used.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: tests/Controllers/BaseAuthControllerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''App\\Controllers\\BaseController'' and Tests\Controllers\MockBaseAuthController will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Controllers/BaseAuthControllerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Controllers\\BaseAuthController'' and Tests\Controllers\MockBaseAuthController will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Controllers/BaseAuthControllerTest.php
+
+		-
+			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::with().'
+			identifier: method.notFound
+			count: 1
+			path: tests/Controllers/OauthControllerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\UserIdentity'' and Daycry\Auth\Entities\UserIdentity will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Entities/UserTest.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 3
+			path: tests/Helpers/AllHelpersIntegrationTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertNotNull() with CodeIgniter\Email\Email will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/Helpers/AllHelpersIntegrationTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertNotNull() with Daycry\Auth\Auth will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Helpers/AllHelpersIntegrationTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Auth'' and Daycry\Auth\Auth will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 4
+			path: tests/Helpers/AuthHelperTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertTrue() with true will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Helpers/CheckEndpointHelperTest.php
+
+		-
+			rawMessage: Instanceof between Daycry\Auth\Entities\Endpoint and Daycry\Auth\Entities\Endpoint will always evaluate to true.
+			identifier: instanceof.alwaysTrue
+			count: 2
+			path: tests/Helpers/CheckEndpointHelperTest.php
+
+		-
+			rawMessage: Result of || is always true.
+			identifier: booleanOr.alwaysTrue
+			count: 2
+			path: tests/Helpers/CheckEndpointHelperTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertIsBool() with bool will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Helpers/CheckIpHelperTest.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 13
+			path: tests/Helpers/EmailHelperTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''CodeIgniter\\Email\\Email'' and CodeIgniter\Email\Email will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 13
+			path: tests/Helpers/EmailHelperTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertNotNull() with CodeIgniter\Email\Email will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Helpers/EmailHelperTest.php
+
+		-
+			rawMessage: 'Method Tests\Language\AbstractTranslationTestCase::localesProvider() should return list<list<string>> but returns non-empty-array<string, array{string}>.'
+			identifier: return.type
+			count: 1
+			path: tests/Language/AbstractTranslationTestCase.php
+
+		-
+			rawMessage: 'Strict comparison using === between array{list<non-falsy-string>} and array{} will always evaluate to false.'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: tests/Language/AbstractTranslationTestCase.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Libraries\\Logger'' and Daycry\Auth\Libraries\Logger will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 10
+			path: tests/Libraries/LoggerTest.php
+
+		-
+			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::with().'
+			identifier: method.notFound
+			count: 2
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''CodeIgniter\\HTTP\\RedirectResponse'' and CodeIgniter\HTTP\RedirectResponse will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\User'' and Daycry\Auth\Entities\User will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\OauthManager::setProviderInstance() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
+			identifier: argument.type
+			count: 3
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Models\AttemptModel::countAll().'
+			identifier: method.notFound
+			count: 2
+			path: tests/Services/AttemptHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Services\\AttemptHandler'' and Daycry\Auth\Services\AttemptHandler will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 4
+			path: tests/Services/AttemptHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertIsBool() with bool will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Services/AttemptHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertTrue() with true will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 4
+			path: tests/Services/AttemptHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''CodeIgniter\\HTTP\\ResponseInterface'' and CodeIgniter\HTTP\ResponseInterface will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 5
+			path: tests/Services/ExceptionHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Services\\ExceptionHandler'' and Daycry\Auth\Services\ExceptionHandler will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Services/ExceptionHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Services\\RequestLogger'' and Daycry\Auth\Services\RequestLogger will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Services/ExceptionHandlerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Services\\RequestLogger'' and Daycry\Auth\Services\RequestLogger will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 5
+			path: tests/Services/RequestLoggerTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertTrue() with true will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Services/RequestLoggerTest.php
+
+		-
+			rawMessage: 'Call to function method_exists() with $this(CodeIgniter\Controller@anonymous/tests/Traits/BaseControllerTraitTest.php:268) and ''setFormat'' will always evaluate to false.'
+			identifier: function.impossibleType
+			count: 1
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Call to function method_exists() with $this(CodeIgniter\Controller@anonymous/tests/Traits/BaseControllerTraitTest.php:277) and ''setFormat'' will always evaluate to false.'
+			identifier: function.impossibleType
+			count: 1
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Call to function method_exists() with $this(CodeIgniter\Controller@anonymous/tests/Traits/BaseControllerTraitTest.php:40) and ''setFormat'' will always evaluate to false.'
+			identifier: function.impossibleType
+			count: 1
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Encryption\\Encryption'' and Daycry\Encryption\Encryption will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertTrue() with true will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Parameter #4 $validator of method Daycry\Auth\Services\ExceptionHandler::handleException() expects CodeIgniter\Validation\Validation|null, CodeIgniter\Validation\ValidationInterface|null given.'
+			identifier: argument.type
+			count: 3
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Property CodeIgniter\Controller::$request (CodeIgniter\HTTP\CLIRequest|CodeIgniter\HTTP\IncomingRequest) in isset() is not nullable.'
+			identifier: isset.property
+			count: 3
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: Right side of && is always true.
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 6
+			path: tests/Traits/BaseControllerTraitTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertIsBool() with bool will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 8
+			path: tests/Validation/PasswordValidationRulesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertIsString() with string will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/Validation/PasswordValidationRulesTest.php
+
+		-
+			rawMessage: Call to unknown service method 'settings'.
+			identifier: codeigniter.unknownServiceMethod
+			count: 1
+			path: tests/Validators/AttemptTest.php
+
+		-
+			rawMessage: 'Cannot call method get() on null.'
+			identifier: method.nonObject
+			count: 1
+			path: tests/Validators/AttemptTest.php
+
+		-
+			rawMessage: Access to property $aliases on an unknown class Tests\Support\Filter.
+			identifier: class.notFound
+			count: 2
+			path: tests/_support/FilterTestCase.php
+
+		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/_support/FilterTestCase.php
+
+		-
+			rawMessage: PHPDoc tag @var for variable $filterConfig contains unknown class Tests\Support\Filter.
+			identifier: class.notFound
+			count: 1
+			path: tests/_support/FilterTestCase.php
+
+		-
+			rawMessage: PHPDoc tag @var with type Tests\Support\Filter is not subtype of type Config\Filters.
+			identifier: varTag.type
+			count: 1
+			path: tests/_support/FilterTestCase.php
+
+		-
+			rawMessage: 'Return type of method Tests\Support\FilterTestCase::actingAs() has typehint with internal class Tests\Support\FilterTestCase.'
+			identifier: return.internalClass
+			count: 2
+			path: tests/_support/FilterTestCase.php
+
+		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
+			count: 3
+			path: tests/_support/TestCase.php

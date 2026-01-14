@@ -41,16 +41,16 @@ final class CheckEndpointHelperTest extends DatabaseTestCase
     public function testCheckEndpointWithNoApi(): void
     {
         $endpoint = checkEndpoint();
-        $this->assertNull($endpoint);
+        $this->assertNotInstanceOf(Endpoint::class, $endpoint);
     }
 
     public function testCheckEndpointWithApi(): void
     {
         // Create test API in database
-        $apiModel = model(ApiModel::class);
+        model(ApiModel::class);
 
         // Mock the API data
-        $apiData = [
+        [
             'url'         => site_url(),
             'key'         => 'test-key',
             'secret'      => 'test-secret',
@@ -64,7 +64,7 @@ final class CheckEndpointHelperTest extends DatabaseTestCase
         // This test depends on the actual database structure
         // For now, we'll test the function exists and returns null when no API is found
         $endpoint = checkEndpoint();
-        $this->assertNull($endpoint);
+        $this->assertNotInstanceOf(Endpoint::class, $endpoint);
     }
 
     public function testCheckEndpointFunctionReturnType(): void

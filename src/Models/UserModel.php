@@ -19,12 +19,13 @@ use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
+use Daycry\Auth\Interfaces\UserProviderInterface;
 use Faker\Generator;
 
 /**
  * @phpstan-consistent-constructor
  */
-class UserModel extends BaseModel
+class UserModel extends BaseModel implements UserProviderInterface
 {
     protected $table;
     protected $primaryKey     = 'id';
@@ -84,12 +85,12 @@ class UserModel extends BaseModel
      */
     protected function fetchIdentities(array $data): array
     {
-        if (! $this->fetchIdentities) {
+        if (! $this->fetchIdentities || empty($data['data'])) {
             return $data;
         }
 
         $userIds = $data['singleton']
-            ? array_column($data, 'id')
+            ? [$data['data']->id]
             : array_column($data['data'], 'id');
 
         if ($userIds === []) {
@@ -211,7 +212,7 @@ class UserModel extends BaseModel
             ];
 
             if (in_array($e->getMessage(), $messages, true)) {
-                $this->tempUser->saveEmailIdentity();
+                $this->saveEmailIdentity([]);
 
                 return true;
             }
@@ -255,26 +256,62 @@ class UserModel extends BaseModel
             return $data;
         }
 
-        // Insert
-        if ($this->tempUser->id === null) {
-            /** @var User $user */
-            $user = $this->find($this->db->insertID());
+        /** @var User $user */
+        $user = $this->tempUser;
 
-            // If you get identity (email/password), the User object must have the id.
-            $this->tempUser->id = $user->id;
+        if ($user->id === null) {
+            $user->id = $data['id'] ?? $this->db->insertID();
+        }
 
-            $user->email         = $this->tempUser->email ?? '';
-            $user->password      = $this->tempUser->password ?? '';
-            $user->password_hash = $this->tempUser->password_hash ?? '';
+        $email        = $user->getEmail();
+        $password     = $user->getPassword();
+        $passwordHash = $user->getPasswordHash();
 
-            $user->saveEmailIdentity();
+        if (($email === null || $email === '' || $email === '0') && ($password === null || $password === '' || $password === '0') && ($passwordHash === null || $passwordHash === '' || $passwordHash === '0')) {
             $this->tempUser = null;
 
             return $data;
         }
 
-        // Update
-        $this->tempUser->saveEmailIdentity();
+        /** @var UserIdentityModel $identityModel */
+        $identityModel = model(UserIdentityModel::class);
+        $identity      = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
+
+        if ($identity === null) {
+            $identityModel->createEmailIdentity($user, [
+                'email'    => $email,
+                'password' => '',
+            ]);
+
+            $identity = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
+        }
+
+        if ($email !== null && $email !== '' && $email !== '0') {
+            $identity->secret = $email;
+        }
+
+        if ($password !== null && $password !== '' && $password !== '0') {
+            $identity->secret2 = service('passwords')->hash($password);
+        }
+
+        if ($passwordHash !== null && $passwordHash !== '' && $passwordHash !== '0' && ($password === null || $password === '' || $password === '0')) {
+            $identity->secret2 = $passwordHash;
+        }
+
+        try {
+            /** @throws DataException */
+            $identityModel->save($identity);
+        } catch (DataException $e) {
+            // There may be no data to update.
+            $messages = [
+                lang('Database.emptyDataset', ['insert']),
+                lang('Database.emptyDataset', ['update']),
+            ];
+            if (! in_array($e->getMessage(), $messages, true)) {
+                throw $e;
+            }
+        }
+
         $this->tempUser = null;
 
         return $data;

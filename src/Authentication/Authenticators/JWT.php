@@ -14,10 +14,13 @@ declare(strict_types=1);
 namespace Daycry\Auth\Authentication\Authenticators;
 
 use CodeIgniter\Exceptions\RuntimeException;
+use CodeIgniter\HTTP\Request;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
-use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
 
 /**
@@ -33,11 +36,15 @@ class JWT extends Base implements AuthenticatorInterface
 
     protected mixed $payload;
 
-    public function __construct(UserModel $provider)
-    {
+    public function __construct(
+        UserProviderInterface $provider,
+        Request $request,
+        UserIdentityModel $userIdentityModel,
+        LoginModel $loginModel,
+    ) {
         $this->method = self::ID_TYPE_JWT;
 
-        parent::__construct($provider);
+        parent::__construct($provider, $request, $userIdentityModel, $loginModel);
     }
 
     /**

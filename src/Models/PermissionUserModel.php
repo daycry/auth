@@ -53,7 +53,7 @@ class PermissionUserModel extends BaseModel
 
         return $this->where('user_id', $user->id)
             ->groupStart()
-            ->where('until_at', null)
+            ->where('until_at')
             ->orWhere('until_at >', $now)
             ->groupEnd()
             ->orderBy($this->primaryKey)

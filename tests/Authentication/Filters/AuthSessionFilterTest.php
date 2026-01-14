@@ -28,7 +28,6 @@ final class AuthSessionFilterTest extends FilterTestCase
 {
     use FeatureTestTrait;
 
-    protected $namespace;
     protected string $alias       = 'auth';
     protected string $classname   = AuthFilter::class;
     protected string $routeFilter = 'auth:session';

@@ -327,7 +327,7 @@ abstract class AbstractTranslationTestCase extends TestCase
 
                 foreach ($matches as $match) {
                     foreach ($match as $parameter) {
-                        if (! str_contains($translated[$key], (string) $parameter)) {
+                        if (! str_contains($translated[$key], $parameter)) {
                             $id = sprintf('%s.%s', substr($file, 0, -4), $key);
 
                             $diffs[$id] ??= [];
@@ -353,6 +353,17 @@ abstract class AbstractTranslationTestCase extends TestCase
         ));
     }
 
+    #[DataProvider('localesProvider')]
+    final public function testLocaleHasCorrespondingTestCaseFile(string $locale): void
+    {
+        $class = array_flip(self::$locales)[$locale];
+
+        $this->assertTrue(class_exists($class, false), sprintf(
+            'Failed asserting that test class "%s" is existing.',
+            $class,
+        ));
+    }
+
     /**
      * @return list<list<string>>
      */
@@ -365,17 +376,6 @@ abstract class AbstractTranslationTestCase extends TestCase
         }
 
         return [$locale => [$locale]];
-    }
-
-    #[DataProvider('localesProvider')]
-    final public function testLocaleHasCorrespondingTestCaseFile(string $locale): void
-    {
-        $class = array_flip(self::$locales)[$locale];
-
-        $this->assertTrue(class_exists($class, false), sprintf(
-            'Failed asserting that test class "%s" is existing.',
-            $class,
-        ));
     }
 
     // -------------------------------------------------------------------------

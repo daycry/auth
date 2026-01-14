@@ -268,6 +268,30 @@ class Auth extends BaseConfig
     ];
 
     /**
+     * --------------------------------------------------------------------------
+     * OAuth Providers
+     * --------------------------------------------------------------------------
+     *
+     * The available OAuth providers.
+     * key = provider alias (e.g. 'azure', 'google')
+     * value = configuration array or ClassName::class
+     */
+    public array $providers = [
+        'azure' => [
+            'clientId'                => 'YOUR_CLIENT_ID',
+            'clientSecret'            => 'YOUR_CLIENT_SECRET',
+            'redirectUri'             => 'http://localhost:8080/auth/oauth/azure/callback',
+            'urlAuthorize'            => 'https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/authorize',
+            'urlAccessToken'          => 'https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token',
+            'urlResourceOwnerDetails' => '',
+            'scopes'                  => ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
+            'defaultEndPointVersion'  => '2.0',
+            'tenant'                  => 'common',
+        ],
+        // 'google' => [ ... ]
+    ];
+
+    /**
      * --------------------------------------------------------------------
      * View files
      * --------------------------------------------------------------------
@@ -384,6 +408,20 @@ class Auth extends BaseConfig
                 'auth/a/verify',
                 'ActionController::verify',
                 'auth-action-verify', // Route name
+            ],
+        ],
+        'oauth' => [
+            [
+                'get',
+                'oauth/login/(:segment)', // Provider (azure, google, etc)
+                'OauthController::redirect/$1',
+                'oauth-login',
+            ],
+            [
+                'get',
+                'oauth/callback/(:segment)', // Provider (azure, google, etc)
+                'OauthController::callback/$1',
+                'oauth-callback',
             ],
         ],
     ];
@@ -606,7 +644,10 @@ class Auth extends BaseConfig
      *
      * This feature use Daycry\CronJob vendor
      * for more information: https://github.com/daycry/cronjob
-     *
+     */
+    public bool $enableDiscovery = false;
+
+    /**
      * Ex: $namespaceScope = ['\Api\Controllers\Class', '\App\Controllers\Class'];
      */
     public array $namespaceScope = ['\Daycry\Auth\Controllers'];

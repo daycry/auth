@@ -102,7 +102,7 @@ final class AttemptHandlerTest extends DatabaseTestCase
         $request->method('getUserAgent')->willReturn($userAgent);
 
         // Count attempts before
-        $initialCount = $this->attemptModel->where('ip_address', '192.168.1.100')->countAllResults();
+        $this->attemptModel->where('ip_address', '192.168.1.100')->countAllResults();
 
         // Handle invalid attempt
         $this->handler->handleInvalidAttempt($request);

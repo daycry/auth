@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Libraries;
 
 use Daycry\Auth\Entities\Endpoint;
+use Daycry\Auth\Entities\Log;
 use Daycry\Auth\Libraries\Logger;
 use Daycry\Auth\Models\LogModel;
 use Tests\Support\DatabaseTestCase;
@@ -209,7 +210,7 @@ final class LoggerTest extends DatabaseTestCase
         $logModel = new LogModel();
         $logEntry = $logModel->find($insertId);
 
-        $this->assertNotNull($logEntry);
+        $this->assertInstanceOf(Log::class, $logEntry);
         $this->assertSame(200, $logEntry->response_code);
     }
 

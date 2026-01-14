@@ -47,10 +47,8 @@ trait Validation
 
     private function runValidate(array|string $rules, array|object|null $data = null, ?string $dbGroup = null)
     {
-        if ($data !== null) {
-            if (is_object($data)) {
-                $data = get_object_vars($data);
-            }
+        if ($data !== null && is_object($data)) {
+            $data = get_object_vars($data);
         }
 
         if (is_string($rules)) {

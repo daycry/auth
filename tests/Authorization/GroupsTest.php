@@ -47,7 +47,7 @@ final class GroupsTest extends DatabaseTestCase
     {
         $group = $this->groups->info('nonexistent');
 
-        $this->assertNull($group);
+        $this->assertNotInstanceOf(Group::class, $group);
     }
 
     public function testSaveNewGroup(): void

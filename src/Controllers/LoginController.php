@@ -25,7 +25,7 @@ class LoginController extends BaseAuthController
     public function loginView(): ResponseInterface
     {
         // Check if already logged in
-        if ($redirect = $this->redirectIfLoggedIn()) {
+        if (($redirect = $this->redirectIfLoggedIn()) instanceof RedirectResponse) {
             return $redirect;
         }
 

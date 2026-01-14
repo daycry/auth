@@ -40,7 +40,7 @@ abstract class AbstractAuthFilter implements FilterInterface
         }
 
         if (! auth()->loggedIn()) {
-            return $this->handleUnauthenticated($request);
+            return $this->handleUnauthenticated();
         }
 
         if ($this->isAuthorized($arguments)) {
@@ -53,7 +53,7 @@ abstract class AbstractAuthFilter implements FilterInterface
     /**
      * Handle unauthenticated requests
      */
-    private function handleUnauthenticated(RequestInterface $request)
+    private function handleUnauthenticated()
     {
         if (auth()->getAuthenticator() instanceof Session) {
             // Set the entrance url to redirect a user after successful login
