@@ -152,7 +152,15 @@ class Email2FA implements ActionInterface
         // Delete any previous identities for action
         $identityModel->deleteIdentitiesByType($user, $this->type);
 
-        $generator = static fn (): string => random_string('nozero', 6);
+        $generator = static function (): string {
+            $result = '';
+
+            for ($i = 0; $i < 6; $i++) {
+                $result .= (string) random_int(1, 9);
+            }
+
+            return $result;
+        };
 
         return $identityModel->createCodeIdentity(
             $user,

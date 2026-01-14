@@ -13,23 +13,29 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Authenticators;
 
+use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
+use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
 
 class AccessToken extends Base implements AuthenticatorInterface
 {
     public const ID_TYPE_ACCESS_TOKEN = 'access_token';
 
-    public function __construct(UserModel $provider)
-    {
+    public function __construct(
+        UserProviderInterface $provider,
+        Request $request,
+        UserIdentityModel $userIdentityModel,
+        LoginModel $loginModel,
+    ) {
         $this->method = self::ID_TYPE_ACCESS_TOKEN;
 
-        parent::__construct($provider);
+        parent::__construct($provider, $request, $userIdentityModel, $loginModel);
     }
 
     /**

@@ -39,6 +39,12 @@ class DiscoverCommand extends BaseCommand
 
     public function run(array $params): void
     {
+        if (! service('settings')->get('Auth.enableDiscovery')) {
+            CLI::write('**** DISCOVERY DISABLED. Enable it in the Auth config file. ****', 'white', 'red');
+
+            return;
+        }
+
         $this->timeStart = Time::now()->subSeconds(1);
         /** @var ClassFinderConfig $finderConfig */
         $finderConfig                  = config('ClassFinder');
@@ -51,7 +57,7 @@ class DiscoverCommand extends BaseCommand
             $namespace = (mb_substr($namespace, 0, 1) === '\\') ? mb_substr($namespace, 1) : $namespace;
 
             $classes = (new ClassFinder($finderConfig))->getClassesInNamespace($namespace, ClassFinder::RECURSIVE_MODE | ClassFinder::ALLOW_CLASSES);
-            if ($classes) {
+            if ($classes !== []) {
                 foreach ($classes as $class) {
                     $this->allClasses[] = '\\' . $class;
 
@@ -71,7 +77,7 @@ class DiscoverCommand extends BaseCommand
         if ($allControllers) {
             $forRemove = array_diff($allControllers, $this->allClasses);
 
-            if (! empty($forRemove)) {
+            if ($forRemove !== []) {
                 $controllerModel->where('api_id', $api->id)
                     ->whereIn('controller', $forRemove)
                     ->delete();
@@ -149,7 +155,7 @@ class DiscoverCommand extends BaseCommand
         if ($allMethods) {
             $forRemove = array_diff($allMethods, $methods);
 
-            if (! empty($forRemove)) {
+            if ($forRemove !== []) {
                 $endpointModel->where('controller_id', $controller->id)
                     ->whereIn('method', $forRemove)
                     ->delete();

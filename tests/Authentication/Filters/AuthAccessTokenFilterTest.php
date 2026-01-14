@@ -24,7 +24,6 @@ use Tests\Support\FilterTestCase;
  */
 final class AuthAccessTokenFilterTest extends FilterTestCase
 {
-    protected $namespace;
     protected string $alias       = 'auth';
     protected string $classname   = AuthFilter::class;
     protected string $routeFilter = 'auth:access_token';

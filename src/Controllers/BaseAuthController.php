@@ -113,7 +113,6 @@ abstract class BaseAuthController extends BaseController implements AuthControll
      */
     protected function getSessionAuthenticator(): Session
     {
-        /** @var Session $authenticator */
         return auth('session')->getAuthenticator();
     }
 

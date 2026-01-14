@@ -48,7 +48,7 @@ class GroupUserModel extends BaseModel
     public function getForUser(User $user): ?array
     {
         return $this->where('user_id', $user->id)
-            ->where('until_at', null)
+            ->where('until_at')
             ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
             ->orderBy($this->primaryKey)->findAll();
     }

@@ -17,6 +17,7 @@ use CodeIgniter\Test\DatabaseTestTrait;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\PermissionFilter;
 use Daycry\Auth\Models\PermissionModel;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\FilterTestCase;
 
@@ -60,7 +61,7 @@ final class PermissionFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         fake(PermissionModel::class, ['name' => 'admin.access']);
         $user->addPermission('admin.access');
@@ -82,7 +83,7 @@ final class PermissionFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         fake(PermissionModel::class, ['name' => 'admin.access']);
         fake(PermissionModel::class, ['name' => 'admin.read']);
@@ -123,7 +124,7 @@ final class PermissionFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         fake(PermissionModel::class, ['name' => 'admin.access']);
         fake(PermissionModel::class, ['name' => 'admin.read']);
@@ -144,7 +145,7 @@ final class PermissionFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         fake(PermissionModel::class, ['name' => 'admin.access']);
         fake(PermissionModel::class, ['name' => 'admin.read']);

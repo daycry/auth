@@ -19,7 +19,7 @@ use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
-use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Interfaces\UserProviderInterface;
 
 /**
  * Facade for Authentication
@@ -43,19 +43,16 @@ class Auth
      */
     public const SHIELD_VERSION = '1.0.5';
 
-    protected AuthConfig $config;
-    protected ?Authentication $authenticate = null;
+    protected ?UserProviderInterface $userProvider = null;
+    protected ?Authentication $authenticate        = null;
 
     /**
      * The Authenticator alias to use for this request.
      */
     protected ?string $alias = null;
 
-    protected ?UserModel $userProvider = null;
-
-    public function __construct(AuthConfig $config)
+    public function __construct(protected AuthConfig $config)
     {
-        $this->config = $config;
     }
 
     protected function ensureAuthentication(): void
@@ -159,7 +156,7 @@ class Auth
      *
      * @throws AuthenticationException
      */
-    public function getProvider(): UserModel
+    public function getProvider(): UserProviderInterface
     {
         if ($this->userProvider !== null) {
             return $this->userProvider;

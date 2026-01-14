@@ -40,7 +40,7 @@ class ActionController extends BaseAuthController
         // Grab our action instance if one has been set.
         $this->action = $authenticator->getAction();
 
-        if (empty($this->action) || ! $this->action instanceof ActionInterface) {
+        if (! $this->action instanceof ActionInterface || ! $this->action instanceof ActionInterface) {
             throw new PageNotFoundException();
         }
 

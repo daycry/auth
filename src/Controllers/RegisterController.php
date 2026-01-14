@@ -35,7 +35,7 @@ class RegisterController extends BaseAuthController
     public function registerView(): ResponseInterface
     {
         // Check if already logged in
-        if ($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) {
+        if (($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) instanceof RedirectResponse) {
             return $redirect;
         }
 
@@ -63,7 +63,7 @@ class RegisterController extends BaseAuthController
     public function registerAction(): RedirectResponse
     {
         // Check if already logged in
-        if ($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) {
+        if (($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) instanceof RedirectResponse) {
             return $redirect;
         }
 

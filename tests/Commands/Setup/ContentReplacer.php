@@ -21,6 +21,11 @@ use Tests\Support\TestCase;
  */
 final class ContentReplacer extends TestCase
 {
+    public function __construct()
+    {
+        parent::__construct(self::class);
+    }
+
     public function testReplace(): void
     {
         $replacer = new ContentReplacerCommand();

@@ -59,7 +59,7 @@ class MagicLinkController extends BaseAuthController
             );
         }
 
-        if ($redirect = $this->redirectIfLoggedIn()) {
+        if (($redirect = $this->redirectIfLoggedIn()) instanceof RedirectResponse) {
             return $redirect;
         }
 

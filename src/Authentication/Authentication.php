@@ -16,7 +16,7 @@ namespace Daycry\Auth\Authentication;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
-use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Interfaces\UserProviderInterface;
 
 /**
  * Factory for Authenticators.
@@ -31,12 +31,10 @@ class Authentication
      */
     protected array $instances = [];
 
-    protected ?UserModel $userProvider = null;
-    protected AuthConfig $config;
+    protected ?UserProviderInterface $userProvider = null;
 
-    public function __construct(AuthConfig $config)
+    public function __construct(protected AuthConfig $config)
     {
-        $this->config = $config;
     }
 
     /**
@@ -66,7 +64,11 @@ class Authentication
 
         assert($this->userProvider !== null, 'You must set $this->userProvider.');
 
-        $this->instances[$alias] = new $className($this->userProvider);
+        if (method_exists($className, 'instance')) {
+            $this->instances[$alias] = $className::instance($this->userProvider);
+        } else {
+            $this->instances[$alias] = new $className($this->userProvider);
+        }
 
         return $this->instances[$alias];
     }
@@ -76,7 +78,7 @@ class Authentication
      *
      * @return $this
      */
-    public function setProvider(UserModel $provider): self
+    public function setProvider(UserProviderInterface $provider): self
     {
         $this->userProvider = $provider;
 

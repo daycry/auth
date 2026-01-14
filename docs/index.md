@@ -20,6 +20,7 @@ Welcome to the complete documentation for **Daycry Auth**, a robust authenticati
 04-filters
 05-controllers
 06-authorization
+09-oauth
 ```
 
 ```{toctree}

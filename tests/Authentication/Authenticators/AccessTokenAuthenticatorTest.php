@@ -72,10 +72,10 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
         $user = fake(UserModel::class);
 
         $this->auth->login($user);
-        $this->assertNotNull($this->auth->getUser());
+        $this->assertInstanceOf(User::class, $this->auth->getUser());
 
         $this->auth->logout();
-        $this->assertNull($this->auth->getUser());
+        $this->assertNotInstanceOf(User::class, $this->auth->getUser());
     }
 
     public function testLoginByIdNoToken(): void
@@ -87,7 +87,7 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
         $this->auth->loginById($user->id);
 
         $this->assertTrue($this->auth->loggedIn());
-        $this->assertNull($this->auth->getUser()->currentAccessToken());
+        $this->assertNotInstanceOf(AccessTokenEntity::class, $this->auth->getUser()->currentAccessToken());
     }
 
     public function testLoginByIdWithToken(): void

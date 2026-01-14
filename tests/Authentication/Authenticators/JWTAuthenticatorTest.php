@@ -76,10 +76,10 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $user = $this->createUser();
 
         $this->auth->login($user);
-        $this->assertNotNull($this->auth->getUser());
+        $this->assertInstanceOf(User::class, $this->auth->getUser());
 
         $this->auth->logout();
-        $this->assertNull($this->auth->getUser());
+        $this->assertNotInstanceOf(User::class, $this->auth->getUser());
     }
 
     public function testLoginById(): void

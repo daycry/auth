@@ -16,19 +16,24 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
+use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Config\Services;
+use Daycry\Auth\Authentication\Services\RememberMe;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Enums\AuthenticationState;
+use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Exceptions\SecurityException;
 use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
+use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\RememberModel;
-use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
-use stdClass;
 
 class Session extends Base implements AuthenticatorInterface
 {
@@ -36,41 +41,50 @@ class Session extends Base implements AuthenticatorInterface
      * @var string Special ID Type.
      *             `username` is stored in `users` table, so no `auth_identities` record.
      */
-    public const ID_TYPE_USERNAME = 'username';
+    public const ID_TYPE_USERNAME = IdentityType::USERNAME->value;
 
     // Identity types
-    public const ID_TYPE_EMAIL_PASSWORD = 'email_password';
-    public const ID_TYPE_MAGIC_LINK     = 'magic-link';
-    public const ID_TYPE_EMAIL_2FA      = 'email_2fa';
-    public const ID_TYPE_EMAIL_ACTIVATE = 'email_activate';
-
-    // User states
-    private const STATE_UNKNOWN   = 0; // Not checked yet.
-    private const STATE_ANONYMOUS = 1;
-    private const STATE_PENDING   = 2; // 2FA or Activation required.
-    private const STATE_LOGGED_IN = 3;
+    public const ID_TYPE_EMAIL_PASSWORD = IdentityType::EMAIL_PASSWORD->value;
+    public const ID_TYPE_MAGIC_LINK     = IdentityType::MAGIC_LINK->value;
+    public const ID_TYPE_EMAIL_2FA      = IdentityType::EMAIL_2FA->value;
+    public const ID_TYPE_EMAIL_ACTIVATE = IdentityType::EMAIL_ACTIVATE->value;
 
     /**
      * The User auth state
      */
-    private int $userState = self::STATE_UNKNOWN;
+    private AuthenticationState $userState = AuthenticationState::UNKNOWN;
 
     /**
      * Should the user be remembered?
      */
     protected bool $shouldRemember = false;
 
-    protected RememberModel $rememberModel;
-
-    public function __construct(UserModel $provider)
-    {
+    public function __construct(
+        UserProviderInterface $provider,
+        Request $request,
+        UserIdentityModel $userIdentityModel,
+        LoginModel $loginModel,
+        protected RememberMe $rememberMe,
+    ) {
         $this->method = self::ID_TYPE_USERNAME;
 
-        $this->rememberModel = model(RememberModel::class);
-
-        parent::__construct($provider);
+        parent::__construct($provider, $request, $userIdentityModel, $loginModel);
 
         $this->checkSecurityConfig();
+    }
+
+    public static function instance(UserProviderInterface $provider): static
+    {
+        /** @var RememberModel $rememberModel */
+        $rememberModel = model(RememberModel::class);
+
+        return new static(
+            $provider,
+            Services::request(),
+            model(UserIdentityModel::class),
+            model(LoginModel::class),
+            new RememberMe($rememberModel),
+        );
     }
 
     /**
@@ -112,7 +126,7 @@ class Session extends Base implements AuthenticatorInterface
             return;
         }
 
-        $this->rememberModel->purgeRememberTokens($user);
+        $this->rememberMe->purge($user);
     }
 
     /**
@@ -190,7 +204,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->checkUserState();
 
-        if ($this->userState === self::STATE_PENDING) {
+        if ($this->userState === AuthenticationState::PENDING) {
             return $this->user;
         }
 
@@ -261,7 +275,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->checkUserState();
 
-        return $this->userState === self::STATE_PENDING;
+        return $this->userState === AuthenticationState::PENDING;
     }
 
     /**
@@ -272,7 +286,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->checkUserState();
 
-        return $this->userState === self::STATE_ANONYMOUS;
+        return $this->userState === AuthenticationState::ANONYMOUS;
     }
 
     /**
@@ -294,7 +308,10 @@ class Session extends Base implements AuthenticatorInterface
 
         if ($actions) {
             // Update the user's last used date on their password identity.
-            $user->touchIdentity($user->getEmailIdentity());
+            $identity = $user->getEmailIdentity();
+            if ($identity instanceof UserIdentity) {
+                $this->userIdentityModel->touchIdentity($identity);
+            }
 
             // Set auth action from database.
             $this->setAuthAction();
@@ -363,13 +380,13 @@ class Session extends Base implements AuthenticatorInterface
         $session->regenerate(true);
 
         // Take care of any remember-me functionality
-        $this->rememberModel->purgeRememberTokens($this->user);
+        $this->rememberMe->purge($this->user);
 
         // Trigger logout event
         Events::trigger('logout', $this->user);
 
         $this->user      = null;
-        $this->userState = self::STATE_ANONYMOUS;
+        $this->userState = AuthenticationState::ANONYMOUS;
     }
 
     /**
@@ -379,7 +396,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->checkUserState();
 
-        if ($this->userState === self::STATE_LOGGED_IN) {
+        if ($this->userState === AuthenticationState::LOGGED_IN) {
             return $this->user;
         }
 
@@ -441,7 +458,7 @@ class Session extends Base implements AuthenticatorInterface
      */
     public function completeLogin(User $user): void
     {
-        $this->userState = self::STATE_LOGGED_IN;
+        $this->userState = AuthenticationState::LOGGED_IN;
 
         // a successful login
         Events::trigger('login', $user);
@@ -483,12 +500,12 @@ class Session extends Base implements AuthenticatorInterface
     private function issueRememberMeToken(): void
     {
         if ($this->shouldRemember && setting('Auth.sessionConfig')['allowRemembering']) {
-            $this->rememberUser($this->user);
+            $this->rememberMe->rememberUser($this->user);
 
             // Reset so it doesn't mess up future calls.
             $this->shouldRemember = false;
-        } elseif ($this->getRememberMeToken() !== null && $this->getRememberMeToken() !== '' && $this->getRememberMeToken() !== '0') {
-            $this->removeRememberCookie();
+        } elseif ($this->rememberMe->getRememberMeToken() !== null && $this->rememberMe->getRememberMeToken() !== '' && $this->rememberMe->getRememberMeToken() !== '0') {
+            $this->rememberMe->removeKey();
 
             // @TODO delete the token record.
         }
@@ -497,33 +514,8 @@ class Session extends Base implements AuthenticatorInterface
         // don't need to purge THAT often, it's just a maintenance issue.
         // to keep the table from getting out of control.
         if (random_int(1, 100) <= 20) {
-            $this->rememberModel->purgeOldRememberTokens();
+            $this->rememberMe->purgeOldTokens();
         }
-    }
-
-    /**
-     * Generates a timing-attack safe remember-me token
-     * and stores the necessary info in the db and a cookie.
-     *
-     * @see https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence
-     */
-    protected function rememberUser(User $user): void
-    {
-        $selector  = bin2hex(random_bytes(12));
-        $validator = bin2hex(random_bytes(20));
-        $expires   = $this->calcExpires();
-
-        $rawToken = $selector . ':' . $validator;
-
-        // Store it in the database.
-        $this->rememberModel->rememberUser(
-            $user,
-            $selector,
-            $this->hashValidator($validator),
-            $expires,
-        );
-
-        $this->setRememberMeCookie($rawToken);
     }
 
     /**
@@ -559,7 +551,7 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->checkUserState();
 
-        return $this->userState === self::STATE_LOGGED_IN;
+        return $this->userState === AuthenticationState::LOGGED_IN;
     }
 
     /**
@@ -567,7 +559,7 @@ class Session extends Base implements AuthenticatorInterface
      */
     private function checkUserState(): void
     {
-        if ($this->userState !== self::STATE_UNKNOWN) {
+        if ($this->userState !== AuthenticationState::UNKNOWN) {
             // Checked already.
             return;
         }
@@ -581,7 +573,7 @@ class Session extends Base implements AuthenticatorInterface
 
             if ($this->user === null) {
                 // The user is deleted.
-                $this->userState = self::STATE_ANONYMOUS;
+                $this->userState = AuthenticationState::ANONYMOUS;
 
                 // Remove User Info in Session.
                 $this->removeSessionUserInfo();
@@ -591,12 +583,12 @@ class Session extends Base implements AuthenticatorInterface
 
             // If having `auth_action`, it is pending.
             if ($this->getSessionKey('auth_action')) {
-                $this->userState = self::STATE_PENDING;
+                $this->userState = AuthenticationState::PENDING;
 
                 return;
             }
 
-            $this->userState = self::STATE_LOGGED_IN;
+            $this->userState = AuthenticationState::LOGGED_IN;
 
             return;
         }
@@ -611,7 +603,7 @@ class Session extends Base implements AuthenticatorInterface
             return;
         }
 
-        $this->userState = self::STATE_ANONYMOUS;
+        $this->userState = AuthenticationState::ANONYMOUS;
     }
 
     /**
@@ -639,7 +631,7 @@ class Session extends Base implements AuthenticatorInterface
             $identity = $this->userIdentityModel->getIdentityByType($this->user, $action->getType());
 
             if ($identity instanceof UserIdentity) {
-                $this->userState = self::STATE_PENDING;
+                $this->userState = AuthenticationState::PENDING;
 
                 $this->setSessionKey('auth_action', $actionClass);
                 $this->setSessionKey('auth_action_message', $identity->extra);
@@ -668,18 +660,10 @@ class Session extends Base implements AuthenticatorInterface
      */
     private function checkRememberMe(): bool
     {
-        // Get remember-me token.
-        $remember = $this->getRememberMeToken();
-        if ($remember === null) {
-            $this->userState = self::STATE_ANONYMOUS;
+        $token = $this->rememberMe->check();
 
-            return false;
-        }
-
-        // Check the remember-me token.
-        $token = $this->checkRememberMeToken($remember);
-        if ($token === false) {
-            $this->userState = self::STATE_ANONYMOUS;
+        if ($token === null) {
+            $this->userState = AuthenticationState::ANONYMOUS;
 
             return false;
         }
@@ -688,70 +672,21 @@ class Session extends Base implements AuthenticatorInterface
 
         if ($user === null) {
             // The user is deleted.
-            $this->userState = self::STATE_ANONYMOUS;
+            $this->userState = AuthenticationState::ANONYMOUS;
 
             // Remove remember-me cookie.
-            $this->removeRememberCookie();
+            $this->rememberMe->removeKey();
 
             return false;
         }
 
         $this->startLogin($user);
 
-        $this->refreshRememberMeToken($token);
+        $this->rememberMe->refresh($token);
 
-        $this->userState = self::STATE_LOGGED_IN;
+        $this->userState = AuthenticationState::LOGGED_IN;
 
         return true;
-    }
-
-    private function refreshRememberMeToken(stdClass $token): void
-    {
-        // Update validator.
-        $validator = bin2hex(random_bytes(20));
-
-        $token->hashedValidator = $this->hashValidator($validator);
-        $token->expires         = $this->calcExpires();
-
-        $this->rememberModel->updateRememberValidator($token);
-
-        $rawToken = $token->selector . ':' . $validator;
-
-        $this->setRememberMeCookie($rawToken);
-    }
-
-    private function setRememberMeCookie(string $rawToken): void
-    {
-        /** @var Response $response */
-        $response = service('response');
-
-        // Save it to the user's browser in a cookie.
-        // Create the cookie
-        $response->setCookie(
-            setting('Auth.sessionConfig')['rememberCookieName'],
-            $rawToken,                                             // Value
-            setting('Auth.sessionConfig')['rememberLength'],      // # Seconds until it expires
-            setting('Cookie.domain'),
-            setting('Cookie.path'),
-            setting('Cookie.prefix'),
-            setting('Cookie.secure'),                          // Only send over HTTPS?
-            true,                                                  // Hide from Javascript?
-        );
-    }
-
-    private function calcExpires(): string
-    {
-        $timestamp = Time::now()->getTimestamp() + setting('Auth.sessionConfig')['rememberLength'];
-
-        return Time::createFromTimestamp($timestamp)->format('Y-m-d H:i:s');
-    }
-
-    /**
-     * Hash remember-me validator
-     */
-    private function hashValidator(string $validator): string
-    {
-        return hash('sha256', $validator);
     }
 
     /**
@@ -791,52 +726,6 @@ class Session extends Base implements AuthenticatorInterface
 
         // When logged in, ensure cache control headers are in place
         $response->noCache();
-    }
-
-    private function removeRememberCookie(): void
-    {
-        /** @var Response $response */
-        $response = service('response');
-
-        // Remove remember-me cookie
-        $response->deleteCookie(
-            setting('Auth.sessionConfig')['rememberCookieName'],
-            setting('Cookie.domain'),
-            setting('Cookie.path'),
-            setting('Cookie.prefix'),
-        );
-    }
-
-    private function getRememberMeToken(): ?string
-    {
-        /** @var IncomingRequest $request */
-        $request = service('request');
-
-        $cookieName = setting('Cookie.prefix') . setting('Auth.sessionConfig')['rememberCookieName'];
-
-        return $request->getCookie($cookieName);
-    }
-
-    /**
-     * @return false|stdClass
-     */
-    private function checkRememberMeToken(string $remember)
-    {
-        [$selector, $validator] = explode(':', $remember);
-
-        $hashedValidator = hash('sha256', $validator);
-
-        $token = $this->rememberModel->getRememberToken($selector);
-
-        if ($token === null) {
-            return false;
-        }
-
-        if (hash_equals($token->hashedValidator, $hashedValidator) === false) {
-            return false;
-        }
-
-        return $token;
     }
 
     /**

@@ -18,6 +18,7 @@ use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Filters\GroupFilter;
 use Daycry\Auth\Models\GroupModel;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\FilterTestCase;
 
@@ -70,7 +71,7 @@ final class GroupFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'test', 'password' => 'test']);
         $user->addGroup('admin');
 
         $result = $this
@@ -91,7 +92,7 @@ final class GroupFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'test', 'password' => 'test']);
         $user->addGroup('beta');
 
         $result = $this
@@ -113,7 +114,7 @@ final class GroupFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'test', 'password' => 'test']);
         $user->addGroup('beta');
 
         $jwt   = service('settings')->get('Auth.jwtAdapter');
@@ -131,7 +132,7 @@ final class GroupFilterTest extends FilterTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class);
-        $user->createEmailIdentity(['email' => 'test', 'password' => 'test']);
+        model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'test', 'password' => 'test']);
         $user->addGroup('beta');
 
         $jwt   = service('settings')->get('Auth.jwtAdapter');

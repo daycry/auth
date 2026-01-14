@@ -23,6 +23,7 @@ use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Models\RememberModel;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
 use Tests\Support\DatabaseTestCase;
@@ -36,8 +37,6 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
     use FakeUser;
 
     private Session $auth;
-    protected $namespace;
-    private MockEvents $events;
 
     protected function setUp(): void
     {
@@ -51,8 +50,8 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $authenticator = $auth->factory('session');
         $this->auth    = $authenticator;
 
-        $this->events = new MockEvents();
-        Services::injectMock('events', $this->events);
+        $events = new MockEvents();
+        Services::injectMock('events', $events);
 
         $this->db->table($this->tables['identities'])->truncate();
     }
@@ -94,7 +93,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $cookiePrefix = 'prefix_';
         setting('Cookie.prefix', $cookiePrefix);
 
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         // Insert remember-me token.
         /** @var RememberModel $rememberModel */
@@ -124,7 +123,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
     {
         unset($_SESSION['user']);
 
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         // Insert remember-me token.
         /** @var RememberModel $rememberModel */
@@ -149,7 +148,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testLoginNoRemember(): void
     {
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         $this->auth->login($this->user);
 
@@ -162,7 +161,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testLoginWithRemember(): void
     {
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         $this->auth->remember()->login($this->user);
 
@@ -179,7 +178,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testLogout(): void
     {
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
         $this->auth->remember()->login($this->user);
 
         $this->seeInDatabase($this->tables['remember_tokens'], ['user_id' => $this->user->id]);
@@ -209,7 +208,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testLoginById(): void
     {
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         $this->auth->loginById($this->user->id);
 
@@ -220,7 +219,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testLoginByIdRemember(): void
     {
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
 
         $this->auth->remember()->loginById($this->user->id);
 
@@ -231,7 +230,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testForgetCurrentUser(): void
     {
-        $this->user->createEmailIdentity(['email' => 'foo@example.com', 'password' => 'secret']);
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, ['email' => 'foo@example.com', 'password' => 'secret']);
         $this->auth->remember()->loginById($this->user->id);
         $this->assertSame($this->user->id, $_SESSION['user']['id']);
 
@@ -278,7 +277,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testCheckBadPassword(): void
     {
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => 'foo@example.com',
             'password' => 'secret123',
         ]);
@@ -295,7 +294,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testCheckSuccess(): void
     {
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => 'foo@example.com',
             'password' => 'secret123',
         ]);
@@ -332,7 +331,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testAttemptSuccess(): void
     {
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => 'foo@example.com',
             'password' => 'secret123',
         ]);
@@ -369,7 +368,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
             'The user has User Info in Session, so already logged in or in pending login state.',
         );
 
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => 'foo@example.com',
             'password' => 'secret123',
         ]);
@@ -382,7 +381,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
     public function testAttemptCaseInsensitive(): void
     {
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => 'FOO@example.com',
             'password' => 'secret123',
         ]);
@@ -421,7 +420,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
         /** @var User $user */
         $user = fake(UserModel::class, ['username' => 'foorog']);
-        $user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($user, [
             'email'    => 'FOO@example.com',
             'password' => 'secret123',
         ]);
@@ -458,7 +457,7 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
     public function testAttemptCustomField(): void
     {
         // We don't need email, but do need a password set....
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => $this->db->getPlatform() === 'OCI8' ? ' ' : '',
             'password' => 'secret123',
         ]);

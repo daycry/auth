@@ -19,7 +19,11 @@ class Auth extends BaseAuth
 }
 ```
 
-## 🗄️ Database Configuration
+## 🌐 OAuth Configuration
+
+For Social Login (OAuth 2.0), configuration is located in `app/Config/Auth.php` within the `$providers` array. See [OAuth Documentation](09-oauth.md) for details.
+
+## �🗄️ Database Configuration
 
 ### Database Group
 

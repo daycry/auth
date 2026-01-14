@@ -1,0 +1,69 @@
+deptrac:
+  paths:
+    - ./src
+  exclude_files:
+    - '#.*test.*#'
+  layers:
+    - name: Controller
+      collectors:
+        - type: directory
+          value: src/Controllers/.*
+    - name: Service
+      collectors:
+        - type: directory
+          value: src/Services/.*
+    - name: Model
+      collectors:
+        - type: directory
+          value: src/Models/.*
+    - name: Interface
+      collectors:
+        - type: directory
+          value: src/Interfaces/.*
+    - name: Library
+      collectors:
+        - type: directory
+          value: src/Libraries/.*
+    - name: Config
+      collectors:
+        - type: directory
+          value: src/Config/.*
+    - name: Entity
+      collectors:
+        - type: directory
+          value: src/Entities/.*
+          
+  ruleset:
+    Controller:
+      - Service
+      - Interface
+      - Model
+      - Library
+      - Config
+      - Entity
+    Service:
+      - Model
+      - Interface
+      - Library
+      - Config
+      - Entity
+    Model:
+      - Interface
+      - Entity
+      - Config
+    Library:
+      - Model
+      - Entity
+      - Config
+      - Interface
+    Interface:
+      - Entity
+    Entity:
+      - Config
+      - Model
+      - Interface
+    Config:
+      - Interface
+      - Model
+      - Library
+      - Entity

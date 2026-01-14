@@ -17,6 +17,7 @@ use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\Login;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
@@ -106,7 +107,7 @@ final class UserTest extends DatabaseTestCase
     {
         $user = model(UserModel::class)->where('active', 0)->withIdentities()->findById(1);
 
-        $this->assertNull($user);
+        $this->assertNotInstanceOf(User::class, $user);
     }
 
     public function testLastLogin(): void
@@ -116,8 +117,10 @@ final class UserTest extends DatabaseTestCase
             ['user_id' => $this->user->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD, 'secret' => 'foo@example.com'],
         );
 
+        $loginModel = model(LoginModel::class);
+
         // No logins found.
-        $this->assertNull($this->user->lastLogin());
+        $this->assertNotInstanceOf(Login::class, $loginModel->lastLogin($this->user));
 
         fake(
             LoginModel::class,
@@ -137,7 +140,7 @@ final class UserTest extends DatabaseTestCase
             ],
         );
 
-        $last = $this->user->lastLogin();
+        $last = $loginModel->lastLogin($this->user);
 
         $this->assertInstanceOf(Login::class, $last); // @phpstan-ignore-line
         $this->assertSame($login2->id, $last->id);
@@ -151,8 +154,10 @@ final class UserTest extends DatabaseTestCase
             ['user_id' => $this->user->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD, 'secret' => 'foo@example.com'],
         );
 
+        $loginModel = model(LoginModel::class);
+
         // No logins found.
-        $this->assertNull($this->user->previousLogin());
+        $this->assertNotInstanceOf(Login::class, $loginModel->previousLogin($this->user));
 
         $login1 = fake(
             LoginModel::class,
@@ -160,7 +165,7 @@ final class UserTest extends DatabaseTestCase
         );
 
         // The very most login is skipped.
-        $this->assertNull($this->user->previousLogin());
+        $this->assertNull($loginModel->previousLogin($this->user));
 
         fake(
             LoginModel::class,
@@ -176,7 +181,7 @@ final class UserTest extends DatabaseTestCase
             ],
         );
 
-        $previous = $this->user->previousLogin();
+        $previous = $loginModel->previousLogin($this->user);
 
         $this->assertInstanceOf(Login::class, $previous); // @phpstan-ignore-line
         $this->assertSame($login1->id, $previous->id);
@@ -250,14 +255,17 @@ final class UserTest extends DatabaseTestCase
     public function testCreateEmailIdentity(): void
     {
         $identity = $this->user->getEmailIdentity();
-        $this->assertNull($identity);
+        $this->assertNotInstanceOf(UserIdentity::class, $identity);
 
-        $this->user->createEmailIdentity([
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
             'email'    => 'foo@example.com',
             'password' => 'passbar',
         ]);
 
-        $identity = $this->user->getEmailIdentity();
+        /** @var User $user */
+        $user = model(UserModel::class)->find($this->user->id);
+
+        $identity = $user->getEmailIdentity();
         $this->assertSame('foo@example.com', $identity->secret);
     }
 
@@ -267,9 +275,12 @@ final class UserTest extends DatabaseTestCase
         $this->user->email         = 'foo@example.com';
         $this->user->password_hash = $hash;
 
-        $this->user->saveEmailIdentity();
+        model(UserModel::class)->save($this->user);
 
-        $identity = $this->user->getEmailIdentity();
+        /** @var User $user */
+        $user = model(UserModel::class)->find($this->user->id);
+
+        $identity = $user->getEmailIdentity();
         $this->assertSame('foo@example.com', $identity->secret);
     }
 
