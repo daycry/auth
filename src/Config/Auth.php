@@ -32,7 +32,7 @@ class Auth extends BaseConfig
 {
     /**
      * ////////////////////////////////////////////////////////////////////
-     * AUTHENTICATION
+     * LOGGING & RATE LIMITING
      * ////////////////////////////////////////////////////////////////////
      */
 
@@ -40,8 +40,11 @@ class Auth extends BaseConfig
     public const RECORD_LOGIN_ATTEMPT_NONE    = 0; // Do not record at all
     public const RECORD_LOGIN_ATTEMPT_FAILURE = 1; // Record only failures
     public const RECORD_LOGIN_ATTEMPT_ALL     = 2; // Record all login attempts
-
-    public int $recordLoginAttempt = Auth::RECORD_LOGIN_ATTEMPT_ALL;
+    /**
+     * ////////////////////////////////////////////////////////////////////
+     * DATABASE
+     * ////////////////////////////////////////////////////////////////////
+     */
 
     /**
      * --------------------------------------------------------------------
@@ -89,6 +92,12 @@ class Auth extends BaseConfig
     ];
 
     /**
+     * ////////////////////////////////////////////////////////////////////
+     * AUTHENTICATION CONFIGURATION
+     * ////////////////////////////////////////////////////////////////////
+     */
+
+    /**
      * --------------------------------------------------------------------
      * Authenticators
      * --------------------------------------------------------------------
@@ -106,8 +115,6 @@ class Auth extends BaseConfig
         'guest'        => Guest::class,
     ];
 
-    public string $jwtAdapter = DaycryJWTAdapter::class;
-
     /**
      * --------------------------------------------------------------------
      * Default Authenticator
@@ -116,34 +123,6 @@ class Auth extends BaseConfig
      * Uses the $key from the $authenticators array above.
      */
     public string $defaultAuthenticator = 'session';
-
-    /**
-     * --------------------------------------------------------------------
-     * Default Group
-     * --------------------------------------------------------------------
-     * The group that a newly registered user is added to.
-     */
-    public string $defaultGroup = 'user';
-
-    /**
-     *--------------------------------------------------------------------------
-     * AUTH Logs
-     * --------------------------------------------------------------------------
-     * When set to TRUE, the REST API will save requests
-     */
-    public bool $enableLogs = false;
-
-    /**
-     * --------------------------------------------------------------------------
-     * Enable block Invalid Attempts
-     * --------------------------------------------------------------------------
-     *
-     * IP blocking on consecutive failed attempts
-     */
-    public bool $enableInvalidAttempts = false;
-
-    public int $maxAttempts = 10;
-    public int $timeBlocked = 3600;
 
     /**
      * --------------------------------------------------------------------
@@ -162,25 +141,7 @@ class Auth extends BaseConfig
         'jwt',
     ];
 
-    /**
-     * --------------------------------------------------------------------
-     * Allow Registration
-     * --------------------------------------------------------------------
-     * Determines whether users can register for the site.
-     */
-    public bool $allowRegistration = true;
-
-    /**
-     * --------------------------------------------------------------------
-     * Record Last Active Date
-     * --------------------------------------------------------------------
-     * If true, will always update the `last_active` datetime for the
-     * logged-in user on every page request.
-     * This feature only works when session/tokens filter is active.
-     *
-     * @see https://codeigniter4.github.io/shield/quick_start_guide/using_session_auth/#protecting-pages for set filters.
-     */
-    public bool $recordActiveDate = true;
+    public string $jwtAdapter = DaycryJWTAdapter::class;
 
     /**
      * --------------------------------------------------------------------
@@ -193,6 +154,27 @@ class Auth extends BaseConfig
     public array $authenticatorHeader = [
         'access_token' => 'X-API-KEY',
         'jwt'          => 'Authorization',
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Session Authenticator Configuration
+     * --------------------------------------------------------------------
+     * These settings only apply if you are using the Session Authenticator
+     * for authentication.
+     *
+     * - field                  The name of the key the current user info is stored in session
+     * - allowRemembering       Does the system allow use of "remember-me"
+     * - rememberCookieName     The name of the cookie to use for "remember-me"
+     * - rememberLength         The length of time, in seconds, to remember a user.
+     *
+     * @var array<string, bool|int|string>
+     */
+    public array $sessionConfig = [
+        'field'              => 'user',
+        'allowRemembering'   => true,
+        'rememberCookieName' => 'remember',
+        'rememberLength'     => 30 * DAY,
     ];
 
     /**
@@ -228,27 +210,6 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
-     * Session Authenticator Configuration
-     * --------------------------------------------------------------------
-     * These settings only apply if you are using the Session Authenticator
-     * for authentication.
-     *
-     * - field                  The name of the key the current user info is stored in session
-     * - allowRemembering       Does the system allow use of "remember-me"
-     * - rememberCookieName     The name of the cookie to use for "remember-me"
-     * - rememberLength         The length of time, in seconds, to remember a user.
-     *
-     * @var array<string, bool|int|string>
-     */
-    public array $sessionConfig = [
-        'field'              => 'user',
-        'allowRemembering'   => true,
-        'rememberCookieName' => 'remember',
-        'rememberLength'     => 30 * DAY,
-    ];
-
-    /**
-     * --------------------------------------------------------------------
      * Authentication Actions
      * --------------------------------------------------------------------
      * Specifies the class that represents an action to take after
@@ -266,6 +227,282 @@ class Auth extends BaseConfig
         'register' => null,
         'login'    => Email2FA::class,
     ];
+
+    /**
+     * ////////////////////////////////////////////////////////////////////
+     * USER & REGISTRATION
+     * ////////////////////////////////////////////////////////////////////
+     */
+
+    /**
+     * --------------------------------------------------------------------
+     * User Provider
+     * --------------------------------------------------------------------
+     * The name of the class that handles user persistence.
+     * By default, this is the included UserModel, which
+     * works with any of the database engines supported by CodeIgniter.
+     * You can change it as long as they adhere to the
+     * CodeIgniter\Shield\Models\UserModel.
+     *
+     * @var class-string<UserModel>
+     */
+    public string $userProvider = UserModel::class;
+
+    /**
+     * --------------------------------------------------------------------
+     * Allows Registration
+     * --------------------------------------------------------------------
+     * Determines whether users can register for the site.
+     */
+    public bool $allowRegistration = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Default Group
+     * --------------------------------------------------------------------
+     * The group that a newly registered user is added to.
+     */
+    public string $defaultGroup = 'user';
+
+    /**
+     * --------------------------------------------------------------------
+     * Valid login fields
+     * --------------------------------------------------------------------
+     * Fields that are available to be used as credentials for login.
+     */
+    public array $validFields = [
+        'email',
+        // 'username',
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Personal Fields
+     * --------------------------------------------------------------------
+     * The NothingPersonalValidator prevents personal information from
+     * being used in passwords. The email and username fields are always
+     * considered by the validator. Do not enter those field names here.
+     *
+     * An extended User Entity might include other personal info such as
+     * first and/or last names. $personalFields is where you can add
+     * fields to be considered as "personal" by the NothingPersonalValidator.
+     * For example:
+     *     $personalFields = ['firstname', 'lastname'];
+     */
+    public array $personalFields = [];
+
+    /**
+     * --------------------------------------------------------------------
+     * The validation rules for username
+     * --------------------------------------------------------------------
+     *
+     * Do not use string rules like `required|valid_email`.
+     *
+     * @var array<string, array<int, string>|string>
+     */
+    public array $usernameValidationRules = [
+        'label' => 'Auth.username',
+        'rules' => [
+            'required',
+            'max_length[30]',
+            'min_length[3]',
+            'regex_match[/\A[a-zA-Z0-9\.]+\z/]',
+        ],
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * The validation rules for email
+     * --------------------------------------------------------------------
+     *
+     * Do not use string rules like `required|valid_email`.
+     *
+     * @var array<string, array<int, string>|string>
+     */
+    public array $emailValidationRules = [
+        'label' => 'Auth.email',
+        'rules' => [
+            'required',
+            'max_length[254]',
+            'valid_email',
+        ],
+    ];
+
+    /**
+     * ////////////////////////////////////////////////////////////////////
+     * PASSWORD & SECURITY
+     * ////////////////////////////////////////////////////////////////////
+     */
+
+    /**
+     * --------------------------------------------------------------------
+     * Minimum Password Length
+     * --------------------------------------------------------------------
+     * The minimum length that a password must be to be accepted.
+     * Recommended minimum value by NIST = 8 characters.
+     */
+    public int $minimumPasswordLength = 8;
+
+    /**
+     * --------------------------------------------------------------------
+     * Password Check Helpers
+     * --------------------------------------------------------------------
+     * The PasswordValidator class runs the password through all of these
+     * classes, each getting the opportunity to pass/fail the password.
+     * You can add custom classes as long as they adhere to the
+     * Daycry\Auth\Interfaces\PasswordValidatorInterface.
+     *
+     * @var list<class-string<PasswordValidatorInterface>>
+     */
+    public array $passwordValidators = [
+        CompositionValidator::class,
+        NothingPersonalValidator::class,
+        DictionaryValidator::class,
+        // PwnedValidator::class,
+    ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Password / Username Similarity
+     * --------------------------------------------------------------------
+     * Among other things, the NothingPersonalValidator checks the
+     * amount of sameness between the password and username.
+     * Passwords that are too much like the username are invalid.
+     *
+     * The value set for $maxSimilarity represents the maximum percentage
+     * of similarity at which the password will be accepted. In other words, any
+     * calculated similarity equal to, or greater than $maxSimilarity
+     * is rejected.
+     *
+     * The accepted range is 0-100, with 0 (zero) meaning don't check similarity.
+     * Using values at either extreme of the *working range* (1-100) is
+     * not advised. The low end is too restrictive and the high end is too permissive.
+     * The suggested value for $maxSimilarity is 50.
+     *
+     * You may be thinking that a value of 100 should have the effect of accepting
+     * everything like a value of 0 does. That's logical and probably true,
+     * but is unproven and untested. Besides, 0 skips the work involved
+     * making the calculation unlike when using 100.
+     *
+     * The (admittedly limited) testing that's been done suggests a useful working range
+     * of 50 to 60. You can set it lower than 50, but site users will probably start
+     * to complain about the large number of proposed passwords getting rejected.
+     * At around 60 or more it starts to see pairs like 'captain joe' and 'joe*captain' as
+     * perfectly acceptable which clearly they are not.
+     *
+     * To disable similarity checking set the value to 0.
+     *     public $maxSimilarity = 0;
+     */
+    public int $maxSimilarity = 50;
+
+    /**
+     * --------------------------------------------------------------------
+     * Hashing Algorithm to use
+     * --------------------------------------------------------------------
+     * Valid values are
+     * - PASSWORD_DEFAULT (default)
+     * - PASSWORD_BCRYPT
+     * - PASSWORD_ARGON2I  - As of PHP 7.2 only if compiled with support for it
+     * - PASSWORD_ARGON2ID - As of PHP 7.3 only if compiled with support for it
+     */
+    public string $hashAlgorithm = PASSWORD_DEFAULT;
+
+    /**
+     * --------------------------------------------------------------------
+     * ARGON2I/ARGON2ID Algorithm options
+     * --------------------------------------------------------------------
+     * The ARGON2I method of hashing allows you to define the "memory_cost",
+     * the "time_cost" and the number of "threads", whenever a password hash is
+     * created.
+     */
+    public int $hashMemoryCost = 65536; // PASSWORD_ARGON2_DEFAULT_MEMORY_COST;
+
+    public int $hashTimeCost = 4;   // PASSWORD_ARGON2_DEFAULT_TIME_COST;
+    public int $hashThreads  = 1;   // PASSWORD_ARGON2_DEFAULT_THREADS;
+
+    /**
+     * --------------------------------------------------------------------
+     * BCRYPT Algorithm options
+     * --------------------------------------------------------------------
+     * The BCRYPT method of hashing allows you to define the "cost"
+     * or number of iterations made, whenever a password hash is created.
+     * This defaults to a value of 12 which is an acceptable number.
+     * However, depending on the security needs of your application
+     * and the power of your hardware, you might want to increase the
+     * cost. This makes the hashing process takes longer.
+     *
+     * Valid range is between 4 - 31.
+     */
+    public int $hashCost = 12;
+
+    /**
+     * If you need to support passwords saved in versions prior to Shield v1.0.0-beta.4.
+     * set this to true.
+     *
+     * See https://github.com/codeigniter4/shield/security/advisories/GHSA-c5vj-f36q-p9vg
+     *
+     * @deprecated This is only for backward compatibility.
+     */
+    public bool $supportOldDangerousPassword = false;
+
+    public int $recordLoginAttempt = Auth::RECORD_LOGIN_ATTEMPT_ALL;
+
+    /**
+     * --------------------------------------------------------------------
+     * Record Last Active Date
+     * --------------------------------------------------------------------
+     * If true, will always update the `last_active` datetime for the
+     * logged-in user on every page request.
+     * This feature only works when session/tokens filter is active.
+     *
+     * @see https://codeigniter4.github.io/shield/quick_start_guide/using_session_auth/#protecting-pages for set filters.
+     */
+    public bool $recordActiveDate = true;
+
+    /**
+     *--------------------------------------------------------------------------
+     * AUTH Logs
+     * --------------------------------------------------------------------------
+     * When set to TRUE, the REST API will save requests
+     */
+    public bool $enableLogs = false;
+
+    /**
+     * --------------------------------------------------------------------------
+     * Enable block Invalid Attempts
+     * --------------------------------------------------------------------------
+     *
+     * IP blocking on consecutive failed attempts
+     */
+    public bool $enableInvalidAttempts = false;
+
+    public int $maxAttempts = 10;
+    public int $timeBlocked = 3600;
+
+    /**
+     *--------------------------------------------------------------------------
+     * Rate Limiting Control
+     * --------------------------------------------------------------------------
+     * When set to TRUE, the REST API will count the number of uses of each method
+     * by an API key each hour. This is a general rule that can be overridden in the
+     * $this->method array in each controller
+     *
+     * Available methods are :
+     * public string $restLimitsMethod = 'IP_ADDRESS'; // Put a limit per ip address
+     * public string $restLimitsMethod = 'USER'; // Put a limit per user
+     * public string $restLimitsMethod = 'METHOD_NAME'; // Put a limit on method calls
+     * public string $restLimitsMethod = 'ROUTED_URL';  // Put a limit on the routed URL
+     */
+    public string $limitMethod = 'METHOD_NAME';
+
+    public int $requestLimit = 10;
+    public int $timeLimit    = MINUTE;
+
+    /**
+     * ////////////////////////////////////////////////////////////////////
+     * OAUTH
+     * ////////////////////////////////////////////////////////////////////
+     */
 
     /**
      * --------------------------------------------------------------------------
@@ -290,6 +527,12 @@ class Auth extends BaseConfig
         ],
         // 'google' => [ ... ]
     ];
+
+    /**
+     * ////////////////////////////////////////////////////////////////////
+     * VIEWS & URLS
+     * ////////////////////////////////////////////////////////////////////
+     */
 
     /**
      * --------------------------------------------------------------------
@@ -427,212 +670,10 @@ class Auth extends BaseConfig
     ];
 
     /**
-     * --------------------------------------------------------------------
-     * User Provider
-     * --------------------------------------------------------------------
-     * The name of the class that handles user persistence.
-     * By default, this is the included UserModel, which
-     * works with any of the database engines supported by CodeIgniter.
-     * You can change it as long as they adhere to the
-     * CodeIgniter\Shield\Models\UserModel.
-     *
-     * @var class-string<UserModel>
+     * ////////////////////////////////////////////////////////////////////
+     * DISCOVERY & CRON
+     * ////////////////////////////////////////////////////////////////////
      */
-    public string $userProvider = UserModel::class;
-
-    /**
-     *--------------------------------------------------------------------------
-     * Rates Control
-     * --------------------------------------------------------------------------
-     * When set to TRUE, the REST API will count the number of uses of each method
-     * by an API key each hour. This is a general rule that can be overridden in the
-     * $this->method array in each controller
-     *
-     * Available methods are :
-     * public string $restLimitsMethod = 'IP_ADDRESS'; // Put a limit per ip address
-     * public string $restLimitsMethod = 'USER'; // Put a limit per user
-     * public string $restLimitsMethod = 'METHOD_NAME'; // Put a limit on method calls
-     * public string $restLimitsMethod = 'ROUTED_URL';  // Put a limit on the routed URL
-     */
-    public string $limitMethod = 'METHOD_NAME';
-
-    public int $requestLimit = 10;
-    public int $timeLimit    = MINUTE;
-
-    /**
-     * --------------------------------------------------------------------
-     * The validation rules for username
-     * --------------------------------------------------------------------
-     *
-     * Do not use string rules like `required|valid_email`.
-     *
-     * @var array<string, array<int, string>|string>
-     */
-    public array $usernameValidationRules = [
-        'label' => 'Auth.username',
-        'rules' => [
-            'required',
-            'max_length[30]',
-            'min_length[3]',
-            'regex_match[/\A[a-zA-Z0-9\.]+\z/]',
-        ],
-    ];
-
-    /**
-     * --------------------------------------------------------------------
-     * The validation rules for email
-     * --------------------------------------------------------------------
-     *
-     * Do not use string rules like `required|valid_email`.
-     *
-     * @var array<string, array<int, string>|string>
-     */
-    public array $emailValidationRules = [
-        'label' => 'Auth.email',
-        'rules' => [
-            'required',
-            'max_length[254]',
-            'valid_email',
-        ],
-    ];
-
-    /**
-     * --------------------------------------------------------------------
-     * Minimum Password Length
-     * --------------------------------------------------------------------
-     * The minimum length that a password must be to be accepted.
-     * Recommended minimum value by NIST = 8 characters.
-     */
-    public int $minimumPasswordLength = 8;
-
-    /**
-     * --------------------------------------------------------------------
-     * Password Check Helpers
-     * --------------------------------------------------------------------
-     * The PasswordValidator class runs the password through all of these
-     * classes, each getting the opportunity to pass/fail the password.
-     * You can add custom classes as long as they adhere to the
-     * Daycry\Auth\Interfaces\PasswordValidatorInterface.
-     *
-     * @var list<class-string<PasswordValidatorInterface>>
-     */
-    public array $passwordValidators = [
-        CompositionValidator::class,
-        NothingPersonalValidator::class,
-        DictionaryValidator::class,
-        // PwnedValidator::class,
-    ];
-
-    /**
-     * --------------------------------------------------------------------
-     * Valid login fields
-     * --------------------------------------------------------------------
-     * Fields that are available to be used as credentials for login.
-     */
-    public array $validFields = [
-        'email',
-        // 'username',
-    ];
-
-    /**
-     * --------------------------------------------------------------------
-     * Additional Fields for "Nothing Personal"
-     * --------------------------------------------------------------------
-     * The NothingPersonalValidator prevents personal information from
-     * being used in passwords. The email and username fields are always
-     * considered by the validator. Do not enter those field names here.
-     *
-     * An extended User Entity might include other personal info such as
-     * first and/or last names. $personalFields is where you can add
-     * fields to be considered as "personal" by the NothingPersonalValidator.
-     * For example:
-     *     $personalFields = ['firstname', 'lastname'];
-     */
-    public array $personalFields = [];
-
-    /**
-     * --------------------------------------------------------------------
-     * Password / Username Similarity
-     * --------------------------------------------------------------------
-     * Among other things, the NothingPersonalValidator checks the
-     * amount of sameness between the password and username.
-     * Passwords that are too much like the username are invalid.
-     *
-     * The value set for $maxSimilarity represents the maximum percentage
-     * of similarity at which the password will be accepted. In other words, any
-     * calculated similarity equal to, or greater than $maxSimilarity
-     * is rejected.
-     *
-     * The accepted range is 0-100, with 0 (zero) meaning don't check similarity.
-     * Using values at either extreme of the *working range* (1-100) is
-     * not advised. The low end is too restrictive and the high end is too permissive.
-     * The suggested value for $maxSimilarity is 50.
-     *
-     * You may be thinking that a value of 100 should have the effect of accepting
-     * everything like a value of 0 does. That's logical and probably true,
-     * but is unproven and untested. Besides, 0 skips the work involved
-     * making the calculation unlike when using 100.
-     *
-     * The (admittedly limited) testing that's been done suggests a useful working range
-     * of 50 to 60. You can set it lower than 50, but site users will probably start
-     * to complain about the large number of proposed passwords getting rejected.
-     * At around 60 or more it starts to see pairs like 'captain joe' and 'joe*captain' as
-     * perfectly acceptable which clearly they are not.
-     *
-     * To disable similarity checking set the value to 0.
-     *     public $maxSimilarity = 0;
-     */
-    public int $maxSimilarity = 50;
-
-    /**
-     * --------------------------------------------------------------------
-     * Hashing Algorithm to use
-     * --------------------------------------------------------------------
-     * Valid values are
-     * - PASSWORD_DEFAULT (default)
-     * - PASSWORD_BCRYPT
-     * - PASSWORD_ARGON2I  - As of PHP 7.2 only if compiled with support for it
-     * - PASSWORD_ARGON2ID - As of PHP 7.3 only if compiled with support for it
-     */
-    public string $hashAlgorithm = PASSWORD_DEFAULT;
-
-    /**
-     * --------------------------------------------------------------------
-     * ARGON2I/ARGON2ID Algorithm options
-     * --------------------------------------------------------------------
-     * The ARGON2I method of hashing allows you to define the "memory_cost",
-     * the "time_cost" and the number of "threads", whenever a password hash is
-     * created.
-     */
-    public int $hashMemoryCost = 65536; // PASSWORD_ARGON2_DEFAULT_MEMORY_COST;
-
-    public int $hashTimeCost = 4;   // PASSWORD_ARGON2_DEFAULT_TIME_COST;
-    public int $hashThreads  = 1;   // PASSWORD_ARGON2_DEFAULT_THREADS;
-
-    /**
-     * --------------------------------------------------------------------
-     * BCRYPT Algorithm options
-     * --------------------------------------------------------------------
-     * The BCRYPT method of hashing allows you to define the "cost"
-     * or number of iterations made, whenever a password hash is created.
-     * This defaults to a value of 12 which is an acceptable number.
-     * However, depending on the security needs of your application
-     * and the power of your hardware, you might want to increase the
-     * cost. This makes the hashing process takes longer.
-     *
-     * Valid range is between 4 - 31.
-     */
-    public int $hashCost = 12;
-
-    /**
-     * If you need to support passwords saved in versions prior to Shield v1.0.0-beta.4.
-     * set this to true.
-     *
-     * See https://github.com/codeigniter4/shield/security/advisories/GHSA-c5vj-f36q-p9vg
-     *
-     * @deprecated This is only for backward compatibility.
-     */
-    public bool $supportOldDangerousPassword = false;
 
     /**
      *--------------------------------------------------------------------------
