@@ -19,6 +19,7 @@ use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
+use Daycry\Auth\Exceptions\ValidationException;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Faker\Generator;
 
