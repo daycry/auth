@@ -59,6 +59,16 @@ class JWT extends Base implements AuthenticatorInterface
             $credentials = ['token' => $this->getBearerFromHeader()];
         }
 
+        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
+            return new Result([
+                'success' => false,
+                'reason'  => lang(
+                    'Auth.noToken',
+                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
+                ),
+            ]);
+        }
+
         return $this->checkLogin($credentials);
     }
 
