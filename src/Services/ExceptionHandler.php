@@ -16,7 +16,7 @@ namespace Daycry\Auth\Services;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\Validation\Validation;
-use Exception;
+use ReflectionMethod;
 use ReflectionProperty;
 use Throwable;
 
@@ -61,7 +61,12 @@ class ExceptionHandler
 
         // Handle response based on controller capabilities and request type
         if ($controller && method_exists($controller, 'fail')) {
-            return $controller->fail($message, $code);
+            $reflection = new ReflectionMethod($controller, 'fail');
+            if (! $reflection->isPublic()) {
+                $reflection->setAccessible(true);
+            }
+
+            return $reflection->invoke($controller, $message, $code);
         }
 
         // Check if request is AJAX (assuming IncomingRequest which has isAJAX method)
