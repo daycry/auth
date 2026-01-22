@@ -41,7 +41,7 @@ class Auth
     /**
      * The current version of CodeIgniter Shield
      */
-    public const SHIELD_VERSION = '1.0.5';
+    public const SHIELD_VERSION = '3.0.2';
 
     protected ?UserProviderInterface $userProvider = null;
     protected ?Authentication $authenticate        = null;
