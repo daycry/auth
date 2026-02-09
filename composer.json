@@ -17,7 +17,7 @@
         "php": "^8.1",
         "codeigniter4/settings": "*",
         "daycry/class-finder": "^2.0",
-        "daycry/jobs": "^1.0",
+        "daycry/jobs": "^1",
         "daycry/encryption": "^2.0",
         "daycry/jwt": "^1.0",
         "google/apiclient": "*",
