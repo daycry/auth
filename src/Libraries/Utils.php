@@ -17,6 +17,23 @@ use Config\Services;
 
 class Utils
 {
+    /**
+     * Generates a random numeric code of the given length.
+     * Each digit is in the range 1-9 (no zeros) to avoid leading-zero ambiguity.
+     *
+     * @param positive-int $length Number of digits (default 6)
+     */
+    public static function generateNumericCode(int $length = 6): string
+    {
+        $result = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $result .= (string) random_int(1, 9);
+        }
+
+        return $result;
+    }
+
     public static function getParsedHeaders(): array
     {
         $request = Services::request();

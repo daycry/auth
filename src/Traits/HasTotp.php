@@ -25,14 +25,20 @@ use Daycry\Auth\Models\UserIdentityModel;
 trait HasTotp
 {
     /**
+     * Returns the UserIdentityModel instance (shared service from the CI4 container).
+     */
+    private function totpIdentityModel(): UserIdentityModel
+    {
+        /** @var UserIdentityModel */
+        return model(UserIdentityModel::class);
+    }
+
+    /**
      * Returns the permanent TOTP secret identity for this user, if any.
      */
     public function getTotpIdentity(): ?UserIdentity
     {
-        /** @var UserIdentityModel $model */
-        $model = model(UserIdentityModel::class);
-
-        return $model->getIdentityByType($this, IdentityType::TOTP_SECRET->value);
+        return $this->totpIdentityModel()->getIdentityByType($this, IdentityType::TOTP_SECRET->value);
     }
 
     /**
@@ -64,8 +70,7 @@ trait HasTotp
     {
         $issuer ??= (string) service('settings')->get('Auth.totpIssuer');
 
-        /** @var UserIdentityModel $model */
-        $model = model(UserIdentityModel::class);
+        $model = $this->totpIdentityModel();
 
         // Remove any existing TOTP secret
         $model->deleteIdentitiesByType($this, IdentityType::TOTP_SECRET->value);
@@ -89,10 +94,7 @@ trait HasTotp
      */
     public function disableTotp(): void
     {
-        /** @var UserIdentityModel $model */
-        $model = model(UserIdentityModel::class);
-
-        $model->deleteIdentitiesByType($this, IdentityType::TOTP_SECRET->value);
+        $this->totpIdentityModel()->deleteIdentitiesByType($this, IdentityType::TOTP_SECRET->value);
     }
 
     /**

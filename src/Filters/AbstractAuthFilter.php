@@ -82,6 +82,23 @@ abstract class AbstractAuthFilter implements FilterInterface
     }
 
     /**
+     * Builds the denial response: JSON 403 for API requests, redirect otherwise.
+     *
+     * @param string $redirectUrl The URL to redirect to for non-JSON requests.
+     */
+    protected function buildDeniedResponse(RequestInterface $request, string $redirectUrl): RedirectResponse|ResponseInterface
+    {
+        if ($this->expectsJson($request)) {
+            return service('response')->setStatusCode(
+                403,
+                lang('Auth.notEnoughPrivilege'),
+            );
+        }
+
+        return redirect()->to($redirectUrl)->with('error', lang('Auth.notEnoughPrivilege'));
+    }
+
+    /**
      * We don't have anything to do here.
      *
      * @param array|null $arguments
@@ -100,5 +117,5 @@ abstract class AbstractAuthFilter implements FilterInterface
     /**
      * Returns redirect response when the user does not have access authorizations.
      */
-    abstract protected function redirectToDeniedUrl(RequestInterface $request): RedirectResponse|Response;
+    abstract protected function redirectToDeniedUrl(RequestInterface $request): RedirectResponse|ResponseInterface;
 }

@@ -25,16 +25,22 @@ use Daycry\Auth\Models\DeviceSessionModel;
 trait HasDeviceSessions
 {
     /**
+     * Returns the DeviceSessionModel instance (shared service from the CI4 container).
+     */
+    private function deviceSessionModel(): DeviceSessionModel
+    {
+        /** @var DeviceSessionModel */
+        return model(DeviceSessionModel::class);
+    }
+
+    /**
      * Returns all active device sessions for this user.
      *
      * @return list<DeviceSession>
      */
     public function getDeviceSessions(): array
     {
-        /** @var DeviceSessionModel $model */
-        $model = model(DeviceSessionModel::class);
-
-        return $model->getActiveForUser($this);
+        return $this->deviceSessionModel()->getActiveForUser($this);
     }
 
     /**
@@ -42,10 +48,7 @@ trait HasDeviceSessions
      */
     public function terminateDeviceSession(string $sessionId): void
     {
-        /** @var DeviceSessionModel $model */
-        $model = model(DeviceSessionModel::class);
-
-        $model->terminateSession($sessionId);
+        $this->deviceSessionModel()->terminateSession($sessionId);
     }
 
     /**
@@ -56,9 +59,6 @@ trait HasDeviceSessions
      */
     public function terminateAllDeviceSessions(?string $exceptCurrentSession = null): void
     {
-        /** @var DeviceSessionModel $model */
-        $model = model(DeviceSessionModel::class);
-
-        $model->terminateAllForUser($this, $exceptCurrentSession);
+        $this->deviceSessionModel()->terminateAllForUser($this, $exceptCurrentSession);
     }
 }

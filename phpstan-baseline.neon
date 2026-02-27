@@ -325,6 +325,12 @@ parameters:
 			path: src/Authentication/Authenticators/Session.php
 
 		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Authentication\Authenticators\StatelessAuthenticator::attempt().'
+			identifier: method.notFound
+			count: 1
+			path: src/Authentication/Authenticators/StatelessAuthenticator.php
+
+		-
 			rawMessage: 'Call to method Daycry\Auth\Result::isOK() with incorrect case: isOk'
 			identifier: method.nameCase
 			count: 1
@@ -425,12 +431,6 @@ parameters:
 			identifier: property.defaultValue
 			count: 1
 			path: src/Config/Auth.php
-
-		-
-			rawMessage: Instanceof between Daycry\Auth\Interfaces\ActionInterface and Daycry\Auth\Interfaces\ActionInterface will always evaluate to true.
-			identifier: instanceof.alwaysTrue
-			count: 1
-			path: src/Controllers/ActionController.php
 
 		-
 			rawMessage: 'Parameter #2 $params (list<string>) of method Daycry\Auth\Controllers\ActionController::_remap() should be contravariant with parameter $params (mixed) of method Daycry\Auth\Controllers\BaseAuthController::_remap()'
@@ -679,13 +679,13 @@ parameters:
 			path: src/Entities/Cast/IntBoolCast.php
 
 		-
-			rawMessage: 'Parameter #1 $value (array<mixed>|bool|int|string) of method Daycry\Auth\Entities\Cast\SerializeCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\BaseCast::set()'
+			rawMessage: 'Parameter #1 $value (bool|int|list<mixed>|string) of method Daycry\Auth\Entities\Cast\SerializeCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\BaseCast::set()'
 			identifier: method.childParameterType
 			count: 1
 			path: src/Entities/Cast/SerializeCast.php
 
 		-
-			rawMessage: 'Parameter #1 $value (array<mixed>|bool|int|string) of method Daycry\Auth\Entities\Cast\SerializeCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\CastInterface::set()'
+			rawMessage: 'Parameter #1 $value (bool|int|list<mixed>|string) of method Daycry\Auth\Entities\Cast\SerializeCast::set() should be contravariant with parameter $value (array|bool|float|int|object|string|null) of method CodeIgniter\Entity\Cast\CastInterface::set()'
 			identifier: method.childParameterType
 			count: 1
 			path: src/Entities/Cast/SerializeCast.php
@@ -807,7 +807,7 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 3
+			count: 1
 			path: src/Entities/User.php
 
 		-
@@ -843,7 +843,7 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 13
+			count: 5
 			path: src/Entities/User.php
 
 		-
@@ -857,6 +857,12 @@ parameters:
 			identifier: method.nonObject
 			count: 9
 			path: src/Entities/User.php
+
+		-
+			rawMessage: 'Method Daycry\Auth\Filters\AbstractAuthFilter::before() should return CodeIgniter\HTTP\Response|void but returns CodeIgniter\HTTP\ResponseInterface.'
+			identifier: return.type
+			count: 1
+			path: src/Filters/AbstractAuthFilter.php
 
 		-
 			rawMessage: 'Return type (CodeIgniter\HTTP\Response|void) of method Daycry\Auth\Filters\AbstractAuthFilter::before() should be covariant with return type (CodeIgniter\HTTP\RequestInterface|CodeIgniter\HTTP\ResponseInterface|string|null) of method CodeIgniter\Filters\FilterInterface::before()'
@@ -953,18 +959,6 @@ parameters:
 			identifier: method.childReturnType
 			count: 1
 			path: src/Filters/ForcePasswordResetFilter.php
-
-		-
-			rawMessage: 'Method Daycry\Auth\Filters\GroupFilter::redirectToDeniedUrl() should return CodeIgniter\HTTP\Response but returns CodeIgniter\HTTP\ResponseInterface.'
-			identifier: return.type
-			count: 1
-			path: src/Filters/GroupFilter.php
-
-		-
-			rawMessage: 'Method Daycry\Auth\Filters\PermissionFilter::redirectToDeniedUrl() should return CodeIgniter\HTTP\Response but returns CodeIgniter\HTTP\ResponseInterface.'
-			identifier: return.type
-			count: 1
-			path: src/Filters/PermissionFilter.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.

@@ -17,8 +17,17 @@ use CodeIgniter\Exceptions\RuntimeException;
 
 class AuthorizationException extends RuntimeException
 {
-    public static $authorized = true;
-    protected $code           = 401;
+    /**
+     * Whether the request was authorised.  Stored as an instance property
+     * to avoid the race condition that a static property would introduce in
+     * concurrent requests.
+     */
+    public bool $authorized = true;
+
+    /**
+     * HTTP 403 Forbidden — authenticated but not permitted.
+     */
+    protected $code = 403;
 
     public static function forUnknownGroup(string $group): self
     {
@@ -32,8 +41,9 @@ class AuthorizationException extends RuntimeException
 
     public static function forUnauthorized(): self
     {
-        self::$authorized = false;
+        $e             = new self(lang('Auth.notEnoughPrivilege'));
+        $e->authorized = false;
 
-        return new self(lang('Auth.notEnoughPrivilege'));
+        return $e;
     }
 }

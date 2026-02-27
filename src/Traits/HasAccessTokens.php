@@ -32,6 +32,15 @@ trait HasAccessTokens
     private ?AccessToken $currentAccessToken = null;
 
     /**
+     * Returns the UserIdentityModel instance (shared service from the CI4 container).
+     */
+    private function userIdentityModel(): UserIdentityModel
+    {
+        /** @var UserIdentityModel */
+        return model(UserIdentityModel::class);
+    }
+
+    /**
      * Generates a new personal access token for this user.
      *
      * @param string       $name   Token name
@@ -39,10 +48,7 @@ trait HasAccessTokens
      */
     public function generateAccessToken(string $name, array $scopes = ['*']): AccessToken
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return $identityModel->generateAccessToken($this, $name, $scopes);
+        return $this->userIdentityModel()->generateAccessToken($this, $name, $scopes);
     }
 
     /**
@@ -50,10 +56,7 @@ trait HasAccessTokens
      */
     public function revokeAccessToken(string $rawToken): void
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        $identityModel->revokeAccessToken($this, $rawToken);
+        $this->userIdentityModel()->revokeAccessToken($this, $rawToken);
     }
 
     /**
@@ -61,10 +64,7 @@ trait HasAccessTokens
      */
     public function revokeAccessTokenBySecret(string $secretToken): void
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        $identityModel->revokeAccessTokenBySecret($this, $secretToken);
+        $this->userIdentityModel()->revokeAccessTokenBySecret($this, $secretToken);
     }
 
     /**
@@ -72,10 +72,7 @@ trait HasAccessTokens
      */
     public function revokeAllAccessTokens(): void
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        $identityModel->revokeAllAccessTokens($this);
+        $this->userIdentityModel()->revokeAllAccessTokens($this);
     }
 
     /**
@@ -85,10 +82,7 @@ trait HasAccessTokens
      */
     public function accessTokens(): array
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return $identityModel->getAllAccessTokens($this);
+        return $this->userIdentityModel()->getAllAccessTokens($this);
     }
 
     /**
@@ -101,10 +95,7 @@ trait HasAccessTokens
             return null;
         }
 
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return $identityModel->getAccessToken($this, $rawToken);
+        return $this->userIdentityModel()->getAccessToken($this, $rawToken);
     }
 
     /**
@@ -112,10 +103,7 @@ trait HasAccessTokens
      */
     public function getAccessTokenById(int $id): ?AccessToken
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return $identityModel->getAccessTokenById($id, $this);
+        return $this->userIdentityModel()->getAccessTokenById($id, $this);
     }
 
     /**

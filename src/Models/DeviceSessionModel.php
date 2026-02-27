@@ -94,7 +94,7 @@ class DeviceSessionModel extends BaseModel
 
         $id = $this->insert($data, true);
 
-        /** @var DeviceSession $session */
+        /** @var DeviceSession|null $result */
         return $this->find($id);
     }
 

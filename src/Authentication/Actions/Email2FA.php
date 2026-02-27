@@ -20,6 +20,7 @@ use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Interfaces\ActionInterface;
+use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
 use Daycry\Exceptions\Exceptions\RuntimeException;
@@ -152,16 +153,6 @@ class Email2FA implements ActionInterface
         // Delete any previous identities for action
         $identityModel->deleteIdentitiesByType($user, $this->type);
 
-        $generator = static function (): string {
-            $result = '';
-
-            for ($i = 0; $i < 6; $i++) {
-                $result .= (string) random_int(1, 9);
-            }
-
-            return $result;
-        };
-
         return $identityModel->createCodeIdentity(
             $user,
             [
@@ -169,7 +160,7 @@ class Email2FA implements ActionInterface
                 'name'  => 'login',
                 'extra' => lang('Auth.need2FA'),
             ],
-            $generator,
+            static fn (): string => Utils::generateNumericCode(),
         );
     }
 

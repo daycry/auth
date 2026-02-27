@@ -140,6 +140,6 @@ final class GroupFilterTest extends FilterTestCase
 
         $result = $this->withHeaders(['Accept' => 'application/json', 'Authorization' => 'Bearer ' . $token])->get('protected-route');
 
-        $result->assertStatus(401);
+        $result->assertStatus(403);
     }
 }

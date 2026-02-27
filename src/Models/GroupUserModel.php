@@ -41,16 +41,21 @@ class GroupUserModel extends BaseModel
     }
 
     /**
-     * Returns all user groups.
+     * Returns all active user groups (permanent or not yet expired).
      *
-     * @return list<GroupUser>|null
+     * @return list<GroupUser>
      */
-    public function getForUser(User $user): ?array
+    public function getForUser(User $user): array
     {
+        $now = Time::now()->format('Y-m-d H:i:s');
+
         return $this->where('user_id', $user->id)
-            ->where('until_at')
-            ->orWhere('until_at >', Time::now()->format('Y-m-d H:i:s'))
-            ->orderBy($this->primaryKey)->findAll();
+            ->groupStart()
+            ->where('until_at IS NULL')
+            ->orWhere('until_at >', $now)
+            ->groupEnd()
+            ->orderBy($this->primaryKey)
+            ->findAll();
     }
 
     /**
