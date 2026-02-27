@@ -97,7 +97,24 @@ return [
     'email2FAMailBody'    => 'Jūsų autentifikacijos kodas yra:',
     'invalid2FAToken'     => 'Kodas buvo neteisingas.',
     'need2FA'             => 'Turite užbaigti dviejų faktorių autentifikaciją.',
-    'needVerification'    => 'Norėdami užbaigti paskyros aktyvavimą, patikrinkite savo el. pašto dėžutę.',
+    // TOTP 2FA
+    'totpTitle'         => 'Two-Factor Authentication',
+    'totpEnterCode'     => 'Enter the 6-digit code from your authenticator app.',
+    'invalidTotpToken'  => 'The code was incorrect or has expired. Please try again.',
+    'needTotp'          => 'Enter the code from your authenticator app.',
+    'totpNotConfigured' => 'TOTP two-factor authentication is not configured for this user.',
+    // TOTP 2FA — setup
+    'totpSetupTitle'         => 'Set Up Two-Factor Authentication',
+    'totpSetupIntro'         => 'Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.).',
+    'totpQrAlt'              => 'QR code for authenticator app',
+    'totpManualKey'          => 'Or enter this key manually in your app:',
+    'totpSetupConfirmIntro'  => 'Once scanned, enter the 6-digit code shown in your app to confirm setup.',
+    'totpSetupActivate'      => 'Activate',
+    'totpSetupSuccess'       => 'Two-Factor Authentication Enabled',
+    'totpSetupSuccessDetail' => 'Your account is now protected with TOTP two-factor authentication.',
+    'totpSetupContinue'      => 'Continue',
+    'totpSetupInvalidCode'   => 'The code was incorrect. Please try scanning the QR code again.',
+    'needVerification'       => 'Norėdami užbaigti paskyros aktyvavimą, patikrinkite savo el. pašto dėžutę.',
 
     // Activate
     'emailActivateTitle'    => 'Aktyvavimas el. paštu',
@@ -107,6 +124,11 @@ return [
     'invalidActivateToken'  => 'Kodas buvo neteisingas.',
     'needActivate'          => 'Turite baigti registraciją panaudodami kodą, išsiųstą Jums el. pašto adresu.',
     'activationBlocked'     => 'Prieš prisijungdami turite aktyvuoti paskyrą.',
+
+    // OAuth
+    'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
+    'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
+    'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
 
     // Groups
     'unknownGroup' => '{0} nėra egzistuojanti grupė.',

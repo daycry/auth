@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Models;
 
 use CodeIgniter\Database\Exceptions\DataException;
+use CodeIgniter\Database\RawSql;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
@@ -187,8 +188,8 @@ class UserModel extends BaseModel implements UserProviderInterface
      * Override the BaseModel's `update()` method.
      * If you pass User object, also updates Email Identity.
      *
-     * @param array|int|string|null $id
-     * @param array|User            $data
+     * @param array|int|list<int|string>|RawSql|string|null $id
+     * @param array|User                                    $data
      *
      * @return true if the update is successful
      *

@@ -97,7 +97,24 @@ return [
     'email2FAMailBody'    => 'کد احراز هویت شما:',
     'invalid2FAToken'     => 'کد صحیح نمی باشد.',
     'need2FA'             => 'شما باید تایید دو مرحله ای را تکمیل کنید.',
-    'needVerification'    => 'برای تکمیل فعالسازی حساب کاربری، ایمیل خود را بررسی کنید.',
+    // TOTP 2FA
+    'totpTitle'         => 'Two-Factor Authentication',
+    'totpEnterCode'     => 'Enter the 6-digit code from your authenticator app.',
+    'invalidTotpToken'  => 'The code was incorrect or has expired. Please try again.',
+    'needTotp'          => 'Enter the code from your authenticator app.',
+    'totpNotConfigured' => 'TOTP two-factor authentication is not configured for this user.',
+    // TOTP 2FA — setup
+    'totpSetupTitle'         => 'Set Up Two-Factor Authentication',
+    'totpSetupIntro'         => 'Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.).',
+    'totpQrAlt'              => 'QR code for authenticator app',
+    'totpManualKey'          => 'Or enter this key manually in your app:',
+    'totpSetupConfirmIntro'  => 'Once scanned, enter the 6-digit code shown in your app to confirm setup.',
+    'totpSetupActivate'      => 'Activate',
+    'totpSetupSuccess'       => 'Two-Factor Authentication Enabled',
+    'totpSetupSuccessDetail' => 'Your account is now protected with TOTP two-factor authentication.',
+    'totpSetupContinue'      => 'Continue',
+    'totpSetupInvalidCode'   => 'The code was incorrect. Please try scanning the QR code again.',
+    'needVerification'       => 'برای تکمیل فعالسازی حساب کاربری، ایمیل خود را بررسی کنید.',
 
     // Activate
     'emailActivateTitle'    => 'فعالسازی ایمیل',
@@ -107,6 +124,11 @@ return [
     'invalidActivateToken'  => 'کد صحیح نمی باشد.',
     'needActivate'          => 'شما باید با ارائه کد ارسال شده به ایمیلتان، ثبت نام را تکمیل کنید.',
     'activationBlocked'     => 'قبل از تلاش برای ورود، باید اکانت خود را فعال کنید.',
+
+    // OAuth
+    'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
+    'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
+    'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
 
     // Groups
     'unknownGroup' => '{0} گروهی معتبر نیست.',

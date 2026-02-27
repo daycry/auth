@@ -97,7 +97,24 @@ return [
     'email2FAMailBody'    => 'あなたの認証コード:', // 'Your authentication code is:'
     'invalid2FAToken'     => 'コードが間違っています。', // 'The code was incorrect.'
     'need2FA'             => '二要素認証を完了させる必要があります。', // 'You must complete a two-factor verification.'
-    'needVerification'    => 'アカウントの有効化を完了するために、メールを確認してください。', // 'Check your email to complete account activation.'
+    // TOTP 2FA
+    'totpTitle'         => 'Two-Factor Authentication',
+    'totpEnterCode'     => 'Enter the 6-digit code from your authenticator app.',
+    'invalidTotpToken'  => 'The code was incorrect or has expired. Please try again.',
+    'needTotp'          => 'Enter the code from your authenticator app.',
+    'totpNotConfigured' => 'TOTP two-factor authentication is not configured for this user.',
+    // TOTP 2FA — setup
+    'totpSetupTitle'         => 'Set Up Two-Factor Authentication',
+    'totpSetupIntro'         => 'Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.).',
+    'totpQrAlt'              => 'QR code for authenticator app',
+    'totpManualKey'          => 'Or enter this key manually in your app:',
+    'totpSetupConfirmIntro'  => 'Once scanned, enter the 6-digit code shown in your app to confirm setup.',
+    'totpSetupActivate'      => 'Activate',
+    'totpSetupSuccess'       => 'Two-Factor Authentication Enabled',
+    'totpSetupSuccessDetail' => 'Your account is now protected with TOTP two-factor authentication.',
+    'totpSetupContinue'      => 'Continue',
+    'totpSetupInvalidCode'   => 'The code was incorrect. Please try scanning the QR code again.',
+    'needVerification'       => 'アカウントの有効化を完了するために、メールを確認してください。', // 'Check your email to complete account activation.'
 
     // Activate
     'emailActivateTitle'    => 'メールアクティベーション', // 'Email Activation'
@@ -107,6 +124,11 @@ return [
     'invalidActivateToken'  => 'コードが間違っています。', // 'The code was incorrect.'
     'needActivate'          => 'メールアドレスに送信されたコードを確認し、登録を完了する必要があります。', // 'You must complete your registration by confirming the code sent to your email address.'
     'activationBlocked'     => 'ログインする前にアカウントを有効化する必要があります。', // 'You must activate your account before logging in.'
+
+    // OAuth
+    'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
+    'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
+    'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
 
     // Groups
     'unknownGroup' => '{0} は有効なグループではありません。', // '{0} is not a valid group.'

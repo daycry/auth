@@ -97,7 +97,24 @@ return [
     'email2FAMailBody'    => 'Váš overovací kód je:',
     'invalid2FAToken'     => 'Kód bol nesprávny.',
     'need2FA'             => 'Musíte vykonať dvojfaktorové overenie.',
-    'needVerification'    => 'Ak chcete dokončiť aktiváciu účtu, skontrolujte svoj e-mail.',
+    // TOTP 2FA
+    'totpTitle'         => 'Two-Factor Authentication',
+    'totpEnterCode'     => 'Enter the 6-digit code from your authenticator app.',
+    'invalidTotpToken'  => 'The code was incorrect or has expired. Please try again.',
+    'needTotp'          => 'Enter the code from your authenticator app.',
+    'totpNotConfigured' => 'TOTP two-factor authentication is not configured for this user.',
+    // TOTP 2FA — setup
+    'totpSetupTitle'         => 'Set Up Two-Factor Authentication',
+    'totpSetupIntro'         => 'Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.).',
+    'totpQrAlt'              => 'QR code for authenticator app',
+    'totpManualKey'          => 'Or enter this key manually in your app:',
+    'totpSetupConfirmIntro'  => 'Once scanned, enter the 6-digit code shown in your app to confirm setup.',
+    'totpSetupActivate'      => 'Activate',
+    'totpSetupSuccess'       => 'Two-Factor Authentication Enabled',
+    'totpSetupSuccessDetail' => 'Your account is now protected with TOTP two-factor authentication.',
+    'totpSetupContinue'      => 'Continue',
+    'totpSetupInvalidCode'   => 'The code was incorrect. Please try scanning the QR code again.',
+    'needVerification'       => 'Ak chcete dokončiť aktiváciu účtu, skontrolujte svoj e-mail.',
 
     // Activate
     'emailActivateTitle'    => 'E-mailová aktivácia',
@@ -107,6 +124,11 @@ return [
     'invalidActivateToken'  => 'Kód bol nesprávny',
     'needActivate'          => 'Registráciu musíte dokončiť potvrdením kódu zaslaného na vašu e-mailovú adresu.',
     'activationBlocked'     => 'Pred prihlásením si musíte aktivovať svoj účet.',
+
+    // OAuth
+    'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
+    'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
+    'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
 
     // Groups
     'unknownGroup' => '{0} nie je platná skupina.',

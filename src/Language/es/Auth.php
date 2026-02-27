@@ -97,7 +97,24 @@ return [
     'email2FAMailBody'    => 'Tu código de autenticación es:',
     'invalid2FAToken'     => 'El código era incorrecto.',
     'need2FA'             => 'Debes completar la verificación de dos factores.',
-    'needVerification'    => 'Verifica tu correo electrónico para completar la activación de la cuenta.',
+    // TOTP 2FA
+    'totpTitle'         => 'Two-Factor Authentication',
+    'totpEnterCode'     => 'Enter the 6-digit code from your authenticator app.',
+    'invalidTotpToken'  => 'The code was incorrect or has expired. Please try again.',
+    'needTotp'          => 'Enter the code from your authenticator app.',
+    'totpNotConfigured' => 'TOTP two-factor authentication is not configured for this user.',
+    // TOTP 2FA — setup
+    'totpSetupTitle'         => 'Set Up Two-Factor Authentication',
+    'totpSetupIntro'         => 'Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.).',
+    'totpQrAlt'              => 'QR code for authenticator app',
+    'totpManualKey'          => 'Or enter this key manually in your app:',
+    'totpSetupConfirmIntro'  => 'Once scanned, enter the 6-digit code shown in your app to confirm setup.',
+    'totpSetupActivate'      => 'Activate',
+    'totpSetupSuccess'       => 'Two-Factor Authentication Enabled',
+    'totpSetupSuccessDetail' => 'Your account is now protected with TOTP two-factor authentication.',
+    'totpSetupContinue'      => 'Continue',
+    'totpSetupInvalidCode'   => 'The code was incorrect. Please try scanning the QR code again.',
+    'needVerification'       => 'Verifica tu correo electrónico para completar la activación de la cuenta.',
 
     // Activar
     'emailActivateTitle'    => 'Activación de correo electrónico',
@@ -107,6 +124,11 @@ return [
     'invalidActivateToken'  => 'El código era incorrecto.',
     'needActivate'          => 'Debes completar tu registro confirmando el código enviado a tu dirección de correo electrónico.',
     'activationBlocked'     => 'Debes activar tu cuenta antes de iniciar sesión.',
+
+    // OAuth
+    'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
+    'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
+    'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
 
     // Grupos
     'unknownGroup' => '{0} no es un grupo válido.',

@@ -220,8 +220,29 @@ abstract class AbstractTranslationTestCase extends TestCase
     final public function testAllIncludedLanguageKeysAreTranslated(string $locale): void
     {
         // These keys are usually not translated because they contain either
-        // universal abbreviations or simply combine parameters with signs.
+        // universal abbreviations or simply combine parameters with signs,
+        // or are newly added and pending translation by the community.
         static $excludedKeyTranslations = [
+            // TOTP 2FA — newly added, pending community translation
+            'Auth.totpTitle',
+            'Auth.totpEnterCode',
+            'Auth.invalidTotpToken',
+            'Auth.needTotp',
+            'Auth.totpNotConfigured',
+            'Auth.totpSetupTitle',
+            'Auth.totpSetupIntro',
+            'Auth.totpQrAlt',
+            'Auth.totpManualKey',
+            'Auth.totpSetupConfirmIntro',
+            'Auth.totpSetupActivate',
+            'Auth.totpSetupSuccess',
+            'Auth.totpSetupSuccessDetail',
+            'Auth.totpSetupContinue',
+            'Auth.totpSetupInvalidCode',
+            // OAuth — newly added, pending community translation
+            'Auth.unknownOauthProvider',
+            'Auth.invalidOauthState',
+            'Auth.emailNotFoundInOauth',
         ];
 
         $excludedKeys  = array_unique(array_merge($excludedKeyTranslations, $this->excludedLocaleKeyTranslations));

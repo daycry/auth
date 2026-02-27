@@ -104,9 +104,10 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $rememberModel->rememberUser($this->user, $selector, hash('sha256', $validator), $expires);
 
         // Set Cookie value for remember-me.
-        $token                = $selector . ':' . $validator;
-        $cookieName           = $cookiePrefix . setting('Auth.sessionConfig')['rememberCookieName'];
-        $_COOKIE[$cookieName] = $token;
+        // Use the Superglobals service so CI4's request cache reads the cookie correctly.
+        $token      = $selector . ':' . $validator;
+        $cookieName = $cookiePrefix . setting('Auth.sessionConfig')['rememberCookieName'];
+        service('superglobals')->setCookie($cookieName, $token);
 
         $this->assertTrue($this->auth->loggedIn());
 
@@ -115,7 +116,8 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $this->assertInstanceOf(User::class, $authUser);
         $this->assertSame($this->user->id, $authUser->id);
 
-        // Forget Cookie.prefix
+        // Clean up: remove cookie and forget prefix setting.
+        service('superglobals')->unsetCookie($cookieName);
         setting()->forget('Cookie.prefix');
     }
 

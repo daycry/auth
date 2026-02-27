@@ -20,6 +20,8 @@ use Daycry\Auth\Traits\Activatable;
 use Daycry\Auth\Traits\Authorizable;
 use Daycry\Auth\Traits\Bannable;
 use Daycry\Auth\Traits\HasAccessTokens;
+use Daycry\Auth\Traits\HasDeviceSessions;
+use Daycry\Auth\Traits\HasTotp;
 use Daycry\Auth\Traits\Resettable;
 
 class User extends Entity
@@ -29,6 +31,8 @@ class User extends Entity
     use Activatable;
     use Resettable;
     use HasAccessTokens;
+    use HasDeviceSessions;
+    use HasTotp;
 
     /**
      * @var list<UserIdentity>|null

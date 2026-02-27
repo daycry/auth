@@ -75,7 +75,7 @@ class DiscoverCommand extends BaseCommand
         $controllerModel = new ControllerModel();
         $allControllers  = $controllerModel->where('api_id', $api->id)->findColumn('controller');
         if ($allControllers) {
-            $forRemove = array_diff($allControllers, $this->allClasses);
+            $forRemove = array_diff(array_map('strval', $allControllers), $this->allClasses);
 
             if ($forRemove !== []) {
                 $controllerModel->where('api_id', $api->id)
@@ -153,7 +153,7 @@ class DiscoverCommand extends BaseCommand
         }
 
         if ($allMethods) {
-            $forRemove = array_diff($allMethods, $methods);
+            $forRemove = array_diff(array_map('strval', $allMethods), $methods);
 
             if ($forRemove !== []) {
                 $endpointModel->where('controller_id', $controller->id)

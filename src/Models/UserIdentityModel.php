@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
+use CodeIgniter\Database\RawSql;
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
@@ -31,6 +32,7 @@ class UserIdentityModel extends BaseModel
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
         'user_id',
+        'name',
         'type',
         'secret',
         'secret2',
@@ -159,7 +161,7 @@ class UserIdentityModel extends BaseModel
             'user_id' => $user->id,
             'name'    => $name,
             'secret'  => hash('sha256', $rawToken = random_string('crypto', 64)),
-            'extra'   => serialize($scopes),
+            'extra'   => json_encode($scopes, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         ]);
 
         $this->checkQueryReturn($return);
@@ -399,8 +401,8 @@ class UserIdentityModel extends BaseModel
      * Override the Model's `update()` method.
      * Throws an Exception when it fails.
      *
-     * @param array|int|string|null $id
-     * @param array|object|null     $data
+     * @param array|int|list<int|string>|RawSql|string|null $id
+     * @param array|object|null                             $data
      *
      * @return true if the update is successful
      *

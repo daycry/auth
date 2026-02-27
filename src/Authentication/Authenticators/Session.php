@@ -16,6 +16,7 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Config\Services;
@@ -30,6 +31,7 @@ use Daycry\Auth\Exceptions\SecurityException;
 use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -239,7 +241,7 @@ class Session extends Base implements AuthenticatorInterface
             throw new LogicException('Cannot get the User.');
         }
 
-        if ($token === '' || $token === '0' || $token !== $identity->secret) {
+        if ($token === '' || $token === '0' || ! hash_equals((string) $identity->secret, $token)) {
             return false;
         }
 
@@ -363,6 +365,16 @@ class Session extends Base implements AuthenticatorInterface
 
         if ($this->user === null) {
             return;
+        }
+
+        // Terminate the device session record if tracking is enabled
+        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+            $sessionId = session_id();
+            if ($sessionId !== '' && $sessionId !== false) {
+                /** @var DeviceSessionModel $deviceSessionModel */
+                $deviceSessionModel = model(DeviceSessionModel::class);
+                $deviceSessionModel->terminateSession($sessionId);
+            }
         }
 
         // Destroy the session data - but ensure a session is still
@@ -721,11 +733,40 @@ class Session extends Base implements AuthenticatorInterface
         // Let the session know we're logged in
         $this->setSessionKey('id', $user->id);
 
+        // Track the device session if enabled
+        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+            $this->recordDeviceSession($user);
+        }
+
         /** @var Response $response */
         $response = service('response');
 
         // When logged in, ensure cache control headers are in place
         $response->noCache();
+    }
+
+    /**
+     * Creates a device session record for the given user.
+     */
+    private function recordDeviceSession(User $user): void
+    {
+        $sessionId = session_id();
+
+        // No active session (e.g. testing environment without a real session)
+        if ($sessionId === '' || $sessionId === false) {
+            return;
+        }
+
+        /** @var DeviceSessionModel $deviceSessionModel */
+        $deviceSessionModel = model(DeviceSessionModel::class);
+
+        $ipAddress = $this->request->getIPAddress();
+
+        /** @var IncomingRequest $incomingRequest */
+        $incomingRequest = service('request');
+        $userAgent       = (string) $incomingRequest->getUserAgent();
+
+        $deviceSessionModel->createSession($user, $sessionId, $ipAddress, $userAgent !== '' ? $userAgent : null);
     }
 
     /**

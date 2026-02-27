@@ -83,7 +83,7 @@ class Logger
                 'user_id'       => auth()->id() ?? null,
                 'uri'           => $this->request->getUri()->__toString(),
                 'method'        => $this->request->getMethod(),
-                'params'        => serialize($params),
+                'params'        => json_encode($params, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                 'ip_address'    => $this->request->getIPAddress(),
                 'duration'      => $this->benchmark->getElapsedTime('auth'),
                 'response_code' => $this->responseCode,

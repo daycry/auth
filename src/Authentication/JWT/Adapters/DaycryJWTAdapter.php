@@ -16,7 +16,7 @@ namespace Daycry\Auth\Authentication\JWT\Adapters;
 use Daycry\Auth\Exceptions\InvalidJWTException;
 use Daycry\Auth\Interfaces\JWTAdapterInterface;
 use Daycry\JWT\JWT;
-use Lcobucci\JWT\Validation\RequiredConstraintsViolated;
+use Lcobucci\JWT\Exception as LcobucciException;
 
 class DaycryJWTAdapter implements JWTAdapterInterface
 {
@@ -31,7 +31,7 @@ class DaycryJWTAdapter implements JWTAdapterInterface
             $token = $jwt->decode($encodedToken);
 
             return $token->get($jwt->getParamData());
-        } catch (RequiredConstraintsViolated $e) {
+        } catch (LcobucciException $e) {
             throw InvalidJWTException::forInvalidToken($e);
         }
     }

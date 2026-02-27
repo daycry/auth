@@ -97,7 +97,24 @@ return [
     'email2FAMailBody'    => 'Seu código de autenticação é:',
     'invalid2FAToken'     => 'O código estava incorreto.',
     'need2FA'             => 'Deve concluir uma verificação de dois fatores.',
-    'needVerification'    => 'Verifique seu e-mail para concluir a ativação da conta.',
+    // TOTP 2FA
+    'totpTitle'         => 'Two-Factor Authentication',
+    'totpEnterCode'     => 'Enter the 6-digit code from your authenticator app.',
+    'invalidTotpToken'  => 'The code was incorrect or has expired. Please try again.',
+    'needTotp'          => 'Enter the code from your authenticator app.',
+    'totpNotConfigured' => 'TOTP two-factor authentication is not configured for this user.',
+    // TOTP 2FA — setup
+    'totpSetupTitle'         => 'Set Up Two-Factor Authentication',
+    'totpSetupIntro'         => 'Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.).',
+    'totpQrAlt'              => 'QR code for authenticator app',
+    'totpManualKey'          => 'Or enter this key manually in your app:',
+    'totpSetupConfirmIntro'  => 'Once scanned, enter the 6-digit code shown in your app to confirm setup.',
+    'totpSetupActivate'      => 'Activate',
+    'totpSetupSuccess'       => 'Two-Factor Authentication Enabled',
+    'totpSetupSuccessDetail' => 'Your account is now protected with TOTP two-factor authentication.',
+    'totpSetupContinue'      => 'Continue',
+    'totpSetupInvalidCode'   => 'The code was incorrect. Please try scanning the QR code again.',
+    'needVerification'       => 'Verifique seu e-mail para concluir a ativação da conta.',
 
     // Ativar
     'emailActivateTitle'    => 'Ativação de email',
@@ -107,6 +124,11 @@ return [
     'invalidActivateToken'  => 'O código estava incorreto.',
     'needActivate'          => 'Deve concluir seu registro confirmando o código enviado para seu endereço de e-mail.',
     'activationBlocked'     => 'Deve ativar sua conta antes de fazer o login.',
+
+    // OAuth
+    'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
+    'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
+    'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
 
     // Grupos
     'unknownGroup' => '{0} não é um grupo válido.',
