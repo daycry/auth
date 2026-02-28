@@ -62,6 +62,7 @@ deptrac:
       - Config
       - Model
       - Interface
+      - Library
     Config:
       - Interface
       - Model
