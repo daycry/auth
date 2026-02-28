@@ -25,7 +25,7 @@ interface JWTAdapterInterface
     /**
      * Decode Signed JWT (JWS)
      *
-     * @param string
+     * @param string $encodedToken The encoded JWT string to decode.
      */
     public function decode(string $encodedToken): mixed;
 }

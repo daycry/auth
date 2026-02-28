@@ -22,6 +22,7 @@ use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Interfaces\ActionInterface;
+use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
 use Daycry\Exceptions\Exceptions\LogicException;
@@ -147,16 +148,6 @@ class EmailActivator implements ActionInterface
         // Delete any previous identities for action
         $identityModel->deleteIdentitiesByType($user, $this->type);
 
-        $generator = static function (): string {
-            $result = '';
-
-            for ($i = 0; $i < 6; $i++) {
-                $result .= (string) random_int(1, 9);
-            }
-
-            return $result;
-        };
-
         return $identityModel->createCodeIdentity(
             $user,
             [
@@ -164,7 +155,7 @@ class EmailActivator implements ActionInterface
                 'name'  => 'register',
                 'extra' => lang('Auth.needVerification'),
             ],
-            $generator,
+            static fn (): string => Utils::generateNumericCode(),
         );
     }
 

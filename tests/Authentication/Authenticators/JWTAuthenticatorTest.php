@@ -249,6 +249,102 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $this->auth->recordActiveDate();
     }
 
+    public function testCheckMalformedTokenReturnsFailure(): void
+    {
+        // A completely malformed string (no dots) is caught and returned as a failure Result
+        $result = $this->auth->check(['token' => 'this-is-not-a-jwt-token']);
+
+        $this->assertFalse($result->isOK());
+    }
+
+    public function testCheckTamperedPayloadToken(): void
+    {
+        // A structurally valid JWT with three parts but tampered payload
+        // This has valid structure but wrong signature
+        $tamperedToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRhIjoiOTk5OTkifQ.invalidsignaturehere';
+
+        $result = $this->auth->check(['token' => $tamperedToken]);
+
+        $this->assertFalse($result->isOK());
+    }
+
+    public function testAttemptTamperedPayloadToken(): void
+    {
+        $result = $this->auth->attempt(['token' => self::BAD_JWT]);
+
+        $this->assertInstanceOf(Result::class, $result);
+        $this->assertFalse($result->isOK());
+        $this->assertSame(lang('Auth.invalidJWT'), $result->reason());
+
+        // A login attempt should have been recorded
+        $this->seeInDatabase('auth_logins', [
+            'id_type'    => JWT::ID_TYPE_JWT,
+            'identifier' => self::BAD_JWT,
+            'success'    => 0,
+        ]);
+    }
+
+    public function testCheckExpiredToken(): void
+    {
+        $this->user = fake(UserModel::class, ['id' => 1, 'username' => 'John Smith']);
+
+        // Generate a token that expired in the past
+        $jwtConfig            = config('JWT');
+        $jwtConfig->expiresAt = '-1 hour';
+
+        $jwt = new \Daycry\JWT\JWT($jwtConfig);
+        $jwt->setSplitData(false)->setParamData('data');
+        $expiredToken = $jwt->encode($this->user->id);
+
+        $result = $this->auth->check(['token' => $expiredToken]);
+
+        $this->assertFalse($result->isOK());
+    }
+
+    public function testAttemptExpiredToken(): void
+    {
+        $this->user = fake(UserModel::class, ['id' => 1, 'username' => 'John Smith']);
+
+        // Generate a token that expired in the past
+        $jwtConfig            = config('JWT');
+        $jwtConfig->expiresAt = '-1 hour';
+
+        $jwt = new \Daycry\JWT\JWT($jwtConfig);
+        $jwt->setSplitData(false)->setParamData('data');
+        $expiredToken = $jwt->encode($this->user->id);
+
+        $result = $this->auth->attempt(['token' => $expiredToken]);
+
+        $this->assertInstanceOf(Result::class, $result);
+        $this->assertFalse($result->isOK());
+
+        // A login attempt should have been recorded
+        $this->seeInDatabase('auth_logins', [
+            'id_type'    => JWT::ID_TYPE_JWT,
+            'identifier' => $expiredToken,
+            'success'    => 0,
+        ]);
+    }
+
+    public function testCheckEmptyToken(): void
+    {
+        $result = $this->auth->check(['token' => '']);
+
+        $this->assertFalse($result->isOK());
+        $this->assertSame(
+            lang('Auth.noToken', [service('settings')->get('Auth.authenticatorHeader')['jwt']]),
+            $result->reason(),
+        );
+    }
+
+    public function testAttemptEmptyCredentials(): void
+    {
+        $result = $this->auth->attempt([]);
+
+        $this->assertInstanceOf(Result::class, $result);
+        $this->assertFalse($result->isOK());
+    }
+
     /**
      * @param Time|null $clock The Time object
      */

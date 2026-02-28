@@ -220,8 +220,91 @@ abstract class AbstractTranslationTestCase extends TestCase
     final public function testAllIncludedLanguageKeysAreTranslated(string $locale): void
     {
         // These keys are usually not translated because they contain either
-        // universal abbreviations or simply combine parameters with signs.
+        // universal abbreviations or simply combine parameters with signs,
+        // or are newly added and pending translation by the community.
         static $excludedKeyTranslations = [
+            // TOTP 2FA — newly added, pending community translation
+            'Auth.totpTitle',
+            'Auth.totpEnterCode',
+            'Auth.invalidTotpToken',
+            'Auth.needTotp',
+            'Auth.totpNotConfigured',
+            'Auth.totpSetupTitle',
+            'Auth.totpSetupIntro',
+            'Auth.totpQrAlt',
+            'Auth.totpManualKey',
+            'Auth.totpSetupConfirmIntro',
+            'Auth.totpSetupActivate',
+            'Auth.totpSetupSuccess',
+            'Auth.totpSetupSuccessDetail',
+            'Auth.totpSetupContinue',
+            'Auth.totpSetupInvalidCode',
+            // OAuth — newly added, pending community translation
+            'Auth.unknownOauthProvider',
+            'Auth.invalidOauthState',
+            'Auth.emailNotFoundInOauth',
+            // Password Reset — newly added, pending community translation
+            'Auth.passwordResetTitle',
+            'Auth.passwordResetIntro',
+            'Auth.passwordResetSent',
+            'Auth.passwordResetSubject',
+            'Auth.passwordResetEmailBody',
+            'Auth.passwordResetButton',
+            'Auth.passwordResetFormTitle',
+            'Auth.passwordResetFormIntro',
+            'Auth.passwordResetSuccess',
+            'Auth.passwordResetTokenInvalid',
+            'Auth.passwordResetTokenExpired',
+            'Auth.passwordResetNewPassword',
+            'Auth.passwordResetConfirm',
+            'Auth.passwordResetSubmit',
+            // Force Password Reset — newly added, pending community translation
+            'Auth.forceResetTitle',
+            'Auth.forceResetIntro',
+            'Auth.forceResetSuccess',
+            'Auth.forceResetCurrentLabel',
+            'Auth.forceResetNewLabel',
+            'Auth.forceResetConfirmLabel',
+            'Auth.forceResetSubmit',
+            'Auth.invalidCurrentPassword',
+            // Per-user lockout — newly added, pending community translation
+            'Auth.userLockedOut',
+            'Auth.userUnlocked',
+            // Self-service password change — newly added, pending community translation
+            'Auth.changePasswordTitle',
+            'Auth.changePasswordSuccess',
+            'Auth.changePasswordCurrent',
+            'Auth.changePasswordNew',
+            'Auth.changePasswordConfirm',
+            'Auth.changePasswordSubmit',
+            // Email change — newly added, pending community translation
+            'Auth.changeEmailTitle',
+            'Auth.changeEmailIntro',
+            'Auth.changeEmailSent',
+            'Auth.changeEmailSubject',
+            'Auth.changeEmailMailBody',
+            'Auth.changeEmailButton',
+            'Auth.changeEmailSuccess',
+            'Auth.changeEmailTokenInvalid',
+            'Auth.changeEmailTokenExpired',
+            'Auth.changeEmailLabel',
+            'Auth.changeEmailSubmit',
+            'Auth.changeEmailAlreadyUsed',
+            // OAuth unlinking — newly added, pending community translation
+            'Auth.unlinkOauthSuccess',
+            'Auth.unlinkOauthNotFound',
+            'Auth.unlinkOauthLastMethod',
+            // New device notification — newly added, pending community translation
+            'Auth.newDeviceSubject',
+            'Auth.newDeviceMailBody',
+            'Auth.newDeviceIp',
+            'Auth.newDeviceDevice',
+            'Auth.newDeviceTime',
+            'Auth.newDeviceNotYou',
+            // JWT refresh — newly added, pending community translation
+            'Auth.invalidRefreshToken',
+            'Auth.refreshTokenRevoked',
+            'Auth.revokedToken',
         ];
 
         $excludedKeys  = array_unique(array_merge($excludedKeyTranslations, $this->excludedLocaleKeyTranslations));

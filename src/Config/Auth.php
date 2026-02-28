@@ -89,6 +89,7 @@ class Auth extends BaseConfig
         'endpoints'          => 'auth_endpoints',
         'attempts'           => 'auth_attempts',
         'rates'              => 'auth_rates',
+        'device_sessions'    => 'auth_device_sessions',
     ];
 
     /**
@@ -171,11 +172,35 @@ class Auth extends BaseConfig
      * @var array<string, bool|int|string>
      */
     public array $sessionConfig = [
-        'field'              => 'user',
-        'allowRemembering'   => true,
-        'rememberCookieName' => 'remember',
-        'rememberLength'     => 30 * DAY,
+        'field'               => 'user',
+        'allowRemembering'    => true,
+        'rememberCookieName'  => 'remember',
+        'rememberLength'      => 30 * DAY,
+        'trackDeviceSessions' => true,
     ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Permission & Group Cache
+     * --------------------------------------------------------------------
+     * When enabled, user groups and permissions are stored in the CI4
+     * cache service to avoid repeated DB queries on every request.
+     *
+     * - permissionCacheEnabled  Enable/disable caching (default: false)
+     * - permissionCacheTTL      Seconds before the cache expires (default: 300)
+     */
+    public bool $permissionCacheEnabled = false;
+
+    public int $permissionCacheTTL = 300;
+
+    /**
+     * --------------------------------------------------------------------
+     * TOTP 2FA
+     * --------------------------------------------------------------------
+     * - totpIssuer  Name shown in the authenticator app next to the account.
+     *               Usually your application or company name.
+     */
+    public string $totpIssuer = 'My App';
 
     /**
      *--------------------------------------------------------------------------
@@ -207,6 +232,42 @@ class Auth extends BaseConfig
      * You can use Time Constants or any desired number.
      */
     public int $magicLinkLifetime = HOUR;
+
+    /**
+     * --------------------------------------------------------------------
+     * Password Reset Lifetime
+     * --------------------------------------------------------------------
+     * Specifies the amount of time, in seconds, that a password reset
+     * token is valid. After this time the token expires and the user must
+     * request a new one.
+     */
+    public int $passwordResetLifetime = HOUR;
+
+    /**
+     * --------------------------------------------------------------------
+     * JWT Refresh Token Lifetime
+     * --------------------------------------------------------------------
+     * Specifies how long (in seconds) a JWT refresh token is valid.
+     * Used by JwtController to issue long-lived refresh tokens alongside
+     * short-lived access tokens.
+     */
+    public int $jwtRefreshLifetime = 30 * DAY;
+
+    /**
+     * --------------------------------------------------------------------
+     * Per-user Login Lockout
+     * --------------------------------------------------------------------
+     * When enabled, locks an individual user account after N consecutive
+     * failed login attempts, regardless of the source IP address.
+     * This complements the existing IP-based $enableInvalidAttempts.
+     *
+     * $userMaxAttempts  Maximum consecutive failures before the account
+     *                   is locked. 0 = disabled.
+     * $userLockoutTime  Seconds the account stays locked after lockout.
+     */
+    public int $userMaxAttempts = 5;
+
+    public int $userLockoutTime = 3600;
 
     /**
      * --------------------------------------------------------------------
@@ -509,23 +570,75 @@ class Auth extends BaseConfig
      * OAuth Providers
      * --------------------------------------------------------------------------
      *
-     * The available OAuth providers.
-     * key = provider alias (e.g. 'azure', 'google')
-     * value = configuration array or ClassName::class
+     * Supported provider aliases (require the matching League package):
+     *
+     *   'azure'    → thenetworg/oauth2-azure   (already required)
+     *   'google'   → league/oauth2-google
+     *   'facebook' → league/oauth2-facebook
+     *   'github'   → league/oauth2-github
+     *
+     * Any other alias falls back to league/oauth2-client GenericProvider and
+     * requires the urlAuthorize / urlAccessToken / urlResourceOwnerDetails keys.
+     *
+     * Routes: GET  /auth/oauth/{alias}           → OauthController::redirect()
+     *         GET  /auth/oauth/{alias}/callback  → OauthController::callback()
+     *
+     * @var array<string, array<string, mixed>>
      */
     public array $providers = [
+        // ----------------------------------------------------------------
+        // Microsoft Azure AD / Entra ID   (thenetworg/oauth2-azure)
+        // ----------------------------------------------------------------
         'azure' => [
-            'clientId'                => 'YOUR_CLIENT_ID',
-            'clientSecret'            => 'YOUR_CLIENT_SECRET',
-            'redirectUri'             => 'http://localhost:8080/auth/oauth/azure/callback',
-            'urlAuthorize'            => 'https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/authorize',
-            'urlAccessToken'          => 'https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token',
-            'urlResourceOwnerDetails' => '',
-            'scopes'                  => ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
-            'defaultEndPointVersion'  => '2.0',
-            'tenant'                  => 'common',
+            'clientId'               => 'YOUR_AZURE_CLIENT_ID',
+            'clientSecret'           => 'YOUR_AZURE_CLIENT_SECRET',
+            'redirectUri'            => 'http://localhost:8080/auth/oauth/azure/callback',
+            'scopes'                 => ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
+            'defaultEndPointVersion' => '2.0',
+            'tenant'                 => 'common', // 'common' | 'organizations' | <tenantId>
         ],
-        // 'google' => [ ... ]
+
+        // ----------------------------------------------------------------
+        // Google   (league/oauth2-google)
+        // ----------------------------------------------------------------
+        // 'google' => [
+        //     'clientId'     => 'YOUR_GOOGLE_CLIENT_ID',
+        //     'clientSecret' => 'YOUR_GOOGLE_CLIENT_SECRET',
+        //     'redirectUri'  => 'http://localhost:8080/auth/oauth/google/callback',
+        //     // 'hostedDomain' => 'example.com', // restrict to a G Suite domain (optional)
+        // ],
+
+        // ----------------------------------------------------------------
+        // Facebook   (league/oauth2-facebook)
+        // ----------------------------------------------------------------
+        // 'facebook' => [
+        //     'clientId'        => 'YOUR_FACEBOOK_APP_ID',
+        //     'clientSecret'    => 'YOUR_FACEBOOK_APP_SECRET',
+        //     'redirectUri'     => 'http://localhost:8080/auth/oauth/facebook/callback',
+        //     'graphApiVersion' => 'v19.0',
+        // ],
+
+        // ----------------------------------------------------------------
+        // GitHub   (league/oauth2-github)
+        // ----------------------------------------------------------------
+        // 'github' => [
+        //     'clientId'     => 'YOUR_GITHUB_CLIENT_ID',
+        //     'clientSecret' => 'YOUR_GITHUB_CLIENT_SECRET',
+        //     'redirectUri'  => 'http://localhost:8080/auth/oauth/github/callback',
+        //     // Note: email may be null for GitHub users with a private email.
+        // ],
+
+        // ----------------------------------------------------------------
+        // Generic (any provider via league/oauth2-client GenericProvider)
+        // ----------------------------------------------------------------
+        // 'my_provider' => [
+        //     'clientId'                => 'YOUR_CLIENT_ID',
+        //     'clientSecret'            => 'YOUR_CLIENT_SECRET',
+        //     'redirectUri'             => 'http://localhost:8080/auth/oauth/my_provider/callback',
+        //     'urlAuthorize'            => 'https://provider.example.com/oauth/authorize',
+        //     'urlAccessToken'          => 'https://provider.example.com/oauth/token',
+        //     'urlResourceOwnerDetails' => 'https://provider.example.com/api/user',
+        // ],
     ];
 
     /**
@@ -546,11 +659,23 @@ class Auth extends BaseConfig
         'action_email_2fa'            => '\Daycry\Auth\Views\email_2fa_show',
         'action_email_2fa_verify'     => '\Daycry\Auth\Views\email_2fa_verify',
         'action_email_2fa_email'      => '\Daycry\Auth\Views\Email\email_2fa_email',
+        'action_totp_2fa_verify'      => '\Daycry\Auth\Views\totp_2fa_verify',
+        'action_totp_setup_show'      => '\Daycry\Auth\Views\totp_setup_show',
+        'action_totp_setup_success'   => '\Daycry\Auth\Views\totp_setup_success',
         'action_email_activate_show'  => '\Daycry\Auth\Views\email_activate_show',
         'action_email_activate_email' => '\Daycry\Auth\Views\Email\email_activate_email',
         'magic-link-login'            => '\Daycry\Auth\Views\magic_link_form',
         'magic-link-message'          => '\Daycry\Auth\Views\magic_link_message',
         'magic-link-email'            => '\Daycry\Auth\Views\Email\magic_link_email',
+        // Password reset
+        'password-reset-request' => '\Daycry\Auth\Views\password_reset_request',
+        'password-reset-message' => '\Daycry\Auth\Views\password_reset_message',
+        'password-reset-form'    => '\Daycry\Auth\Views\password_reset_form',
+        'password-reset-email'   => '\Daycry\Auth\Views\Email\password_reset_email',
+        // Force password reset (filter redirect)
+        'force-password-reset' => '\Daycry\Auth\Views\force_password_reset',
+        // Email change confirmation (sent to new address)
+        'email-change-email' => '\Daycry\Auth\Views\Email\email_change_email',
     ];
 
     /**
@@ -665,6 +790,69 @@ class Auth extends BaseConfig
                 'oauth/callback/(:segment)', // Provider (azure, google, etc)
                 'OauthController::callback/$1',
                 'oauth-callback',
+            ],
+        ],
+        'password-reset' => [
+            [
+                'get',
+                'password-reset',
+                'PasswordResetController::requestView',
+                'password-reset-request',
+            ],
+            [
+                'post',
+                'password-reset',
+                'PasswordResetController::requestAction',
+            ],
+            [
+                'get',
+                'password-reset/message',
+                'PasswordResetController::messageView',
+                'password-reset-message',
+            ],
+            [
+                'get',
+                'password-reset/verify',
+                'PasswordResetController::resetView',
+                'password-reset-verify',
+            ],
+            [
+                'post',
+                'password-reset/verify',
+                'PasswordResetController::resetAction',
+            ],
+        ],
+        'force-reset' => [
+            [
+                'get',
+                'auth/force-reset',
+                'ForcePasswordResetController::showView',
+                'force-reset',
+            ],
+            [
+                'post',
+                'auth/force-reset',
+                'ForcePasswordResetController::resetAction',
+            ],
+        ],
+        'jwt' => [
+            [
+                'post',
+                'auth/jwt/login',
+                'JwtController::login',
+                'jwt-login',
+            ],
+            [
+                'post',
+                'auth/jwt/refresh',
+                'JwtController::refresh',
+                'jwt-refresh',
+            ],
+            [
+                'post',
+                'auth/jwt/logout',
+                'JwtController::logout',
+                'jwt-logout',
             ],
         ],
     ];

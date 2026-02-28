@@ -17,7 +17,6 @@ use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\Validation\Validation;
 use ReflectionMethod;
-use ReflectionProperty;
 use Throwable;
 
 /**
@@ -44,10 +43,11 @@ class ExceptionHandler
         ?Validation $validator = null,
         ?object $controller = null,
     ): ResponseInterface {
-        // Extract authorization status from exception if available
+        // Extract authorization status from exception if available.
+        // Auth exceptions (AuthenticationException, AuthorizationException) declare
+        // a public bool $authorized property; access it directly.
         if (property_exists($ex, 'authorized')) {
-            $authorized = (new ReflectionProperty($ex, 'authorized'))->getValue($ex);
-            $this->requestLogger->setRequestAuthorized($authorized);
+            $this->requestLogger->setRequestAuthorized((bool) $ex->{'authorized'});
         } else {
             $this->requestLogger->setRequestAuthorized(false);
         }
@@ -60,13 +60,8 @@ class ExceptionHandler
         $token = ['name' => csrf_token(), 'hash' => csrf_hash()];
 
         // Handle response based on controller capabilities and request type
-        if ($controller && method_exists($controller, 'fail')) {
-            $reflection = new ReflectionMethod($controller, 'fail');
-            if (! $reflection->isPublic()) {
-                $reflection->setAccessible(true);
-            }
-
-            return $reflection->invoke($controller, $message, $code);
+        if ($controller !== null && method_exists($controller, 'fail')) {
+            return (new ReflectionMethod($controller, 'fail'))->invoke($controller, $message, $code);
         }
 
         // Check if request is AJAX (assuming IncomingRequest which has isAJAX method)

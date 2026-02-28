@@ -22,4 +22,9 @@ enum IdentityType: string
     case EMAIL_ACTIVATE = 'email_activate';
     case USERNAME       = 'username';
     case JWT            = 'jwt';
+    case TOTP           = 'totp';
+    case TOTP_SECRET    = 'totp_secret';
+    case RESET_PASSWORD = 'reset_password';
+    case JWT_REFRESH    = 'jwt_refresh';
+    case EMAIL_CHANGE   = 'email_change';
 }

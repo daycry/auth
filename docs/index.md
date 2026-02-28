@@ -1,8 +1,6 @@
 # Daycry Auth Documentation
 
-Welcome to the complete documentation for **Daycry Auth**, a robust authentication and authorization library for CodeIgniter 4.
-
-## Table of Contents
+Welcome to the complete documentation for **Daycry Auth**, a comprehensive authentication and authorization library for CodeIgniter 4.
 
 ```{toctree}
 :maxdepth: 2
@@ -14,126 +12,106 @@ Welcome to the complete documentation for **Daycry Auth**, a robust authenticati
 
 ```{toctree}
 :maxdepth: 2
-:caption: Core Features
+:caption: Authentication
 
 03-authentication
-04-filters
-05-controllers
-06-authorization
 09-oauth
+10-totp-2fa
+11-device-sessions
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: Advanced Topics
+:caption: Controllers & Filters
 
-07-logging
-08-testing
-09-testing
+04-filters
+05-controllers
 ```
 
-## 🌟 Main Features
+```{toctree}
+:maxdepth: 2
+:caption: Authorization & Logging
 
-- **Multiple Authenticators**: Session, Access Token, JWT, Magic Link
-- **Permission System**: Groups and granular permissions
-- **Flexible Filters**: Configurable authentication chains
-- **Rate Limiting**: Access attempts and rate control
-- **Complete Logging**: Monitoring of all activities
+06-authorization
+07-logging
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Testing & Reference
+
+08-testing
+```
+
+## Main Features
+
+- **Multiple Authenticators**: Session, Access Token, JWT (with refresh tokens), Magic Link
+- **TOTP Two-Factor Authentication**: Time-based OTP with Google Authenticator, Authy, etc.
+- **Device Session Tracking**: See and revoke active logins per device
+- **Password Reset Flow**: Secure token-based reset with email delivery
+- **Force Password Reset**: Flag accounts for mandatory password change
+- **Permission System**: Groups and granular permissions with optional cache
+- **Flexible Filters**: Auth, chain, group, permission, rate limiting, force-reset
+- **OAuth 2.0 / Social Login**: Google, GitHub, Facebook, Microsoft Azure
+- **Per-User Account Lockout**: Independent of IP-based blocking
+- **Complete Logging**: CI4 Events + database login attempt logs
 - **Highly Customizable**: Extend or replace any component
 
-## 🚀 Quick Start
-
-If you're new to Daycry Auth, start with our [Quick Start Guide](01-quick-start.md) to get up and running in minutes.
-
-### Installation
+## Quick Start
 
 ```bash
 composer require daycry/auth
+php spark migrate --all
+php spark auth:setup
 ```
 
-### Basic Usage
-
 ```php
-// Login attempt
-$result = auth()->attempt([
-    'email' => 'user@example.com',
-    'password' => 'password123'
-]);
+// Login
+$result = auth()->attempt(['email' => 'user@example.com', 'password' => 'secret']);
 
 if ($result->isOK()) {
     return redirect()->to('/dashboard');
 }
 ```
 
-## 📚 Documentation Sections
+## Documentation Sections
 
-### 🚀 [Quick Start Guide](01-quick-start.md)
-Learn how to install and configure Daycry Auth with minimal setup. Perfect for getting started quickly.
+### [Quick Start Guide](01-quick-start.md)
+Install and configure Daycry Auth in minutes.
 
-### ⚙️ [Configuration](02-configuration.md)
-Comprehensive guide to all configuration options, database customization, and authenticator setup.
+### [Configuration](02-configuration.md)
+Every configuration option explained with examples.
 
-### 🔐 [Authentication](03-authentication.md)
-Complete guide to all available authenticators:
-- Session Authenticator
-- Access Token Authenticator  
-- JWT Authenticator
-- Magic Link Authentication
+### [Authentication](03-authentication.md)
+Session, Access Token, JWT (with refresh), Magic Link, Password Reset, and more.
 
-### 🛡️ [Security Filters](04-filters.md)
-Learn how to protect your routes with authentication and authorization filters:
-- Session filters
-- Group filters
-- Permission filters
-- Custom filter chains
+### [OAuth 2.0 & Social Login](09-oauth.md)
+Google, GitHub, Facebook, Microsoft Azure — and any OIDC provider.
 
-### 🎮 [Controllers](05-controllers.md)
-Master the controller layer with BaseAuthController and custom implementations:
-- Using BaseAuthController
-- Creating custom auth controllers
-- Best practices and patterns
+### [TOTP Two-Factor Authentication](10-totp-2fa.md)
+Time-based OTP with authenticator apps.
 
-### 👥 [Authorization](06-authorization.md)
-Implement fine-grained access control with groups and permissions:
-- User groups management
-- Permission system
-- Authorization filters
-- Role-based access control
+### [Device Sessions](11-device-sessions.md)
+Track and manage active logins across devices.
 
-### 📊 [Logging and Monitoring](07-logging.md)
-Monitor and track authentication activities:
-- Login attempt logging
-- Activity monitoring
-- Security alerts
-- Performance tracking
+### [Security Filters](04-filters.md)
+Protect routes with authentication and authorization filters.
 
-### 🧪 [Testing](08-testing.md)
-Learn how to test your authentication system:
-- Unit testing
-- Integration testing
-- Authentication mocking
-- Test helpers
+### [Controllers](05-controllers.md)
+All included controllers: Login, Register, Password Reset, Force Reset, JWT, UserSecurity.
 
-### 🧪 [Advanced Testing](09-testing.md)
-Deep dive into comprehensive testing strategies:
-- Performance testing
-- Security testing
-- CI/CD integration
-- Test automation
+### [Authorization](06-authorization.md)
+Groups, permissions, permission cache, and RBAC patterns.
 
-## 🔗 Additional Resources
+### [Logging & Monitoring](07-logging.md)
+CI4 Events, database logs, per-user lockout, and rate limiting.
 
-- **GitHub Repository**: [daycry/auth](https://github.com/daycry/auth)
-- **CodeIgniter 4 Documentation**: [Official Docs](https://codeigniter4.github.io/)
-- **Packagist Package**: [daycry/auth](https://packagist.org/packages/daycry/auth)
+### [Testing](08-testing.md)
+Unit and integration testing with authentication mocking.
 
-## 🆘 Need Help?
+## Additional Resources
 
-- Check our comprehensive documentation
-- Review the [FAQ section](README.md#-documentation-status)
-- Submit issues on [GitHub](https://github.com/daycry/auth/issues)
-- Join the CodeIgniter community discussions
-
----
-
-> 💡 **Tip**: Use the table of contents above to navigate to specific sections, or start with the Quick Start Guide if you're new to Daycry Auth.
+- **GitHub**: [daycry/auth](https://github.com/daycry/auth)
+- **CodeIgniter 4 Docs**: [codeigniter4.github.io](https://codeigniter4.github.io/)
+- **Packagist**: [packagist.org/packages/daycry/auth](https://packagist.org/packages/daycry/auth)
+- **Issues**: [github.com/daycry/auth/issues](https://github.com/daycry/auth/issues)

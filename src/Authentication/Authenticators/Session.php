@@ -16,6 +16,7 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Config\Services;
@@ -30,6 +31,7 @@ use Daycry\Auth\Exceptions\SecurityException;
 use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -171,11 +173,44 @@ class Session extends Base implements AuthenticatorInterface
             ]);
         }
 
+        // Check per-user lockout (independent of IP-based blocking)
+        $maxAttempts = (int) setting('Auth.userMaxAttempts');
+
+        if ($maxAttempts > 0 && $user->locked_until !== null) {
+            $lockedUntil = Time::parse((string) $user->locked_until);
+
+            if ($lockedUntil->isAfter(Time::now())) {
+                $minutesLeft = (int) ceil(Time::now()->difference($lockedUntil)->getMinutes());
+
+                return new Result([
+                    'success' => false,
+                    'reason'  => lang('Auth.userLockedOut', [$minutesLeft]),
+                ]);
+            }
+
+            // Lockout has expired — reset counter automatically
+            $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
+        }
+
         /** @var Passwords $passwords */
         $passwords = service('passwords');
 
         // Now, try matching the passwords.
         if (! $passwords->verify($givenPassword, $user->password_hash)) {
+            // Increment the per-user failed login counter
+            if ($maxAttempts > 0) {
+                $count = ((int) ($user->failed_login_count ?? 0)) + 1;
+                $data  = ['failed_login_count' => $count];
+
+                if ($count >= $maxAttempts) {
+                    $data['locked_until'] = Time::now()
+                        ->addSeconds((int) setting('Auth.userLockoutTime'))
+                        ->format('Y-m-d H:i:s');
+                }
+
+                $this->provider->update($user->id, $data);
+            }
+
             return new Result([
                 'success' => false,
                 'reason'  => lang('Auth.invalidPassword'),
@@ -239,7 +274,7 @@ class Session extends Base implements AuthenticatorInterface
             throw new LogicException('Cannot get the User.');
         }
 
-        if ($token === '' || $token === '0' || $token !== $identity->secret) {
+        if ($token === '' || $token === '0' || ! hash_equals((string) $identity->secret, $token)) {
             return false;
         }
 
@@ -306,6 +341,13 @@ class Session extends Base implements AuthenticatorInterface
     {
         $this->user = $user;
 
+        // Reset per-user failed login counter on successful login
+        if ((int) setting('Auth.userMaxAttempts') > 0
+            && ((int) ($user->failed_login_count ?? 0) > 0 || $user->locked_until !== null)
+        ) {
+            $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
+        }
+
         if ($actions) {
             // Update the user's last used date on their password identity.
             $identity = $user->getEmailIdentity();
@@ -363,6 +405,16 @@ class Session extends Base implements AuthenticatorInterface
 
         if ($this->user === null) {
             return;
+        }
+
+        // Terminate the device session record if tracking is enabled
+        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+            $sessionId = session_id();
+            if ($sessionId !== '' && $sessionId !== false) {
+                /** @var DeviceSessionModel $deviceSessionModel */
+                $deviceSessionModel = model(DeviceSessionModel::class);
+                $deviceSessionModel->terminateSession($sessionId);
+            }
         }
 
         // Destroy the session data - but ensure a session is still
@@ -721,11 +773,40 @@ class Session extends Base implements AuthenticatorInterface
         // Let the session know we're logged in
         $this->setSessionKey('id', $user->id);
 
+        // Track the device session if enabled
+        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+            $this->recordDeviceSession($user);
+        }
+
         /** @var Response $response */
         $response = service('response');
 
         // When logged in, ensure cache control headers are in place
         $response->noCache();
+    }
+
+    /**
+     * Creates a device session record for the given user.
+     */
+    private function recordDeviceSession(User $user): void
+    {
+        $sessionId = session_id();
+
+        // No active session (e.g. testing environment without a real session)
+        if ($sessionId === '' || $sessionId === false) {
+            return;
+        }
+
+        /** @var DeviceSessionModel $deviceSessionModel */
+        $deviceSessionModel = model(DeviceSessionModel::class);
+
+        $ipAddress = $this->request->getIPAddress();
+
+        /** @var IncomingRequest $incomingRequest */
+        $incomingRequest = service('request');
+        $userAgent       = (string) $incomingRequest->getUserAgent();
+
+        $deviceSessionModel->createSession($user, $sessionId, $ipAddress, $userAgent !== '' ? $userAgent : null);
     }
 
     /**

@@ -18,8 +18,18 @@ use CodeIgniter\HTTP\Exceptions\HTTPException;
 
 class AuthenticationException extends RuntimeException
 {
-    public static $authorized = true;
-    protected $code           = 403;
+    /**
+     * Whether the request was authorised (i.e. credentials were structurally
+     * valid).  Set to false only when a specific user was rejected.
+     * Stored as an instance property to avoid the race condition that a
+     * static property would introduce in concurrent requests.
+     */
+    public bool $authorized = true;
+
+    /**
+     * HTTP 401 Unauthorized — the request lacks valid authentication credentials.
+     */
+    protected $code = 401;
 
     /**
      * @param string $alias Authenticator alias
@@ -41,16 +51,18 @@ class AuthenticationException extends RuntimeException
 
     public static function forInvalidUser(): self
     {
-        self::$authorized = false;
+        $e             = new self(lang('Auth.invalidUser'));
+        $e->authorized = false;
 
-        return new self(lang('Auth.invalidUser'));
+        return $e;
     }
 
     public static function forBannedUser(): self
     {
-        self::$authorized = false;
+        $e             = new self(lang('Auth.invalidUser'));
+        $e->authorized = false;
 
-        return new self(lang('Auth.invalidUser'));
+        return $e;
     }
 
     public static function forNoEntityProvided(): self

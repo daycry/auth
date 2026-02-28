@@ -45,7 +45,7 @@ class PermissionGroupModel extends BaseModel
     /**
      * Returns all permissions groups.
      *
-     * @return list<UserGroup>
+     * @return list<PermissionGroup>|null
      */
     public function getForGroup(Group $group): ?array
     {

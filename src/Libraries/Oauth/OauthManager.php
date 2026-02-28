@@ -23,9 +23,14 @@ use Daycry\Auth\Models\UserIdentityModel;
 use League\OAuth2\Client\Grant\RefreshToken;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
+use League\OAuth2\Client\Provider\Facebook;
 use League\OAuth2\Client\Provider\GenericProvider;
+use League\OAuth2\Client\Provider\Github;
+use League\OAuth2\Client\Provider\Google;
+use League\OAuth2\Client\Provider\ResourceOwnerInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use TheNetworg\OAuth2\Client\Provider\Azure;
+use TheNetworg\OAuth2\Client\Provider\AzureResourceOwner;
 
 class OauthManager
 {
@@ -33,13 +38,26 @@ class OauthManager
     protected AbstractProvider $provider;
     protected string $providerName;
 
+    /**
+     * Map of provider alias → FQCN for well-known providers.
+     * Any provider not listed here falls back to GenericProvider.
+     *
+     * @var array<string, class-string<AbstractProvider>>
+     */
+    protected array $providerMap = [
+        'azure'    => Azure::class,
+        'google'   => Google::class,
+        'facebook' => Facebook::class,
+        'github'   => Github::class,
+    ];
+
     public function __construct(AuthConfig $config)
     {
         $this->config = $config;
     }
 
     /**
-     * Set the provider instance directly (testing)
+     * Set the provider instance directly (testing).
      */
     public function setProviderInstance(AbstractProvider $provider, string $name = 'test'): self
     {
@@ -49,6 +67,9 @@ class OauthManager
         return $this;
     }
 
+    /**
+     * Resolve and instantiate the OAuth provider for the given alias.
+     */
     public function setProvider(string $providerName): self
     {
         if (! isset($this->config->providers[$providerName])) {
@@ -56,22 +77,24 @@ class OauthManager
         }
 
         $this->providerName = $providerName;
-        $config             = $this->config->providers[$providerName];
+        $providerConfig     = $this->config->providers[$providerName];
 
-        if ($providerName === 'azure') {
-            if (! empty($config['tenant'])) {
-                $config['urlAuthorize']   = 'https://login.microsoftonline.com/' . $config['tenant'] . '/oauth2/v2.0/authorize';
-                $config['urlAccessToken'] = 'https://login.microsoftonline.com/' . $config['tenant'] . '/oauth2/v2.0/token';
-            }
-            $this->provider = new Azure($config);
-        } else {
-            // Default to GenericProvider or other specific ones
-            $this->provider = new GenericProvider($config);
+        // Azure needs tenant-specific URLs when a tenant is given
+        if ($providerName === 'azure' && ! empty($providerConfig['tenant'])) {
+            $tenant                           = $providerConfig['tenant'];
+            $providerConfig['urlAuthorize']   = 'https://login.microsoftonline.com/' . $tenant . '/oauth2/v2.0/authorize';
+            $providerConfig['urlAccessToken'] = 'https://login.microsoftonline.com/' . $tenant . '/oauth2/v2.0/token';
         }
+
+        $class          = $this->providerMap[$providerName] ?? GenericProvider::class;
+        $this->provider = new $class($providerConfig);
 
         return $this;
     }
 
+    /**
+     * Refresh the stored access token for a user via the refresh-token grant.
+     */
     public function refreshAccessToken(User $user): ?AccessTokenInterface
     {
         if (! isset($this->provider)) {
@@ -83,7 +106,6 @@ class OauthManager
 
         $type = 'oauth_' . $this->providerName;
 
-        // Find identity for this user and provider
         /** @var UserIdentity|null $identity */
         $identity = $identityModel->where('user_id', $user->id)
             ->where('type', $type)
@@ -97,8 +119,8 @@ class OauthManager
             $grant = new RefreshToken();
             $token = $this->provider->getAccessToken($grant, ['refresh_token' => $identity->extra]);
 
-            // Update identity
             $identity->secret2 = $token->getToken();
+
             if ($token->getRefreshToken()) {
                 $identity->extra = $token->getRefreshToken();
             }
@@ -110,12 +132,14 @@ class OauthManager
             $identityModel->save($identity);
 
             return $token;
-        } catch (IdentityProviderException $e) {
-            // Handle error (e.g. refresh token expired or revoked)
+        } catch (IdentityProviderException) {
             return null;
         }
     }
 
+    /**
+     * Redirect the user to the OAuth provider's authorization page.
+     */
     public function redirect(): RedirectResponse
     {
         $authorizationUrl = $this->provider->getAuthorizationUrl();
@@ -124,6 +148,9 @@ class OauthManager
         return redirect()->to($authorizationUrl);
     }
 
+    /**
+     * Handle the authorization callback from the OAuth provider.
+     */
     public function handleCallback(string $code, string $state): User
     {
         $sessionState = session()->get('oauth2state');
@@ -137,12 +164,7 @@ class OauthManager
         session()->remove('oauth2state');
 
         try {
-            // Try to get an access token (using the authorization code grant)
-            $token = $this->provider->getAccessToken('authorization_code', [
-                'code' => $code,
-            ]);
-
-            // Optional: Now you have a token you can look up a users profile data
+            $token       = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
             $userProfile = $this->provider->getResourceOwner($token);
 
             return $this->processUser($userProfile, $token);
@@ -151,32 +173,65 @@ class OauthManager
         }
     }
 
-    protected function processUser($userProfile, $token): User
+    /**
+     * Extract normalised email, name, and social ID from a resource owner.
+     *
+     * Each League provider exposes data differently:
+     *   - Google / Facebook / GitHub : getEmail(), getName()
+     *   - Azure                      : claim('email') / claim('unique_name')
+     *   - GenericProvider & others   : toArray() fallback
+     *
+     * @return array{id: string, email: string|null, name: string|null}
+     */
+    protected function extractUserData(ResourceOwnerInterface $resourceOwner): array
+    {
+        $id    = (string) $resourceOwner->getId();
+        $email = null;
+        $name  = null;
+
+        if ($this->providerName === 'azure') {
+            // Azure resource-owner uses claim() for user attributes
+            /** @var AzureResourceOwner $resourceOwner */
+            $email = $resourceOwner->claim('email') ?: $resourceOwner->claim('unique_name');
+            $name  = $resourceOwner->claim('name');
+        } else {
+            // Standard League providers implement getEmail() / getName()
+            if (method_exists($resourceOwner, 'getEmail')) {
+                $email = $resourceOwner->getEmail();
+            }
+
+            if (method_exists($resourceOwner, 'getName')) {
+                $name = $resourceOwner->getName();
+            }
+
+            // toArray() fallback for GenericProvider or providers without typed methods
+            if ($email === null || $name === null) {
+                $data = $resourceOwner->toArray();
+                $email ??= $data['email'] ?? null;
+                $name ??= $data['name'] ?? $data['login'] ?? null;
+            }
+        }
+
+        return ['id' => $id, 'email' => $email, 'name' => $name];
+    }
+
+    /**
+     * Find or create a local user and OAuth identity for the resource owner.
+     */
+    protected function processUser(ResourceOwnerInterface $userProfile, AccessTokenInterface $token): User
     {
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
 
-        // Normalize data based on provider
-        $email    = null;
-        $name     = null;
-        $socialId = $userProfile->getId();
-
-        if ($this->providerName === 'azure') {
-            $email = $userProfile->claim('email') ?: $userProfile->claim('unique_name');
-            $name  = $userProfile->claim('name');
-        } else {
-            // Standard OIDC/OAuth claims
-            $data  = $userProfile->toArray();
-            $email = $data['email'] ?? null;
-            $name  = $data['name'] ?? null;
-        }
+        $data     = $this->extractUserData($userProfile);
+        $socialId = $data['id'];
+        $email    = $data['email'];
+        $name     = $data['name'];
 
         if (empty($email)) {
             throw new AuthenticationException(lang('Auth.emailNotFoundInOauth'));
         }
 
-        // Check if identity exists
-        // We use 'oauth_{provider}' as type
         $type     = 'oauth_' . $this->providerName;
         $identity = $identityModel->where('type', $type)
             ->where('secret', $socialId)
@@ -188,35 +243,32 @@ class OauthManager
             /** @var UserIdentity $identity */
             $user = $identity->user();
         } else {
-            // Check if user with email exists to link
             $provider = auth()->getProvider();
             $user     = $provider->findByCredentials(['email' => $email]);
 
             if (! $user instanceof User) {
-                // Create new user
-                $user = new User([
-                    'username' => explode('@', $email)[0] . '_' . bin2hex(random_bytes(3)), // Generate a username
+                $username = explode('@', $email)[0] . '_' . bin2hex(random_bytes(3));
+                $user     = new User([
+                    'username' => $username,
                     'active'   => true,
                 ]);
                 $provider->save($user);
                 $user = $provider->findById($provider->getInsertID());
 
-                // Add to default group
                 $provider->addToDefaultGroup($user);
             }
 
-            // Create identity
             $identityModel->insert([
                 'user_id' => $user->id,
                 'type'    => $type,
-                'secret'  => $socialId, // Social ID
-                'secret2' => $token->getToken(), // Access Token (optional to store)
-                'extra'   => $token->getRefreshToken(), // Refresh Token (optional)
+                'name'    => $name ?? $email,
+                'secret'  => $socialId,
+                'secret2' => $token->getToken(),
+                'extra'   => $token->getRefreshToken(),
                 'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
             ]);
         }
 
-        // Login the user
         auth()->login($user);
 
         return $user;

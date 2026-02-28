@@ -1,86 +1,70 @@
-# 🔐 Authentication - Complete Guide
+# 🔐 Authentication — Complete Guide
 
-Daycry Auth supports multiple authentication methods. This guide explains how to use each one.
+Daycry Auth supports multiple authentication methods. This guide explains how to use each one, including all security features added in recent versions.
 
 ## 📋 Index
 
-- [🖥️ Session Authenticator](#️-session-authenticator)
-- [🔑 Access Token Authenticator](#-access-token-authenticator)
-- [🏷️ JWT Authenticator](#️-jwt-authenticator)
-- [✨ Magic Link Authentication](#-magic-link-authentication)
-- [👤 Guest Authenticator](#-guest-authenticator)
-- [🛠️ Custom Authenticators & DI](#️-custom-authenticators--di)
-- [⚙️ Authenticator Configuration](#️-authenticator-configuration)
+- [Session Authenticator](#session-authenticator)
+- [Per-User Account Lockout](#per-user-account-lockout)
+- [Access Token Authenticator](#access-token-authenticator)
+- [JWT Authenticator](#jwt-authenticator)
+- [JWT Refresh Tokens](#jwt-refresh-tokens)
+- [Magic Link Authentication](#magic-link-authentication)
+- [Guest Authenticator](#guest-authenticator)
+- [Password Reset](#password-reset)
+- [Force Password Reset](#force-password-reset)
+- [Pre-Authentication Events](#pre-authentication-events)
+- [Switching Between Authenticators](#switching-between-authenticators)
+- [Custom Authenticators](#custom-authenticators)
 
-## 🖥️ Session Authenticator
+---
 
-**Ideal use**: Traditional web applications with server sessions.
+## Session Authenticator
 
-### Basic Configuration
+**Best for**: Traditional web applications using server-side sessions.
+
+### Basic Usage
 
 ```php
-// app/Config/Auth.php
-public array $authenticators = [
-    'default' => Session::class,
-    'session' => Session::class,
+// Login attempt
+$credentials = [
+    'email'    => $this->request->getPost('email'),
+    'password' => $this->request->getPost('password'),
 ];
-```
 
-### Usage in Controllers
+$result = auth('session')->attempt($credentials);
 
-```php
-<?php
-
-namespace App\Controllers;
-
-use Daycry\Auth\Controllers\BaseAuthController;
-
-class AuthController extends BaseAuthController
-{
-    public function login()
-    {
-        $credentials = [
-            'email' => $this->request->getPost('email'),
-            'password' => $this->request->getPost('password')
-        ];
-
-        $authenticator = auth('session')->getAuthenticator();
-        $result = $authenticator->attempt($credentials);
-
-        if ($result->isOK()) {
-            return redirect()->to('/dashboard');
-        }
-
-        return redirect()->back()->with('error', $result->reason());
-    }
-
-    public function logout()
-    {
-        auth('session')->logout();
-        return redirect()->to('/');
-    }
+if ($result->isOK()) {
+    return redirect()->to('/dashboard');
 }
+
+return redirect()->back()->with('error', $result->reason());
 ```
 
 ### Helper Functions
 
 ```php
 // Check if authenticated
-if (auth()->loggedIn()) {
-    // User authenticated
-}
+if (auth()->loggedIn()) { ... }
 
 // Get current user
 $user = auth()->user();
 
-// Programmatic login
+// Programmatic login (skip credential check)
 auth()->login($user);
+auth()->login($user, remember: true); // With "remember me"
+
+// Login by user ID
+auth()->loginById(42);
+
+// Check credentials without logging in
+$result = auth()->check($credentials);
+if ($result->isOK()) {
+    $user = $result->extraInfo(); // The matched User object
+}
 
 // Logout
 auth()->logout();
-
-// Check credentials without login
-$result = auth()->check($credentials);
 ```
 
 ### Session Configuration
@@ -88,477 +72,499 @@ $result = auth()->check($credentials);
 ```php
 // app/Config/Auth.php
 public array $sessionConfig = [
-    'field'              => 'user',           // Session field
-    'allowRemembering'   => true,            // Allow "remember me"
-    'rememberCookieName' => 'remember',      // Cookie name
-    'rememberLength'     => 30 * DAY,        // "Remember me" duration
+    'field'               => 'user',       // Key stored in $_SESSION
+    'allowRemembering'    => true,         // Enable "remember me" cookie
+    'rememberCookieName'  => 'remember',
+    'rememberLength'      => 30 * DAY,
+    'trackDeviceSessions' => false,        // See Device Sessions guide
 ];
 ```
 
-## 🔑 Access Token Authenticator
+### Remember Me
 
-**Ideal use**: APIs, mobile applications, third-party integrations.
+When a user logs in with `remember: true`, a long-lived cookie is set. On future visits, even after the session expires, the user is automatically recognized and logged back in.
+
+```php
+$remember = (bool) $this->request->getPost('remember');
+auth()->attempt($credentials, $remember);
+```
+
+---
+
+## Per-User Account Lockout
+
+After a configurable number of failed password attempts, the user's account is temporarily locked. This is independent of IP-based blocking.
 
 ### Configuration
 
 ```php
 // app/Config/Auth.php
-public array $authenticators = [
-    'tokens' => AccessToken::class,
-];
+public int $userMaxAttempts = 5;     // Attempts before lockout (0 = disabled)
+public int $userLockoutTime  = 3600; // Lockout duration in seconds
+```
 
-public array $accessTokens = [
-    'lifetime'       => YEAR,           // Token duration
-    'unusedLifetime' => 20 * MINUTE,    // Unused time before expiry
+### How It Works
+
+1. Wrong password → `failed_login_count` increments
+2. Reaches `userMaxAttempts` → `locked_until` is set on the user record
+3. Any further login attempt before `locked_until` → error with minutes remaining
+4. Lockout expires → counter resets automatically on next attempt
+5. Successful login → counter always resets to 0
+
+### Unlocking Manually (Admin)
+
+```php
+model(\Daycry\Auth\Models\UserModel::class)->update($userId, [
+    'failed_login_count' => 0,
+    'locked_until'       => null,
+]);
+```
+
+---
+
+## Access Token Authenticator
+
+**Best for**: REST APIs, mobile apps, machine-to-machine integrations.
+
+### Enable Access Tokens
+
+```php
+// app/Config/Auth.php
+public bool $accessTokenEnabled = true;
+
+// Unused token lifetime
+public int $unusedAccessTokenLifetime = YEAR;
+
+// Header name
+public array $authenticatorHeader = [
+    'access_token' => 'X-API-KEY',
 ];
 ```
 
-### Generate Access Tokens
+### Generate a Token
 
 ```php
-<?php
+// Typically done in a login controller after verifying credentials
+$token = auth()->user()->generateAccessToken('mobile-app');
 
-namespace App\Controllers\API;
-
-use App\Controllers\BaseController;
-
-class AuthAPIController extends BaseController
-{
-    public function login()
-    {
-        $credentials = $this->request->getJSON(true);
-        
-        $result = auth('tokens')->attempt($credentials);
-        
-        if (!$result->isOK()) {
-            return $this->response->setJSON([
-                'error' => $result->reason()
-            ])->setStatusCode(401);
-        }
-
-        $user = auth('tokens')->user();
-        $token = $user->generateAccessToken('api');
-
-        return $this->response->setJSON([
-            'token' => $token->raw_token,
-            'user' => $user,
-            'expires' => $token->expires
-        ]);
-    }
-}
+return $this->response->setJSON([
+    'token'      => $token->raw_token, // Return the raw token ONCE — it's never stored in plaintext
+    'token_type' => 'Bearer',
+]);
 ```
 
-### Use Access Tokens
+### Use the Token in Requests
 
-```php
-// In request header
-Authorization: Bearer your_token_here
-
-// In query string
-GET /api/users?token=your_token_here
-
-// In body (POST)
-{
-    "token": "your_token_here",
-    "data": {...}
-}
+```http
+GET /api/users HTTP/1.1
+X-API-KEY: your_raw_token_here
 ```
 
-### Filters for Access Tokens
+Or via query string:
+
+```
+GET /api/users?token=your_raw_token_here
+```
+
+### Protect Routes with the Token Filter
 
 ```php
-// app/Config/Filters.php
-public array $filters = [
-    'tokens' => [
-        'before' => ['api/*']
-    ]
-];
+// app/Config/Routes.php
+$routes->group('api', ['filter' => 'tokens'], static function ($routes) {
+    $routes->get('users', 'API\UsersController::index');
+    $routes->get('profile', 'API\ProfileController::show');
+});
 ```
 
 ### Token Management
 
 ```php
-// Generate token with name
-$token = $user->generateAccessToken('mobile-app');
+$user = auth()->user();
 
-// Get all user tokens
+// Generate with name and optional scopes
+$token = $user->generateAccessToken('dashboard', ['posts.read', 'posts.write']);
+
+// List all tokens
 $tokens = $user->accessTokens();
 
-// Revoke specific token
+// Revoke a specific token
 $user->revokeAccessToken($token);
 
-// Revoke all tokens
+// Revoke all tokens (e.g., on password change)
 $user->revokeAllAccessTokens();
 
-// Check if token exists
-if ($user->hasAccessToken('mobile-app')) {
-    // Token exists
-}
+// Check permission scope on the current token
+$currentToken = auth('access_token')->user()->currentAccessToken();
+if ($currentToken->can('posts.write')) { ... }
 ```
 
-## 🏷️ JWT Authenticator
+### Soft Revocation
 
-**Ideal use**: Stateless APIs, microservices, distributed applications.
+Tokens can be soft-revoked (marked with a `revoked_at` timestamp) without being deleted:
+
+```php
+use Daycry\Auth\Models\UserIdentityModel;
+
+model(UserIdentityModel::class)->revokeIdentityById($tokenId);
+```
+
+Soft-revoked tokens are excluded from all lookups automatically.
+
+---
+
+## JWT Authenticator
+
+**Best for**: Stateless APIs, microservices, single-page applications.
 
 ### Configuration
+
+JWT configuration is managed by the `daycry/jwt` library. In `app/Config/Auth.php`:
+
+```php
+use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
+
+public string $jwtAdapter = DaycryJWTAdapter::class;
+```
+
+Configure the JWT library in `app/Config/JWT.php`:
+
+```php
+public string $algorithmUsed    = 'HS256';
+public string $secretKey        = 'your-secret-key'; // Use env('JWT_SECRET') in production
+public string $issuer           = 'your-app';
+public string $audience         = 'your-users';
+public int    $timeToLive       = HOUR;      // Access token TTL
+public int    $allowedClockSkew = 60;        // Tolerance in seconds
+```
+
+### Use the JWT Filter
+
+```php
+// app/Config/Routes.php
+$routes->group('api', ['filter' => 'jwt'], static function ($routes) {
+    $routes->get('profile', 'API\ProfileController::show');
+    $routes->get('posts',   'API\PostsController::index');
+});
+```
+
+### Authorization Header
+
+```http
+GET /api/profile HTTP/1.1
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+```
+
+---
+
+## JWT Refresh Tokens
+
+The built-in `JwtController` provides stateless login with automatic refresh token rotation. Each refresh token is one-time use — a new one is issued with every refresh.
+
+### Register the JWT Routes
+
+```php
+// app/Config/Routes.php
+$routes->post('auth/jwt/login',   'Daycry\Auth\Controllers\JwtController::login',   ['as' => 'jwt-login']);
+$routes->post('auth/jwt/refresh', 'Daycry\Auth\Controllers\JwtController::refresh', ['as' => 'jwt-refresh']);
+$routes->post('auth/jwt/logout',  'Daycry\Auth\Controllers\JwtController::logout',  ['as' => 'jwt-logout']);
+```
+
+Or use the routes from `app/Config/Auth.php`:
+
+```php
+// Already included in the 'jwt' route group
+```
+
+### Configure Refresh Token Lifetime
 
 ```php
 // app/Config/Auth.php
-public array $authenticators = [
-    'jwt' => JWT::class,
-];
-
-public array $jwtConfig = [
-    'adapter'           => DaycryJWTAdapter::class,
-    'algorithmUsed'     => 'HS256',
-    'secretKey'         => 'your-secret-key-here',
-    'issuer'            => 'your-app-name',
-    'audience'          => 'your-app-users',
-    'timeToLive'        => HOUR * 4,    // 4 hours
-    'notBeforeTime'     => 0,           // Immediately valid
-    'allowedClockSkew'  => 60,          // 60 seconds tolerance
-];
+public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity
 ```
 
-### Generate JWT Tokens
+### Login
 
-```php
-<?php
+```http
+POST /auth/jwt/login
+Content-Type: application/x-www-form-urlencoded
 
-namespace App\Controllers\API;
+email=user@example.com&password=secret
+```
 
-use App\Controllers\BaseController;
+**Response:**
 
-class JWTAuthController extends BaseController
+```json
 {
-    public function login()
-    {
-        $credentials = $this->request->getJSON(true);
-        
-        $authenticator = auth('jwt')->getAuthenticator();
-        $result = $authenticator->attempt($credentials);
-        
-        if (!$result->isOK()) {
-            return $this->response->setJSON([
-                'error' => $result->reason()
-            ])->setStatusCode(401);
-        }
-
-        // Token is generated automatically
-        $token = $authenticator->getAccessToken($result->extraInfo());
-
-        return $this->response->setJSON([
-            'access_token' => $token->raw_token,
-            'token_type' => 'Bearer',
-            'expires_in' => $token->expires->getTimestamp() - time(),
-            'user' => auth('jwt')->user()
-        ]);
-    }
-
-    public function refresh()
-    {
-        $authenticator = auth('jwt')->getAuthenticator();
-        $newToken = $authenticator->refresh();
-
-        return $this->response->setJSON([
-            'access_token' => $newToken->raw_token,
-            'expires_in' => $newToken->expires->getTimestamp() - time(),
-        ]);
-    }
+    "access_token":  "eyJ0eXAiOiJKV1Qi...",
+    "refresh_token": "a3f8c2d1e4b7...",
+    "user_id":       42,
+    "token_type":    "Bearer"
 }
 ```
 
-### Use JWT Tokens
+### Refresh an Expired Access Token
 
-```php
-// Authorization Header
-Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+```http
+POST /auth/jwt/refresh
+Content-Type: application/x-www-form-urlencoded
 
-// Verify token in filters
-public array $filters = [
-    'jwt' => [
-        'before' => ['api/*']
-    ]
-];
+user_id=42&refresh_token=a3f8c2d1e4b7...
 ```
 
-### Custom Payload
+**Response:**
 
-```php
-// Add custom claims to JWT
-$authenticator = auth('jwt')->getAuthenticator();
-$customClaims = [
-    'role' => $user->role,
-    'permissions' => $user->getPermissions()
-];
-
-$token = $authenticator->generateToken($user, $customClaims);
+```json
+{
+    "access_token":  "eyJ0eXAiOiJKV1Qi...",
+    "refresh_token": "newrefreshtoken...",
+    "user_id":       42,
+    "token_type":    "Bearer"
+}
 ```
 
-## ✨ Magic Link Authentication
+> The old refresh token is immediately revoked. Store the new one.
 
-**Ideal use**: Passwordless authentication, user onboarding.
+### Logout (Revoke Refresh Token)
 
-### Configuration
+```http
+POST /auth/jwt/logout
+Content-Type: application/x-www-form-urlencoded
+
+user_id=42&refresh_token=a3f8c2d1e4b7...
+```
+
+### Client-Side Flow (JavaScript example)
+
+```javascript
+// On 401: try refreshing before giving up
+async function apiFetch(url, options = {}) {
+    let response = await fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+    });
+
+    if (response.status === 401) {
+        // Try to refresh
+        const refreshResponse = await fetch('/auth/jwt/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                user_id:       localStorage.getItem('user_id'),
+                refresh_token: localStorage.getItem('refresh_token'),
+            }),
+        });
+
+        if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            localStorage.setItem('access_token',  data.access_token);
+            localStorage.setItem('refresh_token', data.refresh_token);
+
+            // Retry original request with new token
+            response = await apiFetch(url, options);
+        } else {
+            // Redirect to login
+            window.location.href = '/login';
+        }
+    }
+
+    return response;
+}
+```
+
+---
+
+## Magic Link Authentication
+
+**Best for**: Passwordless login, reducing friction for new users.
+
+### Enable Magic Links
 
 ```php
 // app/Config/Auth.php
 public bool $allowMagicLinkLogins = true;
-public int $magicLinkLifetime = 3600; // 1 hour
-
-public array $views = [
-    'magic-link-login'   => '\Daycry\Auth\Views\magic_link_form',
-    'magic-link-message' => '\Daycry\Auth\Views\magic_link_message',
-    'magic-link-email'   => '\Daycry\Auth\Views\magic_link_email',
-];
-```
-
-### Magic Link Controller
-
-```php
-<?php
-
-namespace App\Controllers;
-
-use Daycry\Auth\Controllers\MagicLinkController as BaseMagicLinkController;
-
-class MagicLinkController extends BaseMagicLinkController
-{
-    // Already implemented in base controller
-    // You can customize if needed
-}
-```
-
-### Routes
-
-```php
-// app/Config/Routes.php
-$routes->get('magic-link', 'MagicLinkController::loginView');
-$routes->post('magic-link', 'MagicLinkController::loginAction');
-$routes->get('auth/magic-link/verify/(:any)', 'MagicLinkController::verify/$1');
+public int  $magicLinkLifetime    = HOUR;
 ```
 
 ### Complete Flow
 
-1. **User requests magic link**:
-   ```php
-   // POST /magic-link
-   {
-       "email": "user@example.com"
-   }
-   ```
+1. User enters email on `/login/magic-link`
+2. System generates a one-time token and emails a link
+3. User clicks the link within 1 hour
+4. Token is verified → session created → user redirected
 
-2. **System sends email with link**:
-   ```html
-   <a href="https://your-app.com/auth/magic-link/verify/abc123token">
-       Access your account
-   </a>
-   ```
-
-3. **User clicks and authenticates automatically**
-
-### Customize Magic Link Email
+### Routes
 
 ```php
-// app/Views/magic_link_email.php
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Access your account</title>
-</head>
-<body>
-    <h1>Hello!</h1>
-    <p>You requested access to your account. Click the following link:</p>
-    
-    <a href="<?= site_url('auth/magic-link/verify/' . $token) ?>" 
-       style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none;">
-        Access now
-    </a>
-    
-    <p><strong>This link expires in 1 hour.</strong></p>
-    
-    <p>If you didn't request this access, ignore this email.</p>
-</body>
-</html>
+$routes->get('login/magic-link',        'MagicLinkController::loginView',  ['as' => 'magic-link']);
+$routes->post('login/magic-link',       'MagicLinkController::loginAction');
+$routes->get('login/verify-magic-link', 'MagicLinkController::verify',     ['as' => 'verify-magic-link']);
 ```
 
-## 👤 Guest Authenticator
+---
 
-**Ideal use**: Allow limited access to unauthenticated users.
+## Guest Authenticator
+
+**Best for**: Routes that work for both authenticated users and anonymous visitors.
+
+```php
+// Returns null if not logged in — never fails or redirects
+$user = auth('guest')->user();
+
+if ($user !== null) {
+    echo "Hello, {$user->email}!";
+} else {
+    echo "Hello, guest!";
+}
+```
+
+---
+
+## Password Reset
+
+Users who have forgotten their password can request a reset link by email.
+
+### How It Works
+
+1. User visits `/password-reset` and enters their email
+2. If the email matches an account, a secure token is emailed
+3. User clicks the link → sees a "Set new password" form
+4. On success, `Events::trigger('passwordReset', $user)` fires
+
+### Routes (already in Config/Auth.php)
+
+```php
+// GET  /password-reset          → requestView()
+// POST /password-reset          → requestAction()
+// GET  /password-reset/message  → messageView()
+// GET  /password-reset/{token}  → resetView()
+// POST /password-reset/{token}  → resetAction()
+```
 
 ### Configuration
 
 ```php
 // app/Config/Auth.php
-public array $authenticators = [
-    'guest' => Guest::class,
-];
+public int $passwordResetLifetime = HOUR; // Token validity
 ```
 
-### Usage
+### Listen for Reset Completion
 
 ```php
-// Always allows access but with null user
-$user = auth('guest')->user(); // null
-
-// Useful for filters that need to be flexible
-public function handle($request, $response, $arguments)
-{
-    $user = auth('guest')->user();
-    
-    if ($user === null) {
-        // Guest user - limited access
-        return $this->handleGuestAccess($request);
-    }
-    
-    // Authenticated user - full access
-    return $this->handleAuthenticatedAccess($request);
-}
+// app/Config/Events.php
+Events::on('passwordReset', static function (object $user): void {
+    // Revoke all access tokens for security
+    $user->revokeAllAccessTokens();
+    log_message('notice', "Password reset for {$user->email}");
+});
 ```
 
-## ⚙️ Authenticator Configuration
+---
 
-### Multiple Authenticators
+## Force Password Reset
+
+Administrators can flag user accounts to require a password change on next login.
+
+### Flag a User for Password Reset
+
+```php
+// Force a specific user to reset their password
+$user = model(\Daycry\Auth\Models\UserModel::class)->find($userId);
+
+model(\Daycry\Auth\Models\UserIdentityModel::class)
+    ->forceMultiplePasswordReset([$userId]);
+
+// Force ALL users (e.g., after a security breach)
+model(\Daycry\Auth\Models\UserIdentityModel::class)
+    ->forceGlobalPasswordReset();
+```
+
+### How It Works
+
+Once flagged, the `ForcePasswordResetFilter` intercepts any request from that user and redirects them to `/force-reset`. After a successful password change, the flag is cleared and they proceed normally.
+
+### Apply the Filter
+
+```php
+// app/Config/Filters.php
+public array $aliases = [
+    'force-reset' => \Daycry\Auth\Filters\ForcePasswordResetFilter::class,
+];
+
+// app/Config/Routes.php — apply to all authenticated routes
+$routes->group('dashboard', ['filter' => 'session,force-reset'], static function ($routes) {
+    $routes->get('/', 'Dashboard::index');
+});
+```
+
+---
+
+## Pre-Authentication Events
+
+Two events fire **before** any database check occurs, letting you inspect or log the incoming data:
+
+```php
+// app/Config/Events.php
+use CodeIgniter\Events\Events;
+
+// Fires before credentials are checked during login
+Events::on('pre-login', static function (array $credentials): void {
+    log_message('debug', 'Login attempt: ' . ($credentials['email'] ?? '?'));
+});
+
+// Fires before registration is processed
+Events::on('pre-register', static function (array $postData): void {
+    log_message('debug', 'Registration attempt: ' . ($postData['email'] ?? '?'));
+});
+```
+
+See [Logging & Monitoring](07-logging.md) for more event examples.
+
+---
+
+## Switching Between Authenticators
+
+### Multiple Authenticators in One App
+
+```php
+// Web users use sessions
+$routes->group('dashboard', ['filter' => 'session'], ...);
+
+// API clients use JWT
+$routes->group('api', ['filter' => 'jwt'], ...);
+
+// Try all methods in order (chain filter)
+$routes->group('flexible', ['filter' => 'chain'], ...);
+```
+
+### Chain Authenticator
+
+The `chain` filter tries authenticators in order (configured in `$authenticationChain`) and stops at the first successful one:
 
 ```php
 // app/Config/Auth.php
-public array $authenticators = [
-    'default' => Session::class,
-    'session' => Session::class,
-    'tokens'  => AccessToken::class,
-    'jwt'     => JWT::class,
-    'guest'   => Guest::class,
-];
-
-// Use different authenticators
-$sessionUser = auth('session')->user();
-$tokenUser = auth('tokens')->user();
-$jwtUser = auth('jwt')->user();
+public array $authenticationChain = ['session', 'access_token', 'jwt'];
 ```
 
-### Default Authenticator
+### Runtime Detection
 
 ```php
-// Without specifying uses 'default'
-$user = auth()->user();
-
-// Equivalent to:
-$user = auth('default')->user();
-```
-
-### Environment Configuration
-
-```php
-// app/Config/Auth.php
-public function __construct()
-{
-    parent::__construct();
-    
-    if (ENVIRONMENT === 'production') {
-        $this->jwtConfig['secretKey'] = $_ENV['JWT_SECRET'];
-        $this->accessTokens['lifetime'] = HOUR * 2; // Shorter tokens in production
-    }
-}
-```
-
-## 🔄 Switching Between Authenticators
-
-### At Runtime
-
-```php
-// Switch authenticator dynamically
 if ($this->request->hasHeader('Authorization')) {
-    // Use JWT for API
     $user = auth('jwt')->user();
+} elseif ($this->request->hasHeader('X-API-KEY')) {
+    $user = auth('access_token')->user();
 } else {
-    // Use session for web
     $user = auth('session')->user();
 }
 ```
 
-### In Filters
+---
 
-```php
-<?php
+## Custom Authenticators
 
-namespace App\Filters;
-
-use CodeIgniter\HTTP\RequestInterface;
-use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\Filters\FilterInterface;
-
-class FlexibleAuthFilter implements FilterInterface
-{
-    public function before(RequestInterface $request, $arguments = null)
-    {
-        // Detect authentication type
-        if ($request->hasHeader('Authorization')) {
-            $authenticator = 'jwt';
-        } elseif ($request->hasHeader('X-API-Token')) {
-            $authenticator = 'tokens';
-        } else {
-            $authenticator = 'session';
-        }
-
-        if (!auth($authenticator)->loggedIn()) {
-            return redirect()->to('/login');
-        }
-    }
-
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
-    {
-        // Post-processing if needed
-    }
-}
-```
-
-## 🔐 Security and Best Practices
-
-### 1. JWT Key Rotation
-
-```php
-// Implement key rotation
-public array $jwtConfig = [
-    'secretKey' => [
-        'current' => 'current-secret-key',
-        'previous' => 'previous-secret-key', // To validate old tokens
-    ],
-    'keyRotationInterval' => 30 * DAY,
-];
-```
-
-### 2. Access Token Expiration
-
-```php
-// Configure appropriate expiration
-public array $accessTokens = [
-    'lifetime'       => 8 * HOUR,      // 8-hour tokens
-    'unusedLifetime' => 30 * MINUTE,   // Expire if unused for 30 min
-];
-```
-
-### 3. Rate Limiting
-
-```php
-// Limit authentication attempts
-public array $filters = [
-    'auth-rates' => [
-        'before' => ['auth/*']
-    ]
-];
-```
-
-## 🛠️ Custom Authenticators & Dependency Injection
-
-Version 1.1 introduces a **Factory Method** pattern to instantiate authenticators with full Dependency Injection support. This improves testability and extensibility.
-
-### Creating a Custom Authenticator
-
-To create a new authenticator, implement `Daycry\Auth\Interfaces\AuthenticatorInterface`. We recommend extending `Daycry\Auth\Authentication\Authenticators\Base`.
-
-#### 1. Implementation with `instance()`
-
-The `Authentication` factory checks for a static `instance(UserModel $provider)` method. Use this to inject dependencies.
+Implement `AuthenticatorInterface` and use the `instance()` factory method for dependency injection:
 
 ```php
 <?php
@@ -570,28 +576,11 @@ use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\LoginModel;
-use CodeIgniter\HTTP\Request;
-use App\Libraries\MyCustomService;
 
-class CustomAuthenticator extends Base implements AuthenticatorInterface
+class ApiKeyAuthenticator extends Base implements AuthenticatorInterface
 {
-    public const ID_TYPE_CUSTOM = 'custom_auth';
+    public const ID_TYPE_APIKEY = 'apikey';
 
-    public function __construct(
-        UserModel $provider,
-        Request $request,
-        UserIdentityModel $userIdentityModel,
-        LoginModel $loginModel,
-        protected MyCustomService $myService // Your custom dependency
-    ) {
-        $this->method = self::ID_TYPE_CUSTOM;
-        // Pass core dependencies to Base constructor
-        parent::__construct($provider, $request, $userIdentityModel, $loginModel);
-    }
-
-    /**
-     * Factory Method for instantiation
-     */
     public static function instance(UserModel $provider): static
     {
         return new static(
@@ -599,32 +588,28 @@ class CustomAuthenticator extends Base implements AuthenticatorInterface
             service('request'),
             model(UserIdentityModel::class),
             model(LoginModel::class),
-            new MyCustomService() // Inject your service here
         );
     }
 
-    // ... Implement other abstract methods ...
+    // ... implement abstract methods from Base
 }
 ```
 
-#### 2. Registration
-
-Register your authenticator in `app/Config/Auth.php`:
+Register it:
 
 ```php
+// app/Config/Auth.php
 public array $authenticators = [
-    // ...
-    'custom' => \App\Authentication\Authenticators\CustomAuthenticator::class,
+    // ... existing
+    'apikey' => \App\Authentication\Authenticators\ApiKeyAuthenticator::class,
 ];
 ```
 
-## 🎯 Next Steps
-
-- **[Filters](04-filters.md)**: Protect routes with authentication filters
-- **[Controllers](05-controllers.md)**: Implement custom controllers
-- **[Authorization](06-authorization.md)**: Add permissions and roles
-- **[Configuration](02-configuration.md)**: Customize all options
-
 ---
 
-> 💡 **Tip**: You can combine multiple authenticators in the same application. For example, use sessions for web and JWT for API.
+🔗 **See also**:
+- [Filters](04-filters.md) — Protect routes with authentication filters
+- [Controllers](05-controllers.md) — Password reset and force reset controllers
+- [TOTP 2FA](10-totp-2fa.md) — Time-based one-time passwords
+- [Device Sessions](11-device-sessions.md) — Track active logins
+- [Logging & Monitoring](07-logging.md) — Events and logs

@@ -15,40 +15,27 @@ namespace Daycry\Auth\Filters;
 
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
-use CodeIgniter\HTTP\Response;
-use Daycry\Auth\Config\Auth;
+use CodeIgniter\HTTP\ResponseInterface;
 
 /**
- * Group Authorization Filter.
+ * Permission Authorization Filter.
  */
 class PermissionFilter extends AbstractAuthFilter
 {
     /**
      * Ensures the user is logged in and has one or more
-     * of the specified permissions.
+     * of the permissions specified in the filter.
      */
     protected function isAuthorized(array $arguments): bool
     {
-        // Use the native can() method which accepts multiple permissions via variadic params
         return auth()->user()->can(...$arguments);
     }
 
     /**
-     * If the user does not belong to the group, redirect to the configured URL with an error message.
+     * Redirect to the permission-denied URL (or return 403 JSON) when access is denied.
      */
-    protected function redirectToDeniedUrl(RequestInterface $request): RedirectResponse|Response
+    protected function redirectToDeniedUrl(RequestInterface $request): RedirectResponse|ResponseInterface
     {
-        /** @var Auth $config */
-        $config = config('Auth');
-
-        if ($this->expectsJson($request)) {
-            return service('response')->setStatusCode(
-                401,
-                lang('Auth.notEnoughPrivilege'), // message
-            );
-        }
-
-        return redirect()->to($config->permissionDeniedRedirect())
-            ->with('error', lang('Auth.notEnoughPrivilege'));
+        return $this->buildDeniedResponse($request, config('Auth')->permissionDeniedRedirect());
     }
 }

@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Models;
 
 use CodeIgniter\Database\Exceptions\DataException;
+use CodeIgniter\Database\RawSql;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
@@ -22,6 +23,7 @@ use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Exceptions\ValidationException;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Faker\Generator;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @phpstan-consistent-constructor
@@ -33,16 +35,20 @@ class UserModel extends BaseModel implements UserProviderInterface
     protected $returnType     = User::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
+        'uuid',
         'username',
         'status',
         'status_message',
         'active',
         'last_active',
+        'failed_login_count',
+        'locked_until',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
     protected $deletedField  = 'deleted_at';
+    protected $beforeInsert  = ['generateUuid'];
     protected $afterFind     = ['fetchIdentities'];
     protected $afterInsert   = ['saveEmailIdentity'];
     protected $afterUpdate   = ['saveEmailIdentity'];
@@ -63,6 +69,24 @@ class UserModel extends BaseModel implements UserProviderInterface
         parent::initialize();
 
         $this->table = $this->tables['users'];
+    }
+
+    /**
+     * Generates a UUID v7 for new user records.
+     *
+     * Model event callback called by `beforeInsert`.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
+    protected function generateUuid(array $data): array
+    {
+        if (empty($data['data']['uuid'])) {
+            $data['data']['uuid'] = Uuid::v7()->toRfc4122();
+        }
+
+        return $data;
     }
 
     /**
@@ -187,8 +211,8 @@ class UserModel extends BaseModel implements UserProviderInterface
      * Override the BaseModel's `update()` method.
      * If you pass User object, also updates Email Identity.
      *
-     * @param array|int|string|null $id
-     * @param array|User            $data
+     * @param array|int|list<int|string>|RawSql|string|null $id
+     * @param array|User                                    $data
      *
      * @return true if the update is successful
      *

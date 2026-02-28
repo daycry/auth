@@ -15,6 +15,7 @@ namespace Daycry\Auth\Entities;
 
 use CodeIgniter\Entity\Entity as FrameworkEntity;
 use Daycry\Auth\Entities\Cast\IntBoolCast;
+use Daycry\Auth\Entities\Cast\SerializeCast;
 
 /**
  * Base Entity
@@ -28,6 +29,7 @@ abstract class Entity extends FrameworkEntity
      * @phpstan-var array<string, class-string>
      */
     protected $castHandlers = [
-        'int_bool' => IntBoolCast::class,
+        'int_bool'   => IntBoolCast::class,
+        'serialized' => SerializeCast::class,
     ];
 }

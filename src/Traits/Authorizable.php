@@ -15,6 +15,7 @@ namespace Daycry\Auth\Traits;
 
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
+use Config\Database;
 use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
@@ -29,6 +30,36 @@ trait Authorizable
     protected ?array $permissionsCache = null;
     protected ?array $groups           = null;
     protected ?array $permissions      = null;
+
+    private function groupModel(): GroupModel
+    {
+        /** @var GroupModel */
+        return model(GroupModel::class);
+    }
+
+    private function groupUserModel(): GroupUserModel
+    {
+        /** @var GroupUserModel */
+        return model(GroupUserModel::class);
+    }
+
+    private function permissionModel(): PermissionModel
+    {
+        /** @var PermissionModel */
+        return model(PermissionModel::class);
+    }
+
+    private function permissionUserModel(): PermissionUserModel
+    {
+        /** @var PermissionUserModel */
+        return model(PermissionUserModel::class);
+    }
+
+    private function permissionGroupModel(): PermissionGroupModel
+    {
+        /** @var PermissionGroupModel */
+        return model(PermissionGroupModel::class);
+    }
 
     /**
      * Adds one or more groups to the current User.
@@ -274,22 +305,30 @@ trait Authorizable
                 return false;
             }
 
-            foreach ($this->groupCache as $group) {
-                $group       = model(GroupModel::class)->where('name', $group)->first();
-                $permissions = $this->getGroupPermissions($group);
+            foreach ($this->groupCache as $groupName) {
+                // Look up group ID from the already-populated cache — avoids an N+1 DB query per group
+                $groupId = array_search($groupName, $this->groups, true);
 
-                if (in_array('*', array_column($permissions, 'name'), true)) {
+                if ($groupId === false) {
+                    continue;
+                }
+
+                $group            = new Group(['id' => $groupId, 'name' => $groupName]);
+                $groupPermissions = $this->getGroupPermissions($group);
+                $groupPermNames   = array_column($groupPermissions, 'name');
+
+                if (in_array('*', $groupPermNames, true)) {
                     return true;
                 }
 
                 // Check exact match
-                if (isset($permissions) && in_array($permission, array_column($permissions, 'name'), true)) {
+                if (in_array($permission, $groupPermNames, true)) {
                     return true;
                 }
 
-                // Check wildcard match
+                // Check wildcard match (e.g. 'users.*' covers 'users.edit')
                 $check = substr($permission, 0, strpos($permission, '.')) . '.*';
-                if (isset($permissions) && in_array($check, array_column($permissions, 'name'), true)) {
+                if (in_array($check, $groupPermNames, true)) {
                     return true;
                 }
             }
@@ -320,7 +359,7 @@ trait Authorizable
      */
     private function getAllUserGroups(): array
     {
-        $userGroupModel = model(GroupUserModel::class);
+        $userGroupModel = $this->groupUserModel();
         $userGroups     = $userGroupModel->getForUser($this);
 
         $ids = [];
@@ -329,7 +368,7 @@ trait Authorizable
             $ids[] = $userGroup->group_id;
         }
 
-        $groupModel = model(GroupModel::class);
+        $groupModel = $this->groupModel();
 
         if ($ids !== []) {
             return $groupModel->getByIds($ids);
@@ -343,7 +382,7 @@ trait Authorizable
      */
     private function getAllUserPermissions(): array
     {
-        $userPermissionsModel = model(PermissionUserModel::class);
+        $userPermissionsModel = $this->permissionUserModel();
         $userPermissions      = $userPermissionsModel->getForUser($this);
 
         $ids = [];
@@ -352,7 +391,7 @@ trait Authorizable
             $ids[] = $userPermission->permission_id;
         }
 
-        $permissionModel = model(PermissionModel::class);
+        $permissionModel = $this->permissionModel();
 
         if ($ids !== []) {
             return $permissionModel->getByIds($ids);
@@ -366,8 +405,7 @@ trait Authorizable
      */
     private function getGroupPermissions(Group $group): array
     {
-        /** @var PermissionGroupModel $groupPermissionsModel */
-        $groupPermissionsModel = model(PermissionGroupModel::class);
+        $groupPermissionsModel = $this->permissionGroupModel();
         $groupPermissions      = $groupPermissionsModel->getForGroup($group);
 
         $ids = [];
@@ -376,7 +414,7 @@ trait Authorizable
             $ids[] = $groupPermission->permission_id;
         }
 
-        $permissionModel = model(PermissionModel::class);
+        $permissionModel = $this->permissionModel();
 
         if ($ids !== []) {
             return $permissionModel->getByIds($ids);
@@ -388,6 +426,7 @@ trait Authorizable
     /**
      * Used internally to populate the User groups
      * so we hit the database as little as possible.
+     * Reads from persistent cache when permissionCacheEnabled is true.
      */
     private function populateGroups(): void
     {
@@ -395,7 +434,20 @@ trait Authorizable
             return;
         }
 
-        $groupModel = model(GroupModel::class);
+        // Try persistent cache first
+        if (service('settings')->get('Auth.permissionCacheEnabled')) {
+            /** @var array{groups: array<int, string>, groupCache: list<string>}|null $cached */
+            $cached = cache($this->getPermissionCacheKey('groups'));
+
+            if ($cached !== null) {
+                $this->groups     = $cached['groups'];
+                $this->groupCache = $cached['groupCache'];
+
+                return;
+            }
+        }
+
+        $groupModel = $this->groupModel();
         $rows       = $groupModel->findAll();
 
         foreach ($rows as $row) {
@@ -403,11 +455,21 @@ trait Authorizable
         }
 
         $this->groupCache = array_column($this->getAllUserGroups(), 'name');
+
+        // Store in persistent cache
+        if (service('settings')->get('Auth.permissionCacheEnabled')) {
+            $ttl = (int) (service('settings')->get('Auth.permissionCacheTTL') ?? 300);
+            cache()->save($this->getPermissionCacheKey('groups'), [
+                'groups'     => $this->groups,
+                'groupCache' => $this->groupCache,
+            ], $ttl);
+        }
     }
 
     /**
      * Used internally to populate the User permissions
      * so we hit the database as little as possible.
+     * Reads from persistent cache when permissionCacheEnabled is true.
      */
     private function populatePermissions(): void
     {
@@ -415,8 +477,20 @@ trait Authorizable
             return;
         }
 
-        /** @var PermissionModel $permissionModel */
-        $permissionModel = model(PermissionModel::class);
+        // Try persistent cache first
+        if (service('settings')->get('Auth.permissionCacheEnabled')) {
+            /** @var array{permissions: array<int, string>, permissionsCache: list<string>}|null $cached */
+            $cached = cache($this->getPermissionCacheKey('permissions'));
+
+            if ($cached !== null) {
+                $this->permissions      = $cached['permissions'];
+                $this->permissionsCache = $cached['permissionsCache'];
+
+                return;
+            }
+        }
+
+        $permissionModel = $this->permissionModel();
         $rows            = $permissionModel->findAll();
 
         foreach ($rows as $row) {
@@ -424,6 +498,35 @@ trait Authorizable
         }
 
         $this->permissionsCache = array_column($this->getAllUserPermissions(), 'name');
+
+        // Store in persistent cache
+        if (service('settings')->get('Auth.permissionCacheEnabled')) {
+            $ttl = (int) (service('settings')->get('Auth.permissionCacheTTL') ?? 300);
+            cache()->save($this->getPermissionCacheKey('permissions'), [
+                'permissions'      => $this->permissions,
+                'permissionsCache' => $this->permissionsCache,
+            ], $ttl);
+        }
+    }
+
+    /**
+     * Returns the cache key for this user's permission/group cache entry.
+     *
+     * @param string $type 'groups' or 'permissions'
+     */
+    private function getPermissionCacheKey(string $type): string
+    {
+        return 'auth_' . $type . '_' . $this->id;
+    }
+
+    /**
+     * Deletes the persistent cache entries for this user's groups and permissions.
+     * Call this when group/permission assignments change.
+     */
+    public function clearPermissionCache(): void
+    {
+        cache()->delete($this->getPermissionCacheKey('groups'));
+        cache()->delete($this->getPermissionCacheKey('permissions'));
     }
 
     /**
@@ -431,8 +534,7 @@ trait Authorizable
      */
     private function saveGroups(): void
     {
-        /** @var GroupUserModel $model */
-        $model = model(GroupUserModel::class);
+        $model = $this->groupUserModel();
 
         $names = $this->groupCache;
 
@@ -445,6 +547,11 @@ trait Authorizable
         $existing = array_column($this->getAllUserGroups(), 'id');
 
         $this->saveGroupsOrPermissions('group_id', $model, $cache, $existing);
+
+        // Invalidate persistent cache after DB write
+        if (service('settings')->get('Auth.permissionCacheEnabled')) {
+            cache()->delete($this->getPermissionCacheKey('groups'));
+        }
     }
 
     /**
@@ -452,8 +559,7 @@ trait Authorizable
      */
     private function savePermissions(): void
     {
-        /** @var PermissionUserModel $model */
-        $model = model(PermissionUserModel::class);
+        $model = $this->permissionUserModel();
 
         $names = $this->permissionsCache;
 
@@ -466,15 +572,23 @@ trait Authorizable
         $existing = array_column($this->getAllUserPermissions(), 'id');
 
         $this->saveGroupsOrPermissions('permission_id', $model, $cache, $existing);
+
+        // Invalidate persistent cache after DB write
+        if (service('settings')->get('Auth.permissionCacheEnabled')) {
+            cache()->delete($this->getPermissionCacheKey('permissions'));
+        }
     }
 
     /**
      * @param         GroupUserModel|PermissionUserModel $model
-     * @phpstan-param 'group'|'permission'               $type
+     * @phpstan-param 'group_id'|'permission_id'         $type
      */
     private function saveGroupsOrPermissions(string $type, $model, array $cache, array $existing): void
     {
+        $db  = Database::connect();
         $new = array_diff($cache, $existing);
+
+        $db->transStart();
 
         // Delete any not in the cache
         if ($cache !== []) {
@@ -500,5 +614,7 @@ trait Authorizable
 
             $model->insertBatch($inserts);
         }
+
+        $db->transComplete();
     }
 }

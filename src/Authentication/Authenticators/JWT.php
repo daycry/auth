@@ -15,8 +15,6 @@ namespace Daycry\Auth\Authentication\Authenticators;
 
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\Request;
-use Daycry\Auth\Entities\User;
-use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Models\LoginModel;
@@ -26,7 +24,7 @@ use Daycry\Auth\Result;
 /**
  * Stateless JWT Authenticator
  */
-class JWT extends Base implements AuthenticatorInterface
+class JWT extends StatelessAuthenticator implements AuthenticatorInterface
 {
     /**
      * @var string Special ID Type.
@@ -56,10 +54,10 @@ class JWT extends Base implements AuthenticatorInterface
     public function attempt(array $credentials = []): Result
     {
         if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            $credentials = ['token' => $this->getBearerFromHeader()];
+            $credentials = ['token' => $this->getTokenFromRequest()];
         }
 
-        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
+        if (empty($credentials['token'])) {
             return new Result([
                 'success' => false,
                 'reason'  => lang(
@@ -130,59 +128,9 @@ class JWT extends Base implements AuthenticatorInterface
     }
 
     /**
-     * Checks if the user is currently logged in.
-     * Since AccessToken usage is inherently stateless,
-     * it runs $this->attempt on each usage.
+     * Returns the decoded JWT payload (typically the user ID as int).
      */
-    public function loggedIn(): bool
-    {
-        if ($this->user !== null) {
-            return true;
-        }
-
-        return $this->attempt([
-            'token' => $this->getBearerFromHeader(),
-        ])->isOK();
-    }
-
-    /**
-     * Logs the given user in by saving them to the class.
-     */
-    public function login(User $user, bool $actions = true): void
-    {
-        $this->user = $user;
-    }
-
-    /**
-     * Logs a user in based on their ID.
-     *
-     * @param int|string $userId
-     *
-     * @throws AuthenticationException
-     */
-    public function loginById($userId): void
-    {
-        $user = $this->provider->findById($userId);
-
-        if ($user === null) {
-            throw AuthenticationException::forInvalidUser();
-        }
-
-        $this->login($user);
-    }
-
-    /**
-     * Logs the current user out.
-     */
-    public function logout(): void
-    {
-        $this->user = null;
-    }
-
-    /**
-     * Returns payload
-     */
-    public function getPayload(): int
+    public function getPayload(): mixed
     {
         return $this->payload;
     }
@@ -194,21 +142,23 @@ class JWT extends Base implements AuthenticatorInterface
         return $credentials['token'] ?? '';
     }
 
-    protected function getBearerFromHeader(): string
+    /**
+     * Returns the Bearer token extracted from the Authorization header.
+     * Returns an empty string when no token is present.
+     */
+    protected function getTokenFromRequest(): string
     {
         $tokenHeader = service('settings')->get('Auth.authenticatorHeader')[$this->method];
 
-        $tokenHeader = $this->request->getHeaderLine($tokenHeader);
-
-        return $this->parseHeader($tokenHeader);
+        return $this->parseHeader($this->request->getHeaderLine($tokenHeader));
     }
 
-    private function parseHeader(?string $token)
+    private function parseHeader(?string $token): string
     {
-        if (str_starts_with($token, 'Bearer')) {
+        if ($token !== null && str_starts_with($token, 'Bearer')) {
             $token = trim(substr($token, 6));
         }
 
-        return $token;
+        return $token ?? '';
     }
 }

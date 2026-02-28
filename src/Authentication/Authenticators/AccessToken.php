@@ -23,7 +23,7 @@ use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
 
-class AccessToken extends Base implements AuthenticatorInterface
+class AccessToken extends StatelessAuthenticator implements AuthenticatorInterface
 {
     public const ID_TYPE_ACCESS_TOKEN = 'access_token';
 
@@ -49,7 +49,7 @@ class AccessToken extends Base implements AuthenticatorInterface
         helper(['checkIp']);
 
         if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            $credentials = ['token' => $this->getAccessToken()];
+            $credentials = ['token' => $this->getTokenFromRequest()];
         }
 
         return $this->checkLogin($credentials);
@@ -118,41 +118,7 @@ class AccessToken extends Base implements AuthenticatorInterface
     }
 
     /**
-     * Logs the given user in by saving them to the class.
-     */
-    public function login(User $user, bool $actions = true): void
-    {
-        $this->user = $user;
-    }
-
-    /**
-     * Logs the current user out.
-     */
-    public function logout(): void
-    {
-        $this->user = null;
-    }
-
-    /**
-     * Checks if the user is currently logged in.
-     * Since AccessToken usage is inherently stateless,
-     * it runs $this->attempt on each usage.
-     */
-    public function loggedIn(): bool
-    {
-        if ($this->user instanceof User) {
-            return true;
-        }
-
-        service('request');
-
-        return $this->attempt([
-            'token' => $this->getAccessToken(),
-        ])->isOK();
-    }
-
-    /**
-     * Logs a user in based on their ID.
+     * Logs a user in based on their ID, setting the matching access token.
      *
      * @param int|string $userId
      *
@@ -167,7 +133,7 @@ class AccessToken extends Base implements AuthenticatorInterface
         }
 
         $user->setAccessToken(
-            $user->getAccessToken($this->getAccessToken()),
+            $user->getAccessToken($this->getTokenFromRequest()),
         );
 
         $this->login($user);
@@ -180,7 +146,11 @@ class AccessToken extends Base implements AuthenticatorInterface
         return $credentials['token'] ?? '';
     }
 
-    private function getAccessToken()
+    /**
+     * Returns the raw access token from the request headers or query string.
+     * Returns an empty string when no token is present.
+     */
+    protected function getTokenFromRequest(): string
     {
         $accessTokenName = service('settings')->get('Auth.authenticatorHeader')[$this->method];
 
@@ -188,10 +158,6 @@ class AccessToken extends Base implements AuthenticatorInterface
         $key = ($key) ?: $this->request->getGetPost($accessTokenName);
         $key = ($key) ?: $this->request->getVar($accessTokenName);
 
-        if (empty($key)) {
-            return null;
-        }
-
-        return $key;
+        return (string) ($key ?: '');
     }
 }

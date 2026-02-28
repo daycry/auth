@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
+use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Validation\ValidationRules;
@@ -55,6 +56,9 @@ class LoginController extends BaseAuthController
         // Extract credentials and remember preference
         $credentials = $this->extractLoginCredentials();
         $remember    = $this->shouldRememberUser();
+
+        // Fire pre-login event (listeners can cancel or enrich credentials)
+        Events::trigger('pre-login', $credentials);
 
         // Attempt authentication
         $authenticator = $this->getSessionAuthenticator();

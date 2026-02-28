@@ -42,4 +42,12 @@ interface UserProviderInterface
      * @param array|object $data
      */
     public function save($data): bool;
+
+    /**
+     * Updates user record(s).
+     *
+     * @param array|int|string|null $id
+     * @param mixed|null            $data
+     */
+    public function update($id = null, $data = null): bool;
 }

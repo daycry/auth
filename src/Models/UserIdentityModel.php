@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
+use CodeIgniter\Database\RawSql;
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
@@ -20,6 +21,7 @@ use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\DatabaseException;
 use Faker\Generator;
 
@@ -31,6 +33,7 @@ class UserIdentityModel extends BaseModel
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
         'user_id',
+        'name',
         'type',
         'secret',
         'secret2',
@@ -41,6 +44,7 @@ class UserIdentityModel extends BaseModel
         'is_private',
         'ip_addresses',
         'last_used_at',
+        'revoked_at',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
@@ -159,7 +163,7 @@ class UserIdentityModel extends BaseModel
             'user_id' => $user->id,
             'name'    => $name,
             'secret'  => hash('sha256', $rawToken = random_string('crypto', 64)),
-            'extra'   => serialize($scopes),
+            'extra'   => json_encode($scopes, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         ]);
 
         $this->checkQueryReturn($return);
@@ -179,6 +183,7 @@ class UserIdentityModel extends BaseModel
         return $this
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->where('secret', hash('sha256', $rawToken))
+            ->where('revoked_at', null)
             ->asObject(AccessTokenIdentity::class)
             ->first();
     }
@@ -363,6 +368,51 @@ class UserIdentityModel extends BaseModel
     }
 
     /**
+     * Soft-revoke an identity by its primary key (sets revoked_at).
+     */
+    public function revokeIdentityById(int $id): void
+    {
+        $this->where('id', $id)
+            ->set('revoked_at', Time::now()->format('Y-m-d H:i:s'))
+            ->update();
+    }
+
+    /**
+     * Stores a new JWT refresh token for the given user.
+     *
+     * The raw token is hashed (SHA-256) before storage.
+     *
+     * @param int    $userId    User primary key
+     * @param string $rawToken  The raw (unhashed) token to store
+     * @param string $expiresAt Datetime string 'Y-m-d H:i:s'
+     */
+    public function createJwtRefreshToken(int $userId, string $rawToken, string $expiresAt): void
+    {
+        $this->insert([
+            'user_id' => $userId,
+            'type'    => IdentityType::JWT_REFRESH->value,
+            'secret'  => hash('sha256', $rawToken),
+            'expires' => $expiresAt,
+        ]);
+    }
+
+    /**
+     * Finds a valid (non-expired, non-revoked) JWT refresh token.
+     *
+     * @param int    $userId   User primary key
+     * @param string $rawToken The raw (unhashed) token
+     */
+    public function getJwtRefreshToken(int $userId, string $rawToken): ?UserIdentity
+    {
+        return $this->where('user_id', $userId)
+            ->where('type', IdentityType::JWT_REFRESH->value)
+            ->where('secret', hash('sha256', $rawToken))
+            ->where('revoked_at', null)
+            ->where('expires >', Time::now()->format('Y-m-d H:i:s'))
+            ->first();
+    }
+
+    /**
      * Force password reset for multiple users.
      *
      * @param list<int>|list<string> $userIds
@@ -399,8 +449,8 @@ class UserIdentityModel extends BaseModel
      * Override the Model's `update()` method.
      * Throws an Exception when it fails.
      *
-     * @param array|int|string|null $id
-     * @param array|object|null     $data
+     * @param array|int|list<int|string>|RawSql|string|null $id
+     * @param array|object|null                             $data
      *
      * @return true if the update is successful
      *

@@ -28,6 +28,13 @@ class AccessToken extends UserIdentity
     /**
      * @var array<string, string>
      */
+    protected $casts = [
+        'extra' => 'serialized',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
     protected $datamap = [
         'scopes' => 'extra',
     ];
