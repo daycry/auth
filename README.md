@@ -2,7 +2,8 @@
 
 # Daycry Auth
 
-[![Build status](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
+[![Tests](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
+[![Static Analysis](https://github.com/daycry/auth/actions/workflows/static-analysis.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/static-analysis.yml)
 [![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
 [![Documentation Status](https://readthedocs.org/projects/authentication-for-codeigniter-4/badge/?version=latest)](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://poser.pugx.org/daycry/auth/downloads)](https://packagist.org/packages/daycry/auth)
