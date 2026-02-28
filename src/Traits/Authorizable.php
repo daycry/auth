@@ -31,6 +31,36 @@ trait Authorizable
     protected ?array $groups           = null;
     protected ?array $permissions      = null;
 
+    private function groupModel(): GroupModel
+    {
+        /** @var GroupModel */
+        return model(GroupModel::class);
+    }
+
+    private function groupUserModel(): GroupUserModel
+    {
+        /** @var GroupUserModel */
+        return model(GroupUserModel::class);
+    }
+
+    private function permissionModel(): PermissionModel
+    {
+        /** @var PermissionModel */
+        return model(PermissionModel::class);
+    }
+
+    private function permissionUserModel(): PermissionUserModel
+    {
+        /** @var PermissionUserModel */
+        return model(PermissionUserModel::class);
+    }
+
+    private function permissionGroupModel(): PermissionGroupModel
+    {
+        /** @var PermissionGroupModel */
+        return model(PermissionGroupModel::class);
+    }
+
     /**
      * Adds one or more groups to the current User.
      *
@@ -329,7 +359,7 @@ trait Authorizable
      */
     private function getAllUserGroups(): array
     {
-        $userGroupModel = model(GroupUserModel::class);
+        $userGroupModel = $this->groupUserModel();
         $userGroups     = $userGroupModel->getForUser($this);
 
         $ids = [];
@@ -338,7 +368,7 @@ trait Authorizable
             $ids[] = $userGroup->group_id;
         }
 
-        $groupModel = model(GroupModel::class);
+        $groupModel = $this->groupModel();
 
         if ($ids !== []) {
             return $groupModel->getByIds($ids);
@@ -352,7 +382,7 @@ trait Authorizable
      */
     private function getAllUserPermissions(): array
     {
-        $userPermissionsModel = model(PermissionUserModel::class);
+        $userPermissionsModel = $this->permissionUserModel();
         $userPermissions      = $userPermissionsModel->getForUser($this);
 
         $ids = [];
@@ -361,7 +391,7 @@ trait Authorizable
             $ids[] = $userPermission->permission_id;
         }
 
-        $permissionModel = model(PermissionModel::class);
+        $permissionModel = $this->permissionModel();
 
         if ($ids !== []) {
             return $permissionModel->getByIds($ids);
@@ -375,8 +405,7 @@ trait Authorizable
      */
     private function getGroupPermissions(Group $group): array
     {
-        /** @var PermissionGroupModel $groupPermissionsModel */
-        $groupPermissionsModel = model(PermissionGroupModel::class);
+        $groupPermissionsModel = $this->permissionGroupModel();
         $groupPermissions      = $groupPermissionsModel->getForGroup($group);
 
         $ids = [];
@@ -385,7 +414,7 @@ trait Authorizable
             $ids[] = $groupPermission->permission_id;
         }
 
-        $permissionModel = model(PermissionModel::class);
+        $permissionModel = $this->permissionModel();
 
         if ($ids !== []) {
             return $permissionModel->getByIds($ids);
@@ -418,7 +447,7 @@ trait Authorizable
             }
         }
 
-        $groupModel = model(GroupModel::class);
+        $groupModel = $this->groupModel();
         $rows       = $groupModel->findAll();
 
         foreach ($rows as $row) {
@@ -461,8 +490,7 @@ trait Authorizable
             }
         }
 
-        /** @var PermissionModel $permissionModel */
-        $permissionModel = model(PermissionModel::class);
+        $permissionModel = $this->permissionModel();
         $rows            = $permissionModel->findAll();
 
         foreach ($rows as $row) {
@@ -506,8 +534,7 @@ trait Authorizable
      */
     private function saveGroups(): void
     {
-        /** @var GroupUserModel $model */
-        $model = model(GroupUserModel::class);
+        $model = $this->groupUserModel();
 
         $names = $this->groupCache;
 
@@ -532,8 +559,7 @@ trait Authorizable
      */
     private function savePermissions(): void
     {
-        /** @var PermissionUserModel $model */
-        $model = model(PermissionUserModel::class);
+        $model = $this->permissionUserModel();
 
         $names = $this->permissionsCache;
 

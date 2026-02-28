@@ -32,6 +32,11 @@ use Daycry\Auth\Models\DeviceSessionModel;
  *       $routes->get('totp/setup',         'Daycry\Auth\Controllers\UserSecurityController::totpSetup',        ['as' => 'totp-setup']);
  *       $routes->post('totp/setup/confirm','Daycry\Auth\Controllers\UserSecurityController::totpSetupConfirm', ['as' => 'totp-setup-confirm']);
  *       $routes->post('totp/disable',      'Daycry\Auth\Controllers\UserSecurityController::totpDisable',      ['as' => 'totp-disable']);
+ *       $routes->post('sessions/password', 'Daycry\Auth\Controllers\UserSecurityController::changePassword',   ['as' => 'security-change-password']);
+ *       $routes->get('email/change',       'Daycry\Auth\Controllers\UserSecurityController::changeEmailView',  ['as' => 'security-change-email']);
+ *       $routes->post('email/change',      'Daycry\Auth\Controllers\UserSecurityController::changeEmail',      ['as' => 'security-change-email-action']);
+ *       $routes->get('email/confirm',      'Daycry\Auth\Controllers\UserSecurityController::confirmEmailChange',['as' => 'security-confirm-email']);
+ *       $routes->post('oauth/unlink',      'Daycry\Auth\Controllers\UserSecurityController::unlinkOauth',      ['as' => 'security-unlink-oauth']);
  *   });
  */
 class UserSecurityController extends BaseAuthController

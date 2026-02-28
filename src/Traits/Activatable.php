@@ -13,8 +13,16 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use Daycry\Auth\Models\UserModel;
+
 trait Activatable
 {
+    private function activatableUserModel(): UserModel
+    {
+        /** @var UserModel */
+        return model(UserModel::class);
+    }
+
     /**
      * Returns true if the user has been activated
      * and activation is required after registration.
@@ -38,9 +46,7 @@ trait Activatable
      */
     public function activate(): void
     {
-        $users = auth()->getProvider();
-
-        $users->update($this->id, ['active' => 1]);
+        $this->activatableUserModel()->update($this->id, ['active' => 1]);
     }
 
     /**
@@ -48,9 +54,7 @@ trait Activatable
      */
     public function deactivate(): void
     {
-        $users = auth()->getProvider();
-
-        $users->update($this->id, ['active' => 0]);
+        $this->activatableUserModel()->update($this->id, ['active' => 0]);
     }
 
     /**

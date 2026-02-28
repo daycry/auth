@@ -173,11 +173,44 @@ class Session extends Base implements AuthenticatorInterface
             ]);
         }
 
+        // Check per-user lockout (independent of IP-based blocking)
+        $maxAttempts = (int) setting('Auth.userMaxAttempts');
+
+        if ($maxAttempts > 0 && $user->locked_until !== null) {
+            $lockedUntil = Time::parse((string) $user->locked_until);
+
+            if ($lockedUntil->isAfter(Time::now())) {
+                $minutesLeft = (int) ceil(Time::now()->difference($lockedUntil)->getMinutes());
+
+                return new Result([
+                    'success' => false,
+                    'reason'  => lang('Auth.userLockedOut', [$minutesLeft]),
+                ]);
+            }
+
+            // Lockout has expired — reset counter automatically
+            $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
+        }
+
         /** @var Passwords $passwords */
         $passwords = service('passwords');
 
         // Now, try matching the passwords.
         if (! $passwords->verify($givenPassword, $user->password_hash)) {
+            // Increment the per-user failed login counter
+            if ($maxAttempts > 0) {
+                $count = ((int) ($user->failed_login_count ?? 0)) + 1;
+                $data  = ['failed_login_count' => $count];
+
+                if ($count >= $maxAttempts) {
+                    $data['locked_until'] = Time::now()
+                        ->addSeconds((int) setting('Auth.userLockoutTime'))
+                        ->format('Y-m-d H:i:s');
+                }
+
+                $this->provider->update($user->id, $data);
+            }
+
             return new Result([
                 'success' => false,
                 'reason'  => lang('Auth.invalidPassword'),
@@ -307,6 +340,13 @@ class Session extends Base implements AuthenticatorInterface
     public function login(User $user, bool $actions = true): void
     {
         $this->user = $user;
+
+        // Reset per-user failed login counter on successful login
+        if ((int) setting('Auth.userMaxAttempts') > 0
+            && ((int) ($user->failed_login_count ?? 0) > 0 || $user->locked_until !== null)
+        ) {
+            $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
+        }
 
         if ($actions) {
             // Update the user's last used date on their password identity.

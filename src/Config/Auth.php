@@ -235,6 +235,42 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Password Reset Lifetime
+     * --------------------------------------------------------------------
+     * Specifies the amount of time, in seconds, that a password reset
+     * token is valid. After this time the token expires and the user must
+     * request a new one.
+     */
+    public int $passwordResetLifetime = HOUR;
+
+    /**
+     * --------------------------------------------------------------------
+     * JWT Refresh Token Lifetime
+     * --------------------------------------------------------------------
+     * Specifies how long (in seconds) a JWT refresh token is valid.
+     * Used by JwtController to issue long-lived refresh tokens alongside
+     * short-lived access tokens.
+     */
+    public int $jwtRefreshLifetime = 30 * DAY;
+
+    /**
+     * --------------------------------------------------------------------
+     * Per-user Login Lockout
+     * --------------------------------------------------------------------
+     * When enabled, locks an individual user account after N consecutive
+     * failed login attempts, regardless of the source IP address.
+     * This complements the existing IP-based $enableInvalidAttempts.
+     *
+     * $userMaxAttempts  Maximum consecutive failures before the account
+     *                   is locked. 0 = disabled.
+     * $userLockoutTime  Seconds the account stays locked after lockout.
+     */
+    public int $userMaxAttempts = 5;
+
+    public int $userLockoutTime = 3600;
+
+    /**
+     * --------------------------------------------------------------------
      * Authentication Actions
      * --------------------------------------------------------------------
      * Specifies the class that represents an action to take after
@@ -631,6 +667,15 @@ class Auth extends BaseConfig
         'magic-link-login'            => '\Daycry\Auth\Views\magic_link_form',
         'magic-link-message'          => '\Daycry\Auth\Views\magic_link_message',
         'magic-link-email'            => '\Daycry\Auth\Views\Email\magic_link_email',
+        // Password reset
+        'password-reset-request' => '\Daycry\Auth\Views\password_reset_request',
+        'password-reset-message' => '\Daycry\Auth\Views\password_reset_message',
+        'password-reset-form'    => '\Daycry\Auth\Views\password_reset_form',
+        'password-reset-email'   => '\Daycry\Auth\Views\Email\password_reset_email',
+        // Force password reset (filter redirect)
+        'force-password-reset' => '\Daycry\Auth\Views\force_password_reset',
+        // Email change confirmation (sent to new address)
+        'email-change-email' => '\Daycry\Auth\Views\Email\email_change_email',
     ];
 
     /**
@@ -745,6 +790,69 @@ class Auth extends BaseConfig
                 'oauth/callback/(:segment)', // Provider (azure, google, etc)
                 'OauthController::callback/$1',
                 'oauth-callback',
+            ],
+        ],
+        'password-reset' => [
+            [
+                'get',
+                'password-reset',
+                'PasswordResetController::requestView',
+                'password-reset-request',
+            ],
+            [
+                'post',
+                'password-reset',
+                'PasswordResetController::requestAction',
+            ],
+            [
+                'get',
+                'password-reset/message',
+                'PasswordResetController::messageView',
+                'password-reset-message',
+            ],
+            [
+                'get',
+                'password-reset/verify',
+                'PasswordResetController::resetView',
+                'password-reset-verify',
+            ],
+            [
+                'post',
+                'password-reset/verify',
+                'PasswordResetController::resetAction',
+            ],
+        ],
+        'force-reset' => [
+            [
+                'get',
+                'auth/force-reset',
+                'ForcePasswordResetController::showView',
+                'force-reset',
+            ],
+            [
+                'post',
+                'auth/force-reset',
+                'ForcePasswordResetController::resetAction',
+            ],
+        ],
+        'jwt' => [
+            [
+                'post',
+                'auth/jwt/login',
+                'JwtController::login',
+                'jwt-login',
+            ],
+            [
+                'post',
+                'auth/jwt/refresh',
+                'JwtController::refresh',
+                'jwt-refresh',
+            ],
+            [
+                'post',
+                'auth/jwt/logout',
+                'JwtController::logout',
+                'jwt-logout',
             ],
         ],
     ];

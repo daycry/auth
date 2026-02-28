@@ -22,13 +22,19 @@ use Daycry\Auth\Models\UserIdentityModel;
  */
 trait Resettable
 {
+    private function resettableIdentityModel(): UserIdentityModel
+    {
+        /** @var UserIdentityModel */
+        return model(UserIdentityModel::class);
+    }
+
     /**
      * Returns true|false based on the value of the
      * force reset column of the user's identity.
      */
     public function requiresPasswordReset(): bool
     {
-        $identityModel = model(UserIdentityModel::class);
+        $identityModel = $this->resettableIdentityModel();
         $identity      = $identityModel->getIdentityByType($this, Session::ID_TYPE_EMAIL_PASSWORD);
 
         return $identity->force_reset;
@@ -67,7 +73,7 @@ trait Resettable
     {
         $value = (int) $value;
 
-        $identityModel = model(UserIdentityModel::class);
+        $identityModel = $this->resettableIdentityModel();
         $identityModel->set('force_reset', $value);
         $identityModel->where(['user_id' => $this->id, 'type' => Session::ID_TYPE_EMAIL_PASSWORD]);
         $identityModel->update();

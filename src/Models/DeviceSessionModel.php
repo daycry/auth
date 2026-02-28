@@ -16,6 +16,7 @@ namespace Daycry\Auth\Models;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\DeviceSession;
 use Daycry\Auth\Entities\User;
+use Symfony\Component\Uid\Uuid;
 
 class DeviceSessionModel extends BaseModel
 {
@@ -23,6 +24,7 @@ class DeviceSessionModel extends BaseModel
     protected $returnType     = DeviceSession::class;
     protected $useSoftDeletes = false;
     protected $allowedFields  = [
+        'uuid',
         'user_id',
         'session_id',
         'device_name',
@@ -34,12 +36,31 @@ class DeviceSessionModel extends BaseModel
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
+    protected $beforeInsert  = ['generateUuid'];
 
     protected function initialize(): void
     {
         parent::initialize();
 
         $this->table = $this->tables['device_sessions'];
+    }
+
+    /**
+     * Generates a UUID v7 for new device session records.
+     *
+     * Model event callback called by `beforeInsert`.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
+    protected function generateUuid(array $data): array
+    {
+        if (empty($data['data']['uuid'])) {
+            $data['data']['uuid'] = Uuid::v7()->toRfc4122();
+        }
+
+        return $data;
     }
 
     /**

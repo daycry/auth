@@ -1,6 +1,6 @@
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate?business=SYC5XDT23UZ5G&no_recurring=0&item_name=Thank+you%21&currency_code=EUR)
 
-# CodeIgniter Auth
+# Daycry Auth
 
 [![Build status](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
 [![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
@@ -10,106 +10,195 @@
 [![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://packagist.org/packages/daycry/auth)
 [![GitHub license](https://img.shields.io/github/license/daycry/auth)](https://github.com/daycry/auth/blob/main/LICENSE)
 
-Auth is an authentication and authorization framework for CodeIgniter 4.
-While it does provide a base set of tools
-that are commonly used in websites, it is designed to be flexible and easily customizable.
+A comprehensive authentication and authorization library for **CodeIgniter 4**, designed to be flexible, secure, and easy to extend.
 
-The primary goals for auth are:
-1. It must be very flexible and allow developers to extend/override almost any part of it.
-2. It must have security at its core. It is an auth lib after all.
-3. To cover many auth needs right out of the box, but be simple to add additional functionality to.
-
-## Authentication Methods
-
-Auth provides two primary methods **Session-based** and **Access Token**
-authentication out of the box.
-
-It also provides **HMAC SHA256 Token** and **JSON Web Token** authentication.
-
-### Session-based
-
-This is your typical email/username/password system you see everywhere. It includes a secure "remember-me" functionality.
-This can be used for standard web applications, as well as for single page applications. Includes full controllers and
-basic views for all standard functionality, like registration, login, forgot password, etc.
-
-### Access Token
-
-These are much like the access tokens that GitHub uses, where they are unique to a single user, and a single user
-can have more than one. This can be used for API authentication of third-party users, and even for allowing
-access for a mobile application that you build.
-
-### HMAC SHA256 Token
-
-This is a slightly more complicated improvement on Access Token authentication.
-The main advantage with HMAC is the shared Secret Key
-is not passed in the request, but is instead used to create a hash signature of the request body.
-
-### JSON Web Token
-
-JWT or JSON Web Token is a compact and self-contained way of securely transmitting
-information between parties as a JSON object. It is commonly used for authentication
-and authorization purposes in web applications.
-
-## Important Features
-
-* Session-based authentication (traditional ID/Password with Remember-me)
-* Stateless authentication using Personal Access Tokens
-* Optional Email verification on account registration
-* Optional Email-based Two-Factor Authentication after login
-* Magic Link Login when a user forgets their password
-* Flexible Groups-based access control (think Roles, but more flexible)
-* Users can be granted additional Permissions
-
-See the [An Official Auth Library](https://forum.codeigniter.com/showthread.php?tid=82003) for more Info.
-
-## 📚 Documentation
-
-Complete documentation is available online at:
-
-**[https://authentication-for-codeigniter-4.readthedocs.io/](https://authentication-for-codeigniter-4.readthedocs.io/)**
-
-The documentation includes:
-- 🚀 [Quick Start Guide](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/01-quick-start.html)
-- ⚙️ [Configuration Options](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/02-configuration.html)
-- 🔐 [Authentication Methods](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/03-authentication.html)
-- 🛡️ [Security Filters](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/04-filters.html)
-- 🎮 [Controllers Guide](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/05-controllers.html)
-- 👥 [Authorization System](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/06-authorization.html)
-- 📊 [Logging & Monitoring](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/07-logging.html)
-- 🧪 [Testing Guide](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/08-testing.html)
-
-## Getting Started
-
-### Prerequisites
-
-Usage of Auth requires the following:
-
-- A [CodeIgniter 4.3.5+](https://github.com/codeigniter4/CodeIgniter4/) based project
-- [Composer](https://getcomposer.org/) for package management
-- PHP 7.4.3+
-
-### Installation
-
-Installation is done through Composer.
-
-```console
+```bash
 composer require daycry/auth
 ```
 
+---
+
+## Features
+
+### Authentication Methods
+
+| Method | Description |
+|--------|-------------|
+| **Session** | Email/password with secure remember-me cookies |
+| **Access Token** | Long-lived API keys sent via `X-API-KEY` header |
+| **JWT** | Stateless Bearer tokens with refresh token rotation |
+| **Magic Link** | Passwordless login via one-time email link |
+| **OAuth 2.0** | Social login: Google, GitHub, Facebook, Microsoft Azure |
+
+### Security Features
+
+| Feature | Description |
+|---------|-------------|
+| **TOTP Two-Factor Auth** | Time-based OTP (Google Authenticator, Authy, 1Password) |
+| **Email Two-Factor Auth** | 6-digit code sent to user's email after login |
+| **Email Activation** | Require email confirmation before first login |
+| **Per-User Account Lockout** | Lock account after N failed attempts (independent of IP) |
+| **IP-Based Blocking** | Block IPs that exceed failed attempt limits |
+| **Rate Limiting** | Per-IP, per-user, or per-endpoint request throttling |
+| **Force Password Reset** | Flag accounts for mandatory password change |
+| **Password Reset Flow** | Secure token-based reset with email delivery |
+| **Self-Service Email Change** | Change email with confirmation link to new address |
+| **Access Token Revocation** | Soft-revoke tokens without deleting them |
+| **Device Session Tracking** | See and terminate active logins per device/browser |
+| **UUID Dual-Key Pattern** | Internal `id` (INT) + external `uuid` (UUID v7) on users |
+
+### Authorization
+
+| Feature | Description |
+|---------|-------------|
+| **Groups** | Named roles (e.g., `admin`, `editor`, `user`) |
+| **Permissions** | Granular actions (e.g., `posts.create`, `users.delete`) |
+| **Permission Inheritance** | Users inherit all permissions from their groups |
+| **Wildcard Permissions** | `posts.*` grants all post-related permissions |
+| **Permission Cache** | Configurable TTL cache to avoid repeated DB queries |
+| **Route Filters** | `group:admin`, `permission:posts.edit` directly on routes |
+
+### Developer Experience
+
+| Feature | Description |
+|---------|-------------|
+| **BaseAuthController** | Abstract base with validation, redirect, and error helpers |
+| **Bootstrap 5 Admin Panel** | Manage users, groups, permissions, and logs via UI |
+| **OAuth Provider Unlinking** | Let users disconnect social accounts |
+| **Pre-Auth Events** | `pre-login` and `pre-register` CodeIgniter Events |
+| **CI4 Events System** | Hook into `login`, `logout`, `registered`, `passwordReset`, etc. |
+| **Chain Authenticator** | Try session → access_token → JWT automatically |
+| **Custom Authenticators** | Extend `Base` with full Dependency Injection support |
+
+---
+
+## Quick Start
+
+### Requirements
+
+- PHP **8.1** or higher
+- CodeIgniter **4.4** or higher
+- Composer
+
+### Installation
+
+```bash
+# 1. Install the package
+composer require daycry/auth
+
+# 2. Run migrations (creates all auth tables)
+php spark migrate --all
+
+# 3. Publish config files and basic routes
+php spark auth:setup
+```
+
+### Basic Usage
+
+```php
+// Login
+$result = auth()->attempt([
+    'email'    => 'user@example.com',
+    'password' => 'secret',
+]);
+
+if ($result->isOK()) {
+    return redirect()->to('/dashboard');
+}
+
+// Check authentication
+if (auth()->loggedIn()) {
+    $user = auth()->user();
+    echo $user->email;
+}
+
+// Check authorization
+if ($user->can('posts.create')) { ... }
+if ($user->inGroup('admin')) { ... }
+
+// Logout
+auth()->logout();
+```
+
+### Protect Routes
+
+```php
+// app/Config/Routes.php
+
+// Require login
+$routes->group('dashboard', ['filter' => 'session'], static function ($routes) {
+    $routes->get('/', 'Dashboard::index');
+});
+
+// Require login + admin group
+$routes->group('admin', ['filter' => 'session,group:admin'], static function ($routes) {
+    $routes->get('/', 'Admin::index');
+});
+
+// Require a specific permission
+$routes->post('posts/delete/(:num)', 'PostController::delete/$1', [
+    'filter' => 'session,permission:posts.delete',
+]);
+
+// API with JWT
+$routes->group('api', ['filter' => 'jwt'], static function ($routes) {
+    $routes->get('profile', 'API\ProfileController::show');
+});
+```
+
+### JWT with Refresh Tokens (API)
+
+```bash
+# Login → get access + refresh token
+POST /auth/jwt/login
+email=user@example.com&password=secret
+
+# Use access token
+GET /api/profile
+Authorization: Bearer eyJ0eXAi...
+
+# Refresh when expired
+POST /auth/jwt/refresh
+user_id=42&refresh_token=a3f8c2d1...
+
+# Logout (revoke refresh token)
+POST /auth/jwt/logout
+user_id=42&refresh_token=a3f8c2d1...
+```
+
+---
+
+## Documentation
+
+Full documentation is available at:
+
+**[https://authentication-for-codeigniter-4.readthedocs.io/](https://authentication-for-codeigniter-4.readthedocs.io/)**
+
+| Section | Description |
+|---------|-------------|
+| [Quick Start](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/01-quick-start.html) | Install and set up in minutes |
+| [Configuration](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/02-configuration.html) | Every config option explained |
+| [Authentication](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/03-authentication.html) | All auth methods + JWT refresh + password reset |
+| [Filters](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/04-filters.html) | Route protection filters |
+| [Controllers](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/05-controllers.html) | All included controllers |
+| [Authorization](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/06-authorization.html) | Groups, permissions, RBAC |
+| [Logging & Events](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/07-logging.html) | CI4 Events, DB logs, lockout |
+| [Testing](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/08-testing.html) | Testing auth in your app |
+| [OAuth 2.0](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/09-oauth.html) | Google, GitHub, Facebook, Azure |
+| [TOTP 2FA](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/10-totp-2fa.html) | Authenticator app integration |
+| [Device Sessions](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/11-device-sessions.html) | Active session management |
+
+---
+
 ## Contributing
 
-Auth does accept and encourage contributions from the community in any shape. It doesn't matter
-whether you can code, write documentation, or help find bugs, all contributions are welcome.
-See the [CONTRIBUTING.md](CONTRIBUTING.md) file for details.
+Contributions of all kinds are welcome — code, documentation, bug reports, or feedback. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgements
-
-Every open-source project depends on its contributors to be a success. The following users have
-contributed in one manner or another in making Shield:
 
 <a href="https://github.com/daycry/auth/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=daycry/auth" />
@@ -117,10 +206,9 @@ contributed in one manner or another in making Shield:
 
 Made with [contrib.rocks](https://contrib.rocks).
 
-The following articles/sites have been fundamental in shaping the security and best practices used
-within this library, in no particular order:
+Security design informed by:
 
-- [Google Cloud: 13 best practices for user account, authentication, and password management, 2021 edition](https://cloud.google.com/blog/products/identity-security/account-authentication-and-password-management-best-practices)
-- [NIST Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
-- [Implementing Secure User Authentication in PHP Applications with Long-Term Persistence (Login with "Remember Me" Cookies) ](https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence)
-- [Password Storage - OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+- [NIST Digital Identity Guidelines (SP 800-63B)](https://pages.nist.gov/800-63-3/sp800-63b.html)
+- [Google Cloud: Best practices for user account, authentication, and password management](https://cloud.google.com/blog/products/identity-security/account-authentication-and-password-management-best-practices)
+- [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+- [Secure "Remember Me" Cookies (paragonie.com)](https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence)

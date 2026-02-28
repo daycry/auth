@@ -79,6 +79,9 @@ class RegisterController extends BaseAuthController
         $rules    = $this->getValidationRules();
         $postData = $this->request->getPost();
 
+        // Fire pre-register event before validation
+        Events::trigger('pre-register', $postData);
+
         if (! $this->validateRequest($postData, $rules)) {
             return $this->handleValidationError(config('Auth')->registerRoute());
         }

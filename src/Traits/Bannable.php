@@ -13,8 +13,16 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use Daycry\Auth\Models\UserModel;
+
 trait Bannable
 {
+    private function bannableUserModel(): UserModel
+    {
+        /** @var UserModel */
+        return model(UserModel::class);
+    }
+
     /**
      * Is the user banned?
      */
@@ -33,9 +41,7 @@ trait Bannable
         $this->status         = 'banned';
         $this->status_message = $message;
 
-        $users = auth()->getProvider();
-
-        $users->save($this);
+        $this->bannableUserModel()->save($this);
 
         return $this;
     }
@@ -50,9 +56,7 @@ trait Bannable
         $this->status         = null;
         $this->status_message = null;
 
-        $users = auth()->getProvider();
-
-        $users->save($this);
+        $this->bannableUserModel()->save($this);
 
         return $this;
     }

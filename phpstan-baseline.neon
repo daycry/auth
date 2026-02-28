@@ -547,6 +547,24 @@ parameters:
 			path: src/Controllers/BaseAuthController.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Controllers/ForcePasswordResetController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 3
+			path: src/Controllers/JwtController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Controllers/JwtController.php
+
+		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginRoute().'
 			identifier: method.notFound
 			count: 2
@@ -581,6 +599,30 @@ parameters:
 			identifier: method.notFound
 			count: 1
 			path: src/Controllers/OauthController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Controllers/PasswordResetController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 3
+			path: src/Controllers/PasswordResetController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Controllers/PasswordResetController.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 1
+			path: src/Controllers/PasswordResetController.php
 
 		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::registerRoute().'
@@ -787,12 +829,6 @@ parameters:
 			path: src/Entities/PermissionUser.php
 
 		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Interfaces\UserProviderInterface::update().'
-			identifier: method.notFound
-			count: 2
-			path: src/Entities/User.php
-
-		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Models\UserIdentityModel::getAllAccessTokens().'
 			identifier: method.notFound
 			count: 1
@@ -813,13 +849,13 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 1
 			path: src/Entities/User.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\GroupUserModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 1
 			path: src/Entities/User.php
 
 		-
@@ -831,19 +867,25 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\PermissionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 3
+			count: 1
 			path: src/Entities/User.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\PermissionUserModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 1
 			path: src/Entities/User.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 5
+			count: 4
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
 			path: src/Entities/User.php
 
 		-
@@ -1081,6 +1123,12 @@ parameters:
 			path: src/Models/BaseModel.php
 
 		-
+			rawMessage: Variable $result in PHPDoc tag @var does not exist.
+			identifier: varTag.variableNotFound
+			count: 1
+			path: src/Models/DeviceSessionModel.php
+
+		-
 			rawMessage: PHPDoc tag @param for parameter $userId with type int|string|null is not subtype of native type int|null.
 			identifier: parameter.phpDocType
 			count: 1
@@ -1136,6 +1184,12 @@ parameters:
 
 		-
 			rawMessage: 'Parameter #1 $data (array|Daycry\Auth\Entities\User) of method Daycry\Auth\Models\UserModel::save() should be contravariant with parameter $row (array<int|string, bool|float|int|object|string|null>|object) of method CodeIgniter\BaseModel::save()'
+			identifier: method.childParameterType
+			count: 1
+			path: src/Models/UserModel.php
+
+		-
+			rawMessage: 'Parameter #2 $data (array|Daycry\Auth\Entities\User) of method Daycry\Auth\Models\UserModel::update() should be contravariant with parameter $data (mixed) of method Daycry\Auth\Interfaces\UserProviderInterface::update()'
 			identifier: method.childParameterType
 			count: 1
 			path: src/Models/UserModel.php

@@ -1,103 +1,108 @@
-# Daycry Auth - Complete Documentation
+# Daycry Auth — Documentation
 
-Welcome to the complete documentation for Daycry Auth, a robust authentication and authorization library for CodeIgniter 4.
+Complete documentation for **Daycry Auth**, a comprehensive authentication and authorization library for CodeIgniter 4 (PHP 8.1+).
 
-## 📚 Documentation Index
+## Documentation Index
 
-### 🚀 [Quick Start Guide](01-quick-start.md)
-- Installation and basic configuration
-- First usage example
-- Minimum required configuration
+### [Quick Start Guide](01-quick-start.md)
+- Installation via Composer
+- Running migrations
+- Basic configuration
+- First protected route
 
-### ⚙️ [Detailed Configuration](02-configuration.md)
-- All configuration options
-- Database tables and fields customization
-- Authenticators configuration
+### [Configuration Reference](02-configuration.md)
+- All configuration options with descriptions
+- Database, authenticators, session, password
+- Password reset, JWT refresh, per-user lockout
+- Permission cache, views, routes, redirects
 
-### 🔐 [Authentication](03-authentication.md)
-- Session Authenticator
-- Access Token Authenticator  
-- JWT Authenticator
-- Magic Link Authentication
+### [Authentication](03-authentication.md)
+- Session authenticator (web apps)
+- Access Token authenticator (APIs)
+- JWT authenticator + refresh token rotation
+- Magic Link (passwordless)
+- Password Reset flow
+- Force Password Reset
+- Pre-authentication events
 
-### 🛡️ [Security Filters](04-filters.md)
-- Available authentication filters
-- How to use each filter
-- Filter chains configuration
-- Custom filters
+### [Security Filters](04-filters.md)
+- `session`, `tokens`, `jwt`, `chain` authentication filters
+- `group`, `permission` authorization filters
+- `auth-rates` rate limiting
+- `force-reset` forced password change
 
-### 🎮 [Controllers](05-controllers.md)
-- Included controllers
-- BaseAuthController
+### [Controllers](05-controllers.md)
+- `LoginController`, `RegisterController`
+- `PasswordResetController`, `ForcePasswordResetController`
+- `JwtController` (stateless login/refresh/logout)
+- `UserSecurityController` (change password, email, OAuth unlink)
 - Creating custom controllers
-- Best practices
 
-### 👥 [Authorization](06-authorization.md)
-- Groups and permissions system
-- Authorization filters
-- Role management
+### [Authorization](06-authorization.md)
+- Groups (roles) and permissions
+- Permission inheritance and wildcards
+- Permission cache (for production)
+- Route filter usage
+- RBAC patterns and best practices
 
-### 📊 [Logging and Monitoring](07-logging.md)
-- Logging system
-- Access attempts monitoring
-- Rate limiting control
+### [Logging & Monitoring](07-logging.md)
+- CodeIgniter Events (pre-login, login, logout, register, passwordReset)
+- Database login attempt logs
+- IP-based failed attempt blocking
+- Per-user account lockout
+- Rate limiting
 
-### 🔧 [Advanced Customization](08-advanced.md)
-- Creating custom authenticators
-- Custom actions
-- Password validators
-
-### 🧪 [Testing](09-testing.md)
-- How to test with Daycry Auth
+### [Testing](08-testing.md)
+- Running the test suite
+- DatabaseTestCase setup
 - Authentication mocking
-- Integration tests
+- Testing filters, controllers, models
 
-### ❓ [FAQ and Troubleshooting](10-faq.md)
-- Frequently asked questions
-- Common issues solutions
-- Tips and tricks
+### [OAuth 2.0 & Social Login](09-oauth.md)
+- Google, GitHub, Facebook, Microsoft Azure
+- Generic OIDC provider
+- Refresh token handling
+- Unlinking providers
 
-## 🌟 Main Features
+### [TOTP Two-Factor Authentication](10-totp-2fa.md)
+- Setup and enrollment flow
+- Login flow with TOTP
+- Managing TOTP in controllers
+- Testing TOTP
 
-- **Multiple Authenticators**: Session, Access Token, JWT, Magic Link
-- **Permission System**: Groups and granular permissions
-- **Flexible Filters**: Configurable authentication chains
-- **Rate Limiting**: Access attempts and rate control
-- **Complete Logging**: Monitoring of all activities
-- **Highly Customizable**: Extend or replace any component
+### [Device Sessions](11-device-sessions.md)
+- Tracking logins per device
+- Viewing and terminating sessions
+- "Sign out everywhere" feature
+- New device login notifications
 
-## 🚦 Documentation Status
+## Feature Matrix
 
-| Section | Status | Description |
-|---------|--------|-------------|
-| Quick Start | ✅ Complete | Guide to get started immediately |
-| Configuration | ✅ Complete | All detailed options |
-| Authentication | ✅ Complete | All authenticators |
-| Filters | ⭐ **Featured** | Complete filters guide |
-| Controllers | ⭐ **Featured** | Complete controllers guide |
-| Authorization | ✅ Complete | Groups and permissions |
-| Logging | ✅ Complete | Monitoring and logs |
-| Advanced | ✅ Complete | Customization |
-| Testing | ✅ Complete | Testing and tests |
-| FAQ | ✅ Complete | Troubleshooting |
+| Feature | Status |
+|---------|--------|
+| Session authentication | ✅ Complete |
+| Access Token (API keys) | ✅ Complete |
+| JWT + Refresh Tokens | ✅ Complete |
+| Magic Link (passwordless) | ✅ Complete |
+| Password Reset | ✅ Complete |
+| Force Password Reset | ✅ Complete |
+| TOTP Two-Factor Auth | ✅ Complete |
+| Email Two-Factor Auth | ✅ Complete |
+| Device Session Tracking | ✅ Complete |
+| OAuth 2.0 Social Login | ✅ Complete |
+| Groups & Permissions (RBAC) | ✅ Complete |
+| Permission Cache | ✅ Complete |
+| Per-User Account Lockout | ✅ Complete |
+| IP-Based Attempt Blocking | ✅ Complete |
+| Rate Limiting | ✅ Complete |
+| UUID Dual-Key Pattern | ✅ Complete |
+| Bootstrap 5 Admin Panel | ✅ Complete |
+| Email Change Confirmation | ✅ Complete |
+| OAuth Provider Unlinking | ✅ Complete |
+| Pre-Auth Events | ✅ Complete |
+| Self-Service Password Change | ✅ Complete |
 
-## 🎯 Special Focus: Filters and Controllers
-
-This documentation puts special emphasis on:
-
-### 🛡️ **Security Filters**
-- Step-by-step configuration of each filter
-- Practical usage examples
-- Filter combinations in chains
-- Custom filters
-
-### 🎮 **Controllers**
-- Usage of the refactored BaseAuthController
-- Creating custom controllers
-- Best practices and patterns
-- Complete implementation examples
-
-## 🔗 Quick Links
+## Quick Links
 
 - **GitHub**: [daycry/auth](https://github.com/daycry/auth)
 - **CodeIgniter 4**: [Official Documentation](https://codeigniter4.github.io/)
@@ -105,4 +110,4 @@ This documentation puts special emphasis on:
 
 ---
 
-> 💡 **Tip**: Start with the [Quick Start Guide](01-quick-start.md) if it's your first time using Daycry Auth, or go directly to [Filters](04-filters.md) and [Controllers](05-controllers.md) if you need specific information about these components.
+> Start with the [Quick Start Guide](01-quick-start.md) if it is your first time using Daycry Auth.

@@ -136,4 +136,67 @@ return [
 
     // Permissions
     'unknownPermission' => '{0} n\'est pas une permission valide.',
+
+    // Password Reset (EN fallback - translation pending)
+    'passwordResetTitle'        => 'Reset Your Password',
+    'passwordResetIntro'        => 'Enter your email address and we\'ll send you a link to reset your password.',
+    'passwordResetSent'         => 'If that email address is in our database, you will receive a password reset link shortly.',
+    'passwordResetSubject'      => 'Reset Your Password',
+    'passwordResetEmailBody'    => 'Click the link below to reset your password. The link is valid for {0} minutes.',
+    'passwordResetButton'       => 'Reset Password',
+    'passwordResetFormTitle'    => 'Set New Password',
+    'passwordResetFormIntro'    => 'Enter your new password below.',
+    'passwordResetSuccess'      => 'Your password has been reset. You can now log in with your new password.',
+    'passwordResetTokenInvalid' => 'The password reset link is invalid. Please request a new one.',
+    'passwordResetTokenExpired' => 'The password reset link has expired. Please request a new one.',
+    'passwordResetNewPassword'  => 'New Password',
+    'passwordResetConfirm'      => 'Confirm New Password',
+    'passwordResetSubmit'       => 'Set New Password',
+    // Force Password Reset (EN fallback)
+    'forceResetTitle'        => 'Password Reset Required',
+    'forceResetIntro'        => 'For security reasons, you must change your password before continuing.',
+    'forceResetSuccess'      => 'Your password has been updated successfully.',
+    'forceResetCurrentLabel' => 'Current Password',
+    'forceResetNewLabel'     => 'New Password',
+    'forceResetConfirmLabel' => 'Confirm New Password',
+    'forceResetSubmit'       => 'Update Password',
+    'invalidCurrentPassword' => 'The current password you entered is incorrect.',
+    // Per-user lockout (EN fallback)
+    'userLockedOut' => 'Your account has been temporarily locked due to too many failed login attempts. Please try again in {0} minutes.',
+    'userUnlocked'  => 'The account has been unlocked.',
+    // Self-service password change (EN fallback)
+    'changePasswordTitle'   => 'Change Password',
+    'changePasswordSuccess' => 'Your password has been changed successfully.',
+    'changePasswordCurrent' => 'Current Password',
+    'changePasswordNew'     => 'New Password',
+    'changePasswordConfirm' => 'Confirm New Password',
+    'changePasswordSubmit'  => 'Update Password',
+    // Email change (EN fallback)
+    'changeEmailTitle'        => 'Change Email Address',
+    'changeEmailIntro'        => 'Enter your new email address below. A confirmation link will be sent to the new address.',
+    'changeEmailSent'         => 'A confirmation link has been sent to your new email address. Please check your inbox.',
+    'changeEmailSubject'      => 'Confirm Your New Email Address',
+    'changeEmailMailBody'     => 'Click the link below to confirm your new email address.',
+    'changeEmailButton'       => 'Confirm Email Change',
+    'changeEmailSuccess'      => 'Your email address has been updated successfully.',
+    'changeEmailTokenInvalid' => 'The confirmation link is invalid or has already been used.',
+    'changeEmailTokenExpired' => 'The confirmation link has expired. Please request a new one.',
+    'changeEmailLabel'        => 'New Email Address',
+    'changeEmailSubmit'       => 'Send Confirmation',
+    'changeEmailAlreadyUsed'  => 'That email address is already in use.',
+    // OAuth unlinking (EN fallback)
+    'unlinkOauthSuccess'    => 'The {0} account has been disconnected.',
+    'unlinkOauthNotFound'   => 'No {0} account was found linked to your profile.',
+    'unlinkOauthLastMethod' => 'You cannot remove your only authentication method. Please add a password or link another account first.',
+    // New device notification (EN fallback)
+    'newDeviceSubject'  => 'New sign-in to your account',
+    'newDeviceMailBody' => 'A new sign-in was detected on your account from a new device or location.',
+    'newDeviceIp'       => 'IP Address',
+    'newDeviceDevice'   => 'Device',
+    'newDeviceTime'     => 'Time',
+    'newDeviceNotYou'   => 'If this wasn\'t you, please change your password immediately.',
+    // JWT refresh (EN fallback)
+    'invalidRefreshToken' => 'The refresh token is invalid or has expired.',
+    'refreshTokenRevoked' => 'The refresh token has been revoked.',
+    'revokedToken'        => 'The token has been revoked.',
 ];

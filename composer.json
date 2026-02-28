@@ -17,12 +17,13 @@
         "php": "^8.1",
         "codeigniter4/settings": "*",
         "daycry/class-finder": "^2.0",
-        "daycry/jobs": "^1",
         "daycry/encryption": "^2.0",
+        "daycry/jobs": "^1",
         "daycry/jwt": "^1.0",
         "league/oauth2-facebook": "^2.0",
         "league/oauth2-github": "^3.0",
         "league/oauth2-google": "^4.0",
+        "michalsn/codeigniter4-uuid": "dev-develop",
         "thenetworg/oauth2-azure": "^2"
     },
     "require-dev":
