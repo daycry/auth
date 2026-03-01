@@ -8,10 +8,11 @@ Time-based One-Time Passwords (TOTP) add a powerful second layer of security to 
 - [Configuration](#configuration)
 - [User Enrollment](#user-enrollment)
 - [Login Flow](#login-flow)
-- [Managing TOTP in Controllers](#managing-totp-in-controllers)
-- [Disabling TOTP](#disabling-totp)
+- [HasTotp Trait Reference](#hastotp-trait-reference)
 - [UserSecurityController Integration](#usersecuritycontroller-integration)
+- [Disabling TOTP](#disabling-totp)
 - [Testing TOTP](#testing-totp)
+- [Security Notes](#security-notes)
 
 ---
 
@@ -22,7 +23,7 @@ User enters email + password
         ↓
 Credentials verified ✅
         ↓
-System detects TOTP action is required
+System detects Totp2FA action is required
         ↓
 User is shown a "Enter your 6-digit code" form
         ↓
@@ -33,7 +34,13 @@ Code verified against TOTP secret ✅
 Session created — user is logged in
 ```
 
-The TOTP secret is stored permanently in `auth_users_identities` with type `totp_secret`. Each login generates a temporary marker (`totp`) that is removed once verified.
+The TOTP secret is stored permanently in `auth_users_identities` with type `totp_secret`, **AES-256 encrypted** using CI4's `service('encrypter')`. The raw secret is never stored in plain text.
+
+Enrollment follows a two-phase flow:
+1. **Pending** (`name = totp_pending`) — secret generated, QR shown, user not yet confirmed
+2. **Confirmed** (`name = totp`) — first code verified, TOTP fully active
+
+The `Totp2FA` login action only challenges users whose TOTP is in the **confirmed** state.
 
 ---
 
@@ -41,7 +48,7 @@ The TOTP secret is stored permanently in `auth_users_identities` with type `totp
 
 ### 1. Enable the TOTP Post-Login Action
 
-In `app/Config/Auth.php`, set the `login` action to `Totp2FA`:
+In `app/Config/Auth.php`:
 
 ```php
 use Daycry\Auth\Authentication\Actions\Totp2FA;
@@ -52,141 +59,101 @@ public array $actions = [
 ];
 ```
 
-> **Note**: This only applies to users who have TOTP enabled. Users without a TOTP secret skip the 2FA step and log in directly.
+> **Note**: This only applies to users who have TOTP enabled (`hasTotpEnabled() === true`). Users who have not enrolled skip the 2FA step and log in directly.
 
-### 2. Verify Dependencies
+### 2. Set the Issuer Name
 
-The TOTP library is included automatically. No extra `composer require` needed.
+In `app/Config/AuthSecurity.php`, set the app name shown in the authenticator app:
+
+```php
+public string $totpIssuer = 'My App';
+```
+
+### 3. Configure the Encryption Key
+
+TOTP secrets are encrypted with CI4's encrypter. Make sure `app/Config/Encryption.php` has a key set (or `encryption.key` in `.env`):
+
+```bash
+# .env
+encryption.key = hex2bin:your64charhexstringhere
+```
 
 ---
 
 ## User Enrollment
 
-TOTP must be enabled per-user before they can use it. The typical flow is:
+The enrollment flow is handled by the `HasTotp` trait (mixed into `User`). It is a **two-phase** process:
 
-1. User navigates to their security settings
-2. They click "Enable Two-Factor Authentication"
-3. They scan a QR code with their authenticator app
-4. They enter a verification code to confirm the setup
-
-### Enable TOTP for a User
+### Phase 1 — Generate the QR code
 
 ```php
-<?php
+$user = auth()->user();
 
-namespace App\Controllers;
+// Always generates a fresh secret (replaces any previous pending one).
+// Returns the otpauth:// URI for building a QR code.
+$otpAuthUrl = $user->enableTotp('My App');
 
-use App\Controllers\BaseController;
-use Daycry\Auth\Libraries\TOTP;
+// getTotpSecret() transparently decrypts the stored value.
+$secret = $user->getTotpSecret();
 
-class SecurityController extends BaseController
-{
-    /**
-     * Step 1: Show the QR code for scanning.
-     */
-    public function enableTotpView()
-    {
-        $user = auth()->user();
+// Build a QR code data URI (rendered locally, no external service).
+$qrCodeDataUri = \Daycry\Auth\Libraries\TOTP::getQRCodeUrl($otpAuthUrl);
+// $qrCodeDataUri = "data:image/png;base64,..."
 
-        if ($user->hasTotpSecret()) {
-            return redirect()->to('security')->with('info', 'TOTP is already enabled.');
-        }
-
-        // Generate a new secret and store it temporarily in the session
-        $totp   = new TOTP();
-        $secret = $totp->generateSecret();
-
-        session()->set('totp_pending_secret', $secret);
-
-        // Build a QR code URL for the user's authenticator app
-        $qrCodeUrl = $totp->getQRCodeUrl(
-            issuer:   config('App')->appName,
-            account:  $user->email,
-            secret:   $secret
-        );
-
-        return view('security/totp_setup', [
-            'qrCodeUrl' => $qrCodeUrl,
-            'secret'    => $secret, // Show as plain text fallback
-        ]);
-    }
-
-    /**
-     * Step 2: Verify the first code — confirm the user scanned correctly.
-     */
-    public function enableTotpAction()
-    {
-        $user   = auth()->user();
-        $secret = session()->get('totp_pending_secret');
-        $code   = $this->request->getPost('code');
-
-        if ($secret === null) {
-            return redirect()->to('security/totp/enable')->with('error', 'Session expired. Please try again.');
-        }
-
-        $totp = new TOTP();
-
-        if (! $totp->verify($code, $secret)) {
-            return redirect()->back()->with('error', 'Invalid code. Please try again.');
-        }
-
-        // Code is valid — permanently enable TOTP for this user
-        $user->enableTotp($secret);
-
-        session()->remove('totp_pending_secret');
-
-        return redirect()->to('security')->with('message', 'Two-factor authentication is now enabled.');
-    }
-}
+return view('security/totp_setup', [
+    'qrCodeDataUri' => $qrCodeDataUri,
+    'secret'        => $secret, // plain-text fallback for manual entry
+]);
 ```
 
-### Example Setup View
+> `enableTotp()` stores the secret in the **pending** state. If the user navigates away before confirming, a fresh secret is generated the next time they visit the setup page.
+
+### Phase 2 — Confirm the first code
+
+```php
+$user = auth()->user();
+$code = $this->request->getPost('token');
+
+if (! $user->verifyTotpCode($code)) {
+    return redirect()->back()->with('error', 'Invalid code. Please try again.');
+}
+
+// Upgrades the secret from PENDING → CONFIRMED. TOTP is now active.
+$user->confirmTotp();
+
+return redirect()->to('security')->with('message', 'Two-factor authentication is now enabled.');
+```
+
+### Setup View
 
 ```html
-<!-- app/Views/security/totp_setup.php -->
-<div class="container mt-4">
-    <h2>Enable Two-Factor Authentication</h2>
+<!-- Phase 1: Show QR code -->
+<h2>Enable Two-Factor Authentication</h2>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5>Step 1: Scan this QR Code</h5>
-            <p>Open your authenticator app (Google Authenticator, Authy, etc.) and scan:</p>
+<h5>Step 1: Scan this QR Code</h5>
+<p>Open your authenticator app and scan:</p>
 
-            <!-- Use a QR code library, e.g. chillerlan/php-qrcode or an online API -->
-            <img src="https://api.qrserver.com/v1/create-qr-code/?data=<?= urlencode($qrCodeUrl) ?>&size=200x200"
-                 alt="QR Code">
+<!-- QR code is a data URI — no external service required -->
+<img src="<?= esc($qrCodeDataUri) ?>" alt="TOTP QR Code" width="200" height="200">
 
-            <p class="mt-2 text-muted">
-                Can't scan? Enter this code manually: <code><?= esc($secret) ?></code>
-            </p>
-        </div>
-    </div>
+<p class="text-muted mt-2">
+    Can't scan? Enter this code manually: <code><?= esc($secret) ?></code>
+</p>
 
-    <div class="card">
-        <div class="card-body">
-            <h5>Step 2: Enter the 6-digit code from your app</h5>
-            <?= form_open('security/totp/enable') ?>
-                <div class="mb-3">
-                    <input type="text"
-                           name="code"
-                           class="form-control"
-                           maxlength="6"
-                           placeholder="000000"
-                           autocomplete="one-time-code"
-                           required>
-                </div>
-                <button type="submit" class="btn btn-success">Confirm &amp; Enable</button>
-            <?= form_close() ?>
-        </div>
-    </div>
-</div>
+<!-- Phase 2: Confirm the code -->
+<h5>Step 2: Enter the 6-digit code from your app</h5>
+<?= form_open(url_to('totp-setup-confirm')) ?>
+    <input type="text" name="token" maxlength="6" placeholder="000000"
+           autocomplete="one-time-code" required>
+    <button type="submit">Confirm &amp; Enable</button>
+<?= form_close() ?>
 ```
 
 ---
 
 ## Login Flow
 
-Once TOTP is enabled for a user, the flow is handled **automatically** by the `Totp2FA` action. You do not need to modify your `LoginController`.
+Once TOTP is **confirmed** for a user, the flow is handled **automatically** by the `Totp2FA` action. No changes to `LoginController` are needed.
 
 ### What Happens Automatically
 
@@ -195,95 +162,71 @@ Once TOTP is enabled for a user, the flow is handled **automatically** by the `T
 3. Session detects the `Totp2FA` action is configured
 4. User is **redirected to the action show page** (not logged in yet)
 5. The built-in view asks for the 6-digit code
-6. `ActionController::verify()` validates the TOTP code
-7. On success, the session is created and the user is redirected
+6. `ActionController::verify()` decrypts the stored secret and validates the code
+7. On success, `completeLogin()` clears the pending action state and creates the session
 
-### Default TOTP Views
+### Override the Default TOTP Views
 
-The library provides default views. You can override them in `app/Config/Auth.php`:
+In `app/Config/Auth.php`:
 
 ```php
 public array $views = [
-    // ... other views
-    'action_totp_show'   => '\Daycry\Auth\Views\totp_show',
-    'action_totp_verify' => '\Daycry\Auth\Views\totp_verify',
+    // ... other views ...
+    'action_totp_setup_show'    => '\Daycry\Auth\Views\totp_setup_show',    // QR setup page
+    'action_totp_setup_success' => '\Daycry\Auth\Views\totp_setup_success', // Confirmation page
+    'action_totp_show'          => '\Daycry\Auth\Views\totp_show',          // Login 2FA prompt
+    'action_totp_verify'        => '\Daycry\Auth\Views\totp_verify',        // Login 2FA form
+    'security_overview'         => '\Daycry\Auth\Views\profile\security',   // User security dashboard
 ];
-```
-
-### Custom TOTP Verify View
-
-```html
-<!-- app/Views/auth/totp_verify.php -->
-<div class="container mt-5" style="max-width: 400px;">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h4 class="card-title text-center">🔐 Two-Factor Authentication</h4>
-            <p class="text-muted text-center">Enter the 6-digit code from your authenticator app.</p>
-
-            <?php if (session('error')): ?>
-                <div class="alert alert-danger"><?= session('error') ?></div>
-            <?php endif ?>
-
-            <?= form_open(route_to('auth-action-verify')) ?>
-                <div class="mb-3">
-                    <input type="text"
-                           name="code"
-                           class="form-control form-control-lg text-center"
-                           maxlength="6"
-                           placeholder="000000"
-                           autocomplete="one-time-code"
-                           autofocus>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Verify</button>
-            <?= form_close() ?>
-        </div>
-    </div>
-</div>
 ```
 
 ---
 
-## Managing TOTP in Controllers
-
-### Check if a User Has TOTP Enabled
-
-```php
-$user = auth()->user();
-
-if ($user->hasTotpSecret()) {
-    echo "TOTP is enabled for this user.";
-} else {
-    echo "TOTP is not configured.";
-}
-```
-
-### The `HasTotp` Trait Methods
+## HasTotp Trait Reference
 
 The `User` entity uses the `HasTotp` trait, which provides:
 
 ```php
-// Check if TOTP secret exists
-$user->hasTotpSecret(): bool
+// === Enrollment ===
 
-// Enable TOTP with a given secret (call after verifying the first code)
-$user->enableTotp(string $secret): void
+// Generate a new secret (pending), returns the otpauth:// URL.
+// If called again, replaces any existing secret.
+$user->enableTotp(?string $issuer = null): string
 
-// Disable TOTP (removes the stored secret)
+// Returns true while the secret is generated but not yet confirmed.
+$user->hasTotpPending(): bool
+
+// Returns true only after confirmTotp() has been called.
+$user->hasTotpEnabled(): bool
+
+// Upgrades the identity from PENDING to CONFIRMED.
+// Call only after verifyTotpCode() returns true.
+$user->confirmTotp(): void
+
+// Returns the decrypted base32 secret (or null if not set).
+$user->getTotpSecret(): ?string
+
+// === Verification ===
+
+// Checks a 6-digit code against the user's stored secret.
+$user->verifyTotpCode(string $code): bool
+
+// === Removal ===
+
+// Removes the TOTP secret identity entirely (both pending and confirmed).
 $user->disableTotp(): void
-
-// Verify a given 6-digit code against the user's secret
-$user->verifyTotp(string $code): bool
 ```
 
-### Example: Security Dashboard
+### Security Dashboard Example
 
 ```php
-public function securityIndex()
+public function securityIndex(): string
 {
     $user = auth()->user();
 
     return view('security/index', [
-        'totpEnabled'  => $user->hasTotpSecret(),
+        'totpEnabled'  => $user->hasTotpEnabled(),
+        'totpPending'  => $user->hasTotpPending(),
         'deviceCount'  => count($user->getDeviceSessions()),
     ]);
 }
@@ -291,16 +234,37 @@ public function securityIndex()
 
 ---
 
-## Disabling TOTP
+## UserSecurityController Integration
+
+Daycry Auth ships with `UserSecurityController` which provides ready-to-use TOTP management endpoints. Register the routes in `app/Config/Routes.php`:
 
 ```php
-public function disableTotpAction()
+$routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+    $routes->get('/',             'UserSecurityController::index',          ['as' => 'security']);
+    $routes->get('totp/setup',    'UserSecurityController::totpSetup',      ['as' => 'totp-setup']);
+    $routes->post('totp/confirm', 'UserSecurityController::totpSetupConfirm', ['as' => 'totp-setup-confirm']);
+    $routes->post('totp/disable', 'UserSecurityController::totpDisable',    ['as' => 'totp-disable']);
+
+    // Device session management
+    $routes->post('sessions/(:num)/revoke', 'UserSecurityController::revokeSession/$1', ['as' => 'revoke-session']);
+    $routes->post('sessions/revoke-all',    'UserSecurityController::revokeAllSessions', ['as' => 'revoke-all-sessions']);
+});
+```
+
+The views are configured in `app/Config/Auth.php` under the `$views` array (see [Override the Default TOTP Views](#override-the-default-totp-views) above).
+
+---
+
+## Disabling TOTP
+
+Always require password confirmation before disabling 2FA:
+
+```php
+public function disableTotpAction(): RedirectResponse
 {
     $user     = auth()->user();
     $password = $this->request->getPost('current_password');
 
-    // Always require password confirmation before disabling 2FA
-    /** @var \Daycry\Auth\Authentication\Passwords $passwords */
     $passwords = service('passwords');
 
     if (! $passwords->verify($password, $user->getPasswordHash())) {
@@ -315,22 +279,9 @@ public function disableTotpAction()
 
 ---
 
-## UserSecurityController Integration
-
-Daycry Auth ships with `UserSecurityController` that provides ready-to-use TOTP management endpoints. Add the routes in `app/Config/Routes.php`:
-
-```php
-$routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
-    // TOTP management
-    $routes->get('totp/enable',  'UserSecurityController::totpEnableView',   ['as' => 'totp-enable']);
-    $routes->post('totp/enable', 'UserSecurityController::totpEnableAction');
-    $routes->post('totp/disable','UserSecurityController::totpDisableAction', ['as' => 'totp-disable']);
-});
-```
-
----
-
 ## Testing TOTP
+
+`DatabaseTestCase` automatically injects a 32-byte AES encryption key, so `service('encrypter')` works without any extra setup in your tests.
 
 ```php
 <?php
@@ -342,57 +293,73 @@ use Daycry\Auth\Libraries\TOTP;
 
 class TotpTest extends DatabaseTestCase
 {
-    public function testEnableAndVerifyTotp(): void
+    public function testEnrollAndVerifyTotp(): void
     {
-        $user = $this->createUser();
+        $user = fake(UserModel::class);
 
-        $totp   = new TOTP();
-        $secret = $totp->generateSecret();
+        // Phase 1: generate secret (creates a PENDING identity)
+        $otpAuthUrl = $user->enableTotp('TestApp');
 
-        // Simulate enrollment
-        $user->enableTotp($secret);
+        $this->assertStringStartsWith('otpauth://totp/', $otpAuthUrl);
+        $this->assertTrue($user->hasTotpPending());
+        $this->assertFalse($user->hasTotpEnabled());
+        $this->assertNotEmpty($user->getTotpSecret());
 
-        $this->assertTrue($user->hasTotpSecret());
+        // Phase 2: confirm — TOTP becomes active
+        $user->confirmTotp();
+
+        $this->assertTrue($user->hasTotpEnabled());
+        $this->assertFalse($user->hasTotpPending());
     }
 
-    public function testVerifyInvalidCodeFails(): void
+    public function testVerifyTotpCode(): void
     {
-        $user = $this->createUser();
+        $user = fake(UserModel::class);
+        $user->enableTotp('TestApp');
+        $user->confirmTotp();
 
-        $totp   = new TOTP();
-        $secret = $totp->generateSecret();
-        $user->enableTotp($secret);
-
-        // An obviously wrong code
-        $this->assertFalse($user->verifyTotp('000000'));
+        // An obviously wrong code should fail
+        $this->assertFalse($user->verifyTotpCode('000000'));
     }
 
     public function testDisableTotpRemovesSecret(): void
     {
-        $user = $this->createUser();
-
-        $totp   = new TOTP();
-        $secret = $totp->generateSecret();
-        $user->enableTotp($secret);
+        $user = fake(UserModel::class);
+        $user->enableTotp('TestApp');
+        $user->confirmTotp();
         $user->disableTotp();
 
-        $this->assertFalse($user->hasTotpSecret());
+        $this->assertFalse($user->hasTotpEnabled());
+        $this->assertNull($user->getTotpSecret());
+    }
+
+    public function testSecretIsEncryptedInDatabase(): void
+    {
+        $user = fake(UserModel::class);
+        $user->enableTotp('TestApp');
+
+        /** @var \Daycry\Auth\Models\UserIdentityModel $model */
+        $model    = model(\Daycry\Auth\Models\UserIdentityModel::class);
+        $identity = $model->where('user_id', $user->id)
+                          ->where('type', 'totp_secret')
+                          ->first();
+
+        // The DB value is base64-encoded ciphertext — not the raw secret
+        $this->assertNotSame($user->getTotpSecret(), $identity->secret);
+        $this->assertNotEmpty(base64_decode($identity->secret, true));
     }
 }
 ```
 
 ---
 
-## Security Tips
-
-```{admonition} Best Practices
-:class: tip
+## Security Notes
 
 - **Always require password confirmation** before enabling or disabling TOTP.
-- Explain to users that **losing access to their authenticator app** could lock them out — consider implementing backup codes.
-- TOTP codes are valid for a 30-second window (with a configurable clock skew tolerance). Ensure your server clock is synchronized (NTP).
-- The TOTP secret is stored in the `auth_users_identities` table. Make sure your database access is properly secured.
-```
+- The TOTP secret is stored **AES-256 encrypted** in `auth_users_identities`. The raw base32 secret is never in the database in plain text.
+- TOTP codes are valid for a **30-second window** (±1 window tolerance for clock skew). Ensure your server clock is synchronized via NTP.
+- If a user loses access to their authenticator app they will be locked out. Consider implementing **backup codes** (not included) or an admin unlock procedure.
+- A user with a **pending** (unconfirmed) TOTP secret is **not** challenged at login. If they navigate away before confirming, they simply aren't enrolled yet.
 
 ---
 

@@ -2,24 +2,34 @@
 
 This guide covers every configuration option available in Daycry Auth.
 
-## The Configuration File
+## The Configuration Files
 
-After running `php spark auth:setup`, a file `app/Config/Auth.php` is created that extends the library's base configuration:
+Configuration is split across three files to keep concerns separate. After running `php spark auth:setup`, each is published to `app/Config/`:
+
+| File | Base class | Contains |
+|------|-----------|----------|
+| `app/Config/Auth.php` | `Daycry\Auth\Config\Auth` | Authenticators, actions, views, tables, routes, session/remember-me |
+| `app/Config/AuthSecurity.php` | `Daycry\Auth\Config\AuthSecurity` | Passwords, lockout, rate-limit, token lifetimes, TOTP issuer, permission cache |
+| `app/Config/AuthOAuth.php` | `Daycry\Auth\Config\AuthOAuth` | OAuth provider definitions |
+
+Override only what you need in each file:
 
 ```php
-<?php
-
+// app/Config/Auth.php
 namespace Config;
-
 use Daycry\Auth\Config\Auth as BaseAuth;
+class Auth extends BaseAuth { /* ... */ }
 
-class Auth extends BaseAuth
-{
-    // Override only what you need
-}
+// app/Config/AuthSecurity.php
+namespace Config;
+use Daycry\Auth\Config\AuthSecurity as BaseAuthSecurity;
+class AuthSecurity extends BaseAuthSecurity { /* ... */ }
+
+// app/Config/AuthOAuth.php
+namespace Config;
+use Daycry\Auth\Config\AuthOAuth as BaseAuthOAuth;
+class AuthOAuth extends BaseAuthOAuth { /* ... */ }
 ```
-
-All options listed below can be overridden in this file.
 
 ---
 
@@ -144,6 +154,8 @@ public array $validFields = [
 
 ## Password Settings
 
+> **File**: `app/Config/AuthSecurity.php`
+
 ```php
 // Minimum password length
 public int $minimumPasswordLength = 8;
@@ -176,6 +188,8 @@ public int $maxSimilarity = 50;
 
 ## Password Reset
 
+> **File**: `app/Config/AuthSecurity.php`
+
 ```php
 // How long a password reset token remains valid
 public int $passwordResetLifetime = HOUR; // Default: 1 hour
@@ -186,6 +200,8 @@ The reset flow is handled by `PasswordResetController`. Users request a reset li
 ---
 
 ## Per-User Account Lockout
+
+> **File**: `app/Config/AuthSecurity.php`
 
 Independent of IP-based blocking, this locks an individual account after too many failed password attempts:
 
@@ -203,6 +219,8 @@ When the lockout expires, the counter resets automatically on the next login att
 
 ## Magic Links
 
+> **File**: `app/Config/AuthSecurity.php`
+
 ```php
 public bool $allowMagicLinkLogins = true;
 public int  $magicLinkLifetime    = HOUR; // Token validity in seconds
@@ -211,6 +229,8 @@ public int  $magicLinkLifetime    = HOUR; // Token validity in seconds
 ---
 
 ## Access Tokens
+
+> **File**: `app/Config/AuthSecurity.php`
 
 ```php
 public bool $accessTokenEnabled = false;
@@ -232,6 +252,8 @@ public array $authenticatorHeader = [
 
 ## JWT Refresh Tokens
 
+> **File**: `app/Config/AuthSecurity.php`
+
 When using `JwtController` for stateless JWT authentication, refresh tokens allow issuing new access tokens without re-entering credentials:
 
 ```php
@@ -244,6 +266,8 @@ Refresh tokens are stored in `auth_users_identities` (type: `jwt_refresh`) and a
 ---
 
 ## Logging & Monitoring
+
+> **File**: `app/Config/AuthSecurity.php`
 
 ### Activity Logs
 
@@ -276,6 +300,8 @@ public int    $timeLimit     = MINUTE;  // Window size in seconds
 ---
 
 ## Authorization Cache
+
+> **File**: `app/Config/AuthSecurity.php`
 
 Avoid repeated database queries for group/permission checks in production:
 
@@ -459,23 +485,25 @@ public array $emailValidationRules = [
 
 ## OAuth Providers
 
+> **File**: `app/Config/AuthOAuth.php`
+
 ```php
 public array $providers = [
     'google' => [
-        'clientId'     => 'GOOGLE_CLIENT_ID',
-        'clientSecret' => 'GOOGLE_CLIENT_SECRET',
+        'clientId'     => env('OAUTH_GOOGLE_CLIENT_ID'),
+        'clientSecret' => env('OAUTH_GOOGLE_CLIENT_SECRET'),
         'redirectUri'  => 'https://yourapp.com/oauth/google/callback',
         'scopes'       => ['openid', 'email', 'profile'],
     ],
     'github' => [
-        'clientId'     => 'GITHUB_CLIENT_ID',
-        'clientSecret' => 'GITHUB_CLIENT_SECRET',
+        'clientId'     => env('OAUTH_GITHUB_CLIENT_ID'),
+        'clientSecret' => env('OAUTH_GITHUB_CLIENT_SECRET'),
         'redirectUri'  => 'https://yourapp.com/oauth/github/callback',
         'scopes'       => ['user:email'],
     ],
     'azure' => [
-        'clientId'     => 'AZURE_CLIENT_ID',
-        'clientSecret' => 'AZURE_CLIENT_SECRET',
+        'clientId'     => env('OAUTH_AZURE_CLIENT_ID'),
+        'clientSecret' => env('OAUTH_AZURE_CLIENT_SECRET'),
         'redirectUri'  => 'https://yourapp.com/oauth/azure/callback',
         'tenant'       => 'common',
         'scopes'       => ['openid', 'profile', 'email', 'offline_access'],
@@ -492,35 +520,44 @@ See [OAuth 2.0 & Social Login](09-oauth.md) for full setup instructions.
 ### Web Application
 
 ```php
-public bool   $allowRegistration = true;
+// app/Config/Auth.php
+public bool   $allowRegistration    = true;
 public string $defaultAuthenticator = 'session';
-public bool   $allowMagicLinkLogins = true;
-public int    $userMaxAttempts   = 5;
-public int    $userLockoutTime   = 1800; // 30 minutes
 public array  $actions = ['register' => null, 'login' => null];
+
+// app/Config/AuthSecurity.php
+public bool $allowMagicLinkLogins = true;
+public int  $userMaxAttempts      = 5;
+public int  $userLockoutTime      = 1800; // 30 minutes
 ```
 
 ### API (Stateless)
 
 ```php
+// app/Config/Auth.php
 public string $defaultAuthenticator = 'jwt';
-public bool   $accessTokenEnabled   = true;
-public int    $jwtRefreshLifetime   = 30 * DAY;
 public array  $authenticationChain  = ['jwt', 'access_token'];
-public int    $recordLoginAttempt   = 2;
+
+// app/Config/AuthSecurity.php
+public bool $accessTokenEnabled  = true;
+public int  $jwtRefreshLifetime  = 30 * DAY;
+public int  $recordLoginAttempt  = 2;
 ```
 
 ### High-Security
 
 ```php
-public int    $minimumPasswordLength = 12;
-public bool   $enableInvalidAttempts = true;
-public int    $maxAttempts           = 5;
-public int    $timeBlocked           = 3600;
-public int    $userMaxAttempts       = 3;
-public int    $userLockoutTime       = 7200;  // 2 hours
-public bool   $permissionCacheEnabled = true;
-public array  $actions = ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class];
+// app/Config/Auth.php
+public array $actions = ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class];
+
+// app/Config/AuthSecurity.php
+public int  $minimumPasswordLength  = 12;
+public bool $enableInvalidAttempts  = true;
+public int  $maxAttempts            = 5;
+public int  $timeBlocked            = 3600;
+public int  $userMaxAttempts        = 3;
+public int  $userLockoutTime        = 7200;  // 2 hours
+public bool $permissionCacheEnabled = true;
 ```
 
 ---
