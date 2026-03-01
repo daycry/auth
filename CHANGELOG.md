@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   | `$totpIssuer`, `$permissionCacheEnabled`, `$permissionCacheTTL` | `Auth` | `AuthSecurity` |
   | `RECORD_LOGIN_ATTEMPT_*` constants | `Auth` | `AuthSecurity` |
   | `$providers` | `Auth` | `AuthOAuth` |
-  | `$enableDiscovery`, `$namespaceScope`, `$excludeMethods` | `Auth` | `AuthOAuth` |
 
 - **`setting('Auth.X')` calls renamed** — any custom code using `setting('Auth.recordLoginAttempt')`, `setting('Auth.requestLimit')`, etc. must update to `setting('AuthSecurity.X')` or `setting('AuthOAuth.X')` accordingly.
 - **`Passwords` and `BaseValidator` constructor** now accept `AuthSecurity` instead of `Auth`. Custom password validators extending `BaseValidator` must update their type hints.

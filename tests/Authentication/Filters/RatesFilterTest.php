@@ -37,7 +37,7 @@ final class RatesFilterTest extends FilterTestCase
         $_SESSION = [];
 
         // Ensure discovery is disabled so checkEndpoint() returns null
-        setting('AuthOAuth.enableDiscovery', false);
+        setting('Auth.enableDiscovery', false);
     }
 
     public function testFilterAllowsRequestWithinLimit(): void

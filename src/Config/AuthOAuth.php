@@ -91,34 +91,4 @@ class AuthOAuth extends BaseConfig
         //     'urlResourceOwnerDetails' => 'https://provider.example.com/api/user',
         // ],
     ];
-
-    /**
-     * ////////////////////////////////////////////////////////////////////
-     * DISCOVERY
-     * ////////////////////////////////////////////////////////////////////
-     */
-
-    /**
-     * --------------------------------------------------------------------
-     * Controller Discovery
-     * --------------------------------------------------------------------
-     * Set to TRUE to enable auto-discovery of API controllers to fill the
-     * endpoints table. Requires the daycry/jobs package.
-     *
-     * Ex: $namespaceScope = ['\Api\Controllers\Class', '\App\Controllers\Class'];
-     */
-    public bool $enableDiscovery = false;
-
-    /**
-     * @var list<string>
-     */
-    public array $namespaceScope = ['\Daycry\Auth\Controllers'];
-
-    /**
-     * Exclude methods from discovery.
-     * Useful for trait methods or framework base methods.
-     *
-     * @var list<string>
-     */
-    public array $excludeMethods = ['initController', '_remap'];
 }
