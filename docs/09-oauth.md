@@ -63,16 +63,16 @@ composer require thenetworg/oauth2-azure  # Microsoft Azure
 
 ## Configuration
 
-Add your providers in `app/Config/Auth.php`:
+Add your providers in `app/Config/AuthOAuth.php`:
 
 ```php
 <?php
 
 namespace Config;
 
-use Daycry\Auth\Config\Auth as BaseAuth;
+use Daycry\Auth\Config\AuthOAuth as BaseAuthOAuth;
 
-class Auth extends BaseAuth
+class AuthOAuth extends BaseAuthOAuth
 {
     public array $providers = [
 

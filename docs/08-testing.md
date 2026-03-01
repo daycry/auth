@@ -36,23 +36,39 @@ composer test:coverage
 
 ### Test Environment Setup
 
+The library ships two ready-to-use base classes under `tests/_support/`:
+
+| Class | Use when |
+|-------|---------|
+| `Tests\Support\TestCase` | No database needed (unit tests, filter tests) |
+| `Tests\Support\DatabaseTestCase` | Tests that read/write the SQLite in-memory database |
+
+Both base classes automatically:
+- Reset all CI4 services between tests
+- Inject the array settings handler (so `setting()` calls work)
+- Inject a fixed AES-256 encryption key (so `service('encrypter')` works — needed for TOTP)
+- Seed with `CoreSeeder` (groups, permissions, one default user)
+
 ```php
 <?php
-// tests/_support/DatabaseTestCase.php
-namespace Tests\Support;
 
-use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+namespace Tests\Authentication;
 
-abstract class DatabaseTestCase extends CIUnitTestCase
+use Tests\Support\DatabaseTestCase;
+use Daycry\Auth\Entities\User;
+use Daycry\Auth\Models\UserModel;
+
+class MyAuthTest extends DatabaseTestCase
 {
-    use DatabaseTestTrait;
+    protected User $user;
 
-    protected $migrate = true;
-    protected $refresh = true;
-    protected $seed    = 'TestSeeder';
-    protected $basePath = 'tests/_support/Database/';
-    protected $namespace = 'Tests\Support';
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Create a test user via CI4 Fabricator
+        $this->user = fake(UserModel::class);
+    }
 }
 ```
 
@@ -86,60 +102,47 @@ abstract class DatabaseTestCase extends CIUnitTestCase
 namespace Tests\Authentication;
 
 use Tests\Support\DatabaseTestCase;
-use Daycry\Auth\Auth;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Models\UserModel;
 
-class AuthenticationTestCase extends DatabaseTestCase
+class MySessionTest extends DatabaseTestCase
 {
-    protected Auth $auth;
     protected User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
-        $this->auth = service('auth');
-        
-        // Create test user
-        $this->user = new User([
-            'username' => 'testuser',
-            'email'    => 'test@example.com',
-            'password' => 'secret123'
-        ]);
-        $this->user->save();
+
+        // Use CI4 Fabricator to create a user with hashed password + email identity
+        $this->user = fake(UserModel::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        
-        if ($this->auth->loggedIn()) {
-            $this->auth->logout();
-        }
+        auth('session')->logout();
     }
 }
 ```
 
 ### Mock Configuration
 
-```php
-<?php
-// For testing with different configurations
-class AuthTestCase extends DatabaseTestCase
-{
-    protected function createMockConfig(array $overrides = []): object
-    {
-        $config = (object) array_merge([
-            'enableInvalidAttempts' => true,
-            'maxAttempts'          => 5,
-            'timeToRemember'       => MONTH,
-            'loginRoute'           => '/login',
-        ], $overrides);
+Use the built-in helpers to override config properties for a single test:
 
-        return $config;
-    }
-}
+```php
+// Override Auth config (authenticators, actions, views, routes, session)
+$this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+$this->inkectMockAttributes(['actions' => ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class]]);
+
+// Override AuthSecurity config (passwords, lockout, rate-limit, TOTP, token lifetimes)
+$this->inkectMockAttributesSecurity(['userMaxAttempts' => 3]);
+$this->inkectMockAttributesSecurity(['minimumPasswordLength' => 12]);
+
+// Override AuthOAuth config (provider definitions)
+$this->inkectMockAttributesOAuth(['providers' => ['google' => [...]]]);
 ```
+
+Each call replaces only the specified keys; unspecified keys keep their defaults.
 
 ## 🛡️ Testing Authentication
 
