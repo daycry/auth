@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Actions;
 
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\Response;
@@ -25,8 +27,6 @@ use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
-use Daycry\Exceptions\Exceptions\LogicException;
-use Daycry\Exceptions\Exceptions\RuntimeException;
 
 class EmailActivator implements ActionInterface
 {

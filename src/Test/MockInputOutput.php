@@ -14,10 +14,10 @@ declare(strict_types=1);
 namespace Daycry\Auth\Test;
 
 use CodeIgniter\CLI\CLI;
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\Test\Filters\CITestStreamFilter;
 use CodeIgniter\Test\PhpStreamWrapper;
 use Daycry\Auth\Commands\Utils\InputOutput;
-use Daycry\Exceptions\Exceptions\LogicException;
 
 final class MockInputOutput extends InputOutput
 {
