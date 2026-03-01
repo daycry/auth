@@ -31,7 +31,8 @@ class OauthController extends BaseAuthController
 
     public function redirect(string $provider)
     {
-        $config  = config(AuthOAuth::class);
+        /** @var AuthOAuth $config */
+        $config  = config('AuthOAuth');
         $manager = new OauthManager($config);
 
         return $manager->setProvider($provider)->redirect();
@@ -39,7 +40,8 @@ class OauthController extends BaseAuthController
 
     public function callback(string $provider)
     {
-        $config  = config(AuthOAuth::class);
+        /** @var AuthOAuth $config */
+        $config  = config('AuthOAuth');
         $manager = new OauthManager($config);
 
         try {

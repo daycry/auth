@@ -214,7 +214,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
     public function testAttemptSuccess(): void
     {
         // Change $recordLoginAttempt in Config.
-        /** @var AuthJWT $config */
+        /** @var AuthSecurity $config */
         $config                     = config('AuthSecurity');
         $config->recordLoginAttempt = AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL;
 

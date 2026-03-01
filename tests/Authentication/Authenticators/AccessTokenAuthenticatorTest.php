@@ -235,7 +235,7 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
     public function testAttemptSuccessLog(): void
     {
         // Change $recordLoginAttempt in Config.
-        /** @var AuthToken $config */
+        /** @var AuthSecurity $config */
         $config                     = config('AuthSecurity');
         $config->recordLoginAttempt = AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL;
 
