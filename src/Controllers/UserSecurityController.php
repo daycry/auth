@@ -110,6 +110,9 @@ class UserSecurityController extends BaseAuthController
 
     /**
      * Show the TOTP setup page with QR code.
+     *
+     * Always generates a fresh secret. If the user navigates away before
+     * confirming, a new QR code will be issued on their next visit.
      */
     public function totpSetup(): RedirectResponse|string
     {
@@ -132,6 +135,9 @@ class UserSecurityController extends BaseAuthController
 
     /**
      * Confirm TOTP setup by verifying the first code.
+     *
+     * On failure the pending secret is kept so the user can retry with the same
+     * QR code already in their authenticator app.
      */
     public function totpSetupConfirm(): RedirectResponse|string
     {
@@ -139,12 +145,12 @@ class UserSecurityController extends BaseAuthController
         $code = (string) $this->request->getPost('token');
 
         if (! $user->verifyTotpCode($code)) {
-            // Remove the just-generated secret so setup can restart cleanly
-            $user->disableTotp();
-
             return redirect()->route('totp-setup')
                 ->with('error', lang('Auth.totpSetupInvalidCode'));
         }
+
+        // Mark the secret as confirmed — from this point hasTotpEnabled() returns true.
+        $user->confirmTotp();
 
         return $this->view(setting('Auth.views')['action_totp_setup_success'], [
             'redirectUrl' => url_to('security'),

@@ -1161,7 +1161,7 @@ parameters:
 		-
 			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
 			identifier: staticMethod.internal
-			count: 4
+			count: 5
 			path: tests/Authentication/Actions/Totp2FATest.php
 
 		-
@@ -1722,5 +1722,5 @@ parameters:
 		-
 			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
 			identifier: staticMethod.internal
-			count: 5
+			count: 6
 			path: tests/_support/TestCase.php

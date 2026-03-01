@@ -138,8 +138,15 @@ final class Totp2FATest extends DatabaseTestCase
         $otpAuthUrl = $this->user->enableTotp('TestApp');
 
         $this->assertStringStartsWith('otpauth://totp/', $otpAuthUrl);
-        $this->assertTrue($this->user->hasTotpEnabled());
+        // enableTotp() creates a PENDING secret — not yet confirmed
+        $this->assertTrue($this->user->hasTotpPending());
+        $this->assertFalse($this->user->hasTotpEnabled());
         $this->assertNotEmpty($this->user->getTotpSecret());
+
+        // After confirmation the secret becomes active
+        $this->user->confirmTotp();
+        $this->assertTrue($this->user->hasTotpEnabled());
+        $this->assertFalse($this->user->hasTotpPending());
     }
 
     public function testEnableTotpReplacesExistingSecret(): void
@@ -163,6 +170,7 @@ final class Totp2FATest extends DatabaseTestCase
     public function testDisableTotpRemovesSecret(): void
     {
         $this->user->enableTotp('TestApp');
+        $this->user->confirmTotp();
         $this->assertTrue($this->user->hasTotpEnabled());
 
         $this->user->disableTotp();

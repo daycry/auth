@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Libraries;
 
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 use InvalidArgumentException;
 
 /**
@@ -105,15 +107,18 @@ class TOTP
     }
 
     /**
-     * Returns a Google Charts QR code image URL for the given otpauth URI.
-     * Useful for quickly rendering a QR code without a local library.
+     * Returns a base64 data URI (data:image/png;base64,...) containing the QR
+     * code for the given otpauth URI, generated locally via endroid/qr-code.
+     * The result can be used directly as the `src` of an `<img>` tag.
      */
     public static function getQRCodeUrl(string $otpAuthUrl, int $size = 200): string
     {
-        return 'https://chart.googleapis.com/chart?chs=' . $size . 'x' . $size
-            . '&chld=M|0'
-            . '&cht=qr'
-            . '&chl=' . rawurlencode($otpAuthUrl);
+        $qrCode = new QrCode($otpAuthUrl, size: $size);
+
+        $writer = new PngWriter();
+        $result = $writer->write($qrCode);
+
+        return $result->getDataUri();
     }
 
     /**
