@@ -16,7 +16,6 @@ namespace Daycry\Auth\Config;
 use CodeIgniter\Config\BaseConfig;
 use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
-use Daycry\Auth\Authentication\Authenticators\Guest;
 use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
@@ -99,7 +98,6 @@ class Auth extends BaseConfig
         'access_token' => AccessToken::class,
         'session'      => Session::class,
         'jwt'          => JWT::class,
-        'guest'        => Guest::class,
     ];
 
     /**
