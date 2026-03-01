@@ -28,20 +28,21 @@ use Daycry\Auth\Traits\Viewable;
 /**
  * Class Totp2FA
  *
- * Provides TOTP (RFC 6238 / Google Authenticator) second-factor authentication.
+ * Optional TOTP (RFC 6238 / Google Authenticator) second-factor authentication.
  *
- * Usage:
- *   In Auth config set `'login' => Totp2FA::class` inside `$actions`.
- *   Users must have TOTP configured via `$user->enableTotp($issuer)` before this
- *   action is triggered.
+ * Behaviour when set as `'login' => Totp2FA::class` in Auth::$actions:
+ *   - User HAS TOTP configured → code entry form is shown before completing login.
+ *   - User has NO TOTP configured → action is silently skipped, login proceeds normally.
+ *
+ * Users enable/disable TOTP from their account security settings via
+ * UserSecurityController (totpSetup / totpDisable).
  */
 class Totp2FA implements ActionInterface
 {
     use Viewable;
 
     /**
-     * The identity type used to mark that a TOTP verification is pending.
-     * The permanent TOTP secret is stored under IdentityType::TOTP_SECRET.
+     * Identity type for the pending-login marker.
      */
     private string $type = IdentityType::TOTP->value;
 
@@ -96,7 +97,7 @@ class Totp2FA implements ActionInterface
             return $this->view(setting('Auth.views')['action_totp_2fa_verify']);
         }
 
-        // Remove the pending marker identity and complete login
+        // Remove the pending marker and complete login
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
         $identityModel->deleteIdentitiesByType($user, $this->type);
@@ -107,31 +108,27 @@ class Totp2FA implements ActionInterface
     }
 
     /**
-     * Creates a temporary pending identity so the Session authenticator
-     * knows TOTP verification is required for this login attempt.
+     * Creates the pending marker so Session knows TOTP verification is required.
      *
-     * @return string The identity secret (not used for TOTP but required by the interface)
+     * If the user has no confirmed TOTP secret the method returns early without
+     * inserting a marker. Session::setAuthAction() will find nothing and
+     * hasAction() will return false, so the login completes normally.
      *
-     * @throws RuntimeException if the user has not configured TOTP
+     * @return string 'totp' when action is active, '' when skipped.
      */
     public function createIdentity(User $user): string
     {
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
 
-        // Ensure the user has a permanent TOTP secret configured
-        $totpSecret = $identityModel->getIdentityByType($user, IdentityType::TOTP_SECRET->value);
-
-        if (! $totpSecret instanceof UserIdentity) {
-            throw new RuntimeException(
-                'User has not configured TOTP 2FA. Call $user->enableTotp($issuer) first.',
-            );
-        }
-
-        // Remove any stale pending TOTP identity
+        // Remove any stale marker from a previous attempt
         $identityModel->deleteIdentitiesByType($user, $this->type);
 
-        // Create a marker identity (secret field is unused — verification uses the permanent secret)
+        // Only activate the action for users who have confirmed TOTP
+        if (! $user->hasTotpEnabled()) {
+            return '';
+        }
+
         $identityModel->insert([
             'user_id' => $user->id,
             'type'    => $this->type,

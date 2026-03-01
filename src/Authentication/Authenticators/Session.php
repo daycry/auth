@@ -510,6 +510,13 @@ class Session extends Base implements AuthenticatorInterface
      */
     public function completeLogin(User $user): void
     {
+        // Ensure no pending-action state survives in the session.
+        // This is critical for actions (e.g. Totp2FA) that call
+        // completeLogin() directly after verifying their own code,
+        // because those actions don't go through checkAction().
+        $this->removeSessionKey('auth_action');
+        $this->removeSessionKey('auth_action_message');
+
         $this->userState = AuthenticationState::LOGGED_IN;
 
         // a successful login
@@ -589,7 +596,18 @@ class Session extends Base implements AuthenticatorInterface
         $action = Factories::actions($actionClass); // @phpstan-ignore-line
 
         // Create identity for the action.
-        $action->createIdentity($user);
+        $secret = $action->createIdentity($user);
+
+        // An empty return value means the action decided to skip itself for this user
+        // (e.g. Totp2FA when the user has no TOTP configured).
+        // Clear any stale auth_action session key that setAuthAction() may have set
+        // earlier in login() from a leftover DB marker.
+        if ($secret === '') {
+            $this->removeSessionKey('auth_action');
+            $this->removeSessionKey('auth_action_message');
+
+            return false;
+        }
 
         $this->setAuthAction();
 

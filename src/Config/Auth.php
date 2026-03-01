@@ -326,6 +326,8 @@ class Auth extends BaseConfig
         'force-password-reset' => '\Daycry\Auth\Views\force_password_reset',
         // Email change confirmation (sent to new address)
         'email-change-email' => '\Daycry\Auth\Views\Email\email_change_email',
+        // User security overview (device sessions + TOTP status)
+        'security_overview' => '\Daycry\Auth\Views\profile\security',
     ];
 
     /**

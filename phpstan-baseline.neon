@@ -1159,6 +1159,12 @@ parameters:
 			path: tests/Authentication/Actions/Email2FATest.php
 
 		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
+			count: 4
+			path: tests/Authentication/Actions/Totp2FATest.php
+
+		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
 			count: 1
