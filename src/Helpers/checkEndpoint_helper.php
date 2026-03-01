@@ -23,7 +23,7 @@ if (! function_exists('checkEndpoint')) {
      */
     function checkEndpoint(): ?Endpoint
     {
-        if (! service('settings')->get('Auth.enableDiscovery')) {
+        if (! service('settings')->get('AuthOAuth.enableDiscovery')) {
             return null;
         }
 

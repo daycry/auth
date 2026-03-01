@@ -19,6 +19,7 @@ use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\JWT\Adapters\DaycryJWTAdapter;
 use Daycry\Auth\Config\Auth as ConfigAuth;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
@@ -214,8 +215,8 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
     {
         // Change $recordLoginAttempt in Config.
         /** @var AuthJWT $config */
-        $config                     = config('Auth');
-        $config->recordLoginAttempt = ConfigAuth::RECORD_LOGIN_ATTEMPT_ALL;
+        $config                     = config('AuthSecurity');
+        $config->recordLoginAttempt = AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL;
 
         $token = $this->generateJWT();
 

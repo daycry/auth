@@ -39,7 +39,7 @@ class DiscoverCommand extends BaseCommand
 
     public function run(array $params): void
     {
-        if (! service('settings')->get('Auth.enableDiscovery')) {
+        if (! service('settings')->get('AuthOAuth.enableDiscovery')) {
             CLI::write('**** DISCOVERY DISABLED. Enable it in the Auth config file. ****', 'white', 'red');
 
             return;
@@ -52,7 +52,7 @@ class DiscoverCommand extends BaseCommand
 
         $api = $this->_checkApiModel();
 
-        foreach (service('settings')->get('Auth.namespaceScope') as $namespace) {
+        foreach (service('settings')->get('AuthOAuth.namespaceScope') as $namespace) {
             // remove "\" for search in class-finder
             $namespace = (mb_substr($namespace, 0, 1) === '\\') ? mb_substr($namespace, 1) : $namespace;
 
@@ -114,7 +114,7 @@ class DiscoverCommand extends BaseCommand
         $namespaceConverted = (mb_substr($namespace, 0, 1) !== '\\') ? '\\' . $namespace : $namespace;
 
         foreach ($f->getMethods(ReflectionMethod::IS_PUBLIC) as $m) {
-            if (! str_starts_with($m->name, '__') && $m->class === $namespace && ! in_array($m->name, service('settings')->get('Auth.excludeMethods'), true)) {
+            if (! str_starts_with($m->name, '__') && $m->class === $namespace && ! in_array($m->name, service('settings')->get('AuthOAuth.excludeMethods'), true)) {
                 $methods[] = $namespaceConverted . '::' . $m->name;
             }
         }

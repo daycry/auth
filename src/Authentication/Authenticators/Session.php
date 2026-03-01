@@ -174,7 +174,7 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         // Check per-user lockout (independent of IP-based blocking)
-        $maxAttempts = (int) setting('Auth.userMaxAttempts');
+        $maxAttempts = (int) setting('AuthSecurity.userMaxAttempts');
 
         if ($maxAttempts > 0 && $user->locked_until !== null) {
             $lockedUntil = Time::parse((string) $user->locked_until);
@@ -204,7 +204,7 @@ class Session extends Base implements AuthenticatorInterface
 
                 if ($count >= $maxAttempts) {
                     $data['locked_until'] = Time::now()
-                        ->addSeconds((int) setting('Auth.userLockoutTime'))
+                        ->addSeconds((int) setting('AuthSecurity.userLockoutTime'))
                         ->format('Y-m-d H:i:s');
                 }
 
@@ -342,7 +342,7 @@ class Session extends Base implements AuthenticatorInterface
         $this->user = $user;
 
         // Reset per-user failed login counter on successful login
-        if ((int) setting('Auth.userMaxAttempts') > 0
+        if ((int) setting('AuthSecurity.userMaxAttempts') > 0
             && ((int) ($user->failed_login_count ?? 0) > 0 || $user->locked_until !== null)
         ) {
             $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);

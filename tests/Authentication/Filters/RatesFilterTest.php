@@ -37,15 +37,15 @@ final class RatesFilterTest extends FilterTestCase
         $_SESSION = [];
 
         // Ensure discovery is disabled so checkEndpoint() returns null
-        setting('Auth.enableDiscovery', false);
+        setting('AuthOAuth.enableDiscovery', false);
     }
 
     public function testFilterAllowsRequestWithinLimit(): void
     {
         // Set a generous limit
-        setting('Auth.requestLimit', 10);
-        setting('Auth.timeLimit', 60);
-        setting('Auth.limitMethod', 'ROUTED_URL');
+        setting('AuthSecurity.requestLimit', 10);
+        setting('AuthSecurity.timeLimit', 60);
+        setting('AuthSecurity.limitMethod', 'ROUTED_URL');
 
         $result = $this->get('protected-route');
 
@@ -56,9 +56,9 @@ final class RatesFilterTest extends FilterTestCase
     public function testFilterBlocksRequestOverLimit(): void
     {
         // Set a very low limit
-        setting('Auth.requestLimit', 1);
-        setting('Auth.timeLimit', 60);
-        setting('Auth.limitMethod', 'ROUTED_URL');
+        setting('AuthSecurity.requestLimit', 1);
+        setting('AuthSecurity.timeLimit', 60);
+        setting('AuthSecurity.limitMethod', 'ROUTED_URL');
 
         // First request should succeed
         $result = $this->get('protected-route');
@@ -79,9 +79,9 @@ final class RatesFilterTest extends FilterTestCase
 
     public function testFilterWithIpAddressLimitMethod(): void
     {
-        setting('Auth.requestLimit', 1);
-        setting('Auth.timeLimit', 60);
-        setting('Auth.limitMethod', 'IP_ADDRESS');
+        setting('AuthSecurity.requestLimit', 1);
+        setting('AuthSecurity.timeLimit', 60);
+        setting('AuthSecurity.limitMethod', 'IP_ADDRESS');
 
         // First request should succeed
         $result = $this->get('protected-route');
@@ -95,7 +95,7 @@ final class RatesFilterTest extends FilterTestCase
     public function testFilterUsesDefaultLimitWhenNotConfigured(): void
     {
         // Don't set custom limits; defaults are 10 requests / 60 seconds
-        setting('Auth.limitMethod', 'ROUTED_URL');
+        setting('AuthSecurity.limitMethod', 'ROUTED_URL');
 
         // Should succeed with default limits
         $result = $this->get('protected-route');

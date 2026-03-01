@@ -89,7 +89,7 @@ class PasswordResetController extends BaseAuthController
                 'user_id' => $user->id,
                 'type'    => IdentityType::RESET_PASSWORD->value,
                 'secret'  => $token,
-                'expires' => Time::now()->addSeconds(setting('Auth.passwordResetLifetime'))->format('Y-m-d H:i:s'),
+                'expires' => Time::now()->addSeconds(setting('AuthSecurity.passwordResetLifetime'))->format('Y-m-d H:i:s'),
             ]);
 
             /** @var IncomingRequest $request */

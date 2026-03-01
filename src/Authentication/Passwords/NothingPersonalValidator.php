@@ -92,7 +92,7 @@ class NothingPersonalValidator extends BaseValidator implements PasswordValidato
             $needles = [...$needles, ...$emailParts];
 
             // Get any other "personal" fields defined in config
-            $personalFields = $this->config->personalFields;
+            $personalFields = config('Auth')->personalFields;
 
             foreach ($personalFields as $value) {
                 if (! empty($user->{$value})) {

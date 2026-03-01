@@ -52,7 +52,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function loginView(): ResponseInterface
     {
-        if (! setting('Auth.allowMagicLinkLogins')) {
+        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
             return $this->handleError(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
@@ -75,7 +75,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function loginAction(): RedirectResponse
     {
-        if (! setting('Auth.allowMagicLinkLogins')) {
+        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
             return $this->handleError(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
@@ -112,7 +112,7 @@ class MagicLinkController extends BaseAuthController
             'user_id' => $user->id,
             'type'    => Session::ID_TYPE_MAGIC_LINK,
             'secret'  => $token,
-            'expires' => Time::now()->addSeconds(setting('Auth.magicLinkLifetime'))->format('Y-m-d H:i:s'),
+            'expires' => Time::now()->addSeconds(setting('AuthSecurity.magicLinkLifetime'))->format('Y-m-d H:i:s'),
         ]);
 
         /** @var IncomingRequest $request */
@@ -170,7 +170,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function verify(): RedirectResponse
     {
-        if (! setting('Auth.allowMagicLinkLogins')) {
+        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
             return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
         }
 

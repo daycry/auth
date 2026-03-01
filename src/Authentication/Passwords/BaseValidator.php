@@ -13,15 +13,15 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Passwords;
 
-use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Config\AuthSecurity;
 
 class BaseValidator
 {
-    protected AuthConfig $config;
+    protected AuthSecurity $config;
     protected ?string $error      = null;
     protected ?string $suggestion = null;
 
-    public function __construct(AuthConfig $config)
+    public function __construct(AuthSecurity $config)
     {
         $this->config = $config;
     }

@@ -19,6 +19,7 @@ use Config\Services;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\AccessToken as AccessTokenEntity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
@@ -235,8 +236,8 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
     {
         // Change $recordLoginAttempt in Config.
         /** @var AuthToken $config */
-        $config                     = config('Auth');
-        $config->recordLoginAttempt = Auth::RECORD_LOGIN_ATTEMPT_ALL;
+        $config                     = config('AuthSecurity');
+        $config->recordLoginAttempt = AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL;
 
         /** @var User $user */
         $user  = fake(UserModel::class);

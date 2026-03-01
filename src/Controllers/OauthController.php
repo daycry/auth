@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
+use Daycry\Auth\Config\AuthOAuth;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
 use Exception;
 
@@ -30,7 +31,7 @@ class OauthController extends BaseAuthController
 
     public function redirect(string $provider)
     {
-        $config  = config('Auth');
+        $config  = config(AuthOAuth::class);
         $manager = new OauthManager($config);
 
         return $manager->setProvider($provider)->redirect();
@@ -38,7 +39,7 @@ class OauthController extends BaseAuthController
 
     public function callback(string $provider)
     {
-        $config  = config('Auth');
+        $config  = config(AuthOAuth::class);
         $manager = new OauthManager($config);
 
         try {

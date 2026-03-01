@@ -173,8 +173,8 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
     public function testInitControllerWithEarlyResponse(): void
     {
-        $this->settings->set('Auth.enableInvalidAttempts', true);
-        $this->settings->set('Auth.maxAttempts', 0);
+        $this->settings->set('AuthSecurity.enableInvalidAttempts', true);
+        $this->settings->set('AuthSecurity.maxAttempts', 0);
 
         $controller = new MockBaseAuthController();
         $controller->initController($this->request, $this->response, $this->logger);
@@ -271,7 +271,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
     public function testControllerWithDifferentSettings(): void
     {
-        $this->settings->set('Auth.enableInvalidAttempts', false);
+        $this->settings->set('AuthSecurity.enableInvalidAttempts', false);
 
         $controller = new MockBaseAuthController();
         $controller->initController($this->request, $this->response, $this->logger);

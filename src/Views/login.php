@@ -57,7 +57,7 @@
                         <button type="submit" class="btn btn-primary btn-block"><?= lang('Auth.login') ?></button>
                     </div>
 
-                    <?php if (setting('Auth.allowMagicLinkLogins')) : ?>
+                    <?php if (setting('AuthSecurity.allowMagicLinkLogins')) : ?>
                         <p class="text-center"><?= lang('Auth.forgotPassword') ?> <a href="<?= url_to('magic-link') ?>"><?= lang('Auth.useMagicLink') ?></a></p>
                     <?php endif ?>
 

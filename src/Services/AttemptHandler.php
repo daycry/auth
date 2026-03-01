@@ -31,7 +31,7 @@ class AttemptHandler
     public function __construct()
     {
         $this->attemptModel = new AttemptModel();
-        $this->isEnabled    = service('settings')->get('Auth.enableInvalidAttempts') === true;
+        $this->isEnabled    = service('settings')->get('AuthSecurity.enableInvalidAttempts') === true;
     }
 
     /**
@@ -60,7 +60,7 @@ class AttemptHandler
 
         if ($attempt === null) {
             $this->createNewAttempt($ipAddress);
-        } elseif ($attempt->attempts < service('settings')->get('Auth.maxAttempts')) {
+        } elseif ($attempt->attempts < service('settings')->get('AuthSecurity.maxAttempts')) {
             $this->incrementAttempt($attempt);
         }
     }

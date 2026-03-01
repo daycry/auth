@@ -170,7 +170,7 @@ class JwtController extends BaseAuthController
         // Generate and persist a new refresh token
         $rawRefresh = bin2hex(random_bytes(32));
         $expiresAt  = Time::now()
-            ->addSeconds((int) setting('Auth.jwtRefreshLifetime'))
+            ->addSeconds((int) setting('AuthSecurity.jwtRefreshLifetime'))
             ->format('Y-m-d H:i:s');
 
         /** @var UserIdentityModel $identityModel */

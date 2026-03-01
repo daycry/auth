@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Passwords;
 
 use Daycry\Auth\Authentication\Passwords\NothingPersonalValidator;
-use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\User;
 use Tests\Support\TestCase;
 
@@ -24,13 +24,13 @@ use Tests\Support\TestCase;
 final class NothingPersonalValidatorTest extends TestCase
 {
     private NothingPersonalValidator $validator;
-    private AuthConfig $config;
+    private AuthSecurity $config;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->config    = config(AuthConfig::class);
+        $this->config    = config(AuthSecurity::class);
         $this->validator = new NothingPersonalValidator($this->config);
     }
 
@@ -145,7 +145,7 @@ final class NothingPersonalValidatorTest extends TestCase
 
     public function testPersonalFieldsFromConfig(): void
     {
-        $this->config->personalFields = ['firstname'];
+        $this->inkectMockAttributes(['personalFields' => ['firstname']]);
 
         $user = $this->createUser([
             'username'  => 'johndoe',

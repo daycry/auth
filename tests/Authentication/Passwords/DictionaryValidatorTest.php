@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Passwords;
 
 use Daycry\Auth\Authentication\Passwords\DictionaryValidator;
-use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Config\AuthSecurity as AuthConfig;
 use Tests\Support\TestCase;
 
 /**

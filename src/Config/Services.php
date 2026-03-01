@@ -45,7 +45,7 @@ class Services extends BaseService
             return self::getSharedInstance('passwords');
         }
 
-        return new Passwords(config('Auth'));
+        return new Passwords(config(AuthSecurity::class));
     }
 
     /**
