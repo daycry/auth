@@ -15,6 +15,7 @@ namespace Daycry\Auth\Traits;
 
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
+use Daycry\Auth\Enums\TotpState;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\UserIdentityModel;
 
@@ -43,29 +44,56 @@ trait HasTotp
 
     /**
      * Returns true if the user has a confirmed TOTP 2FA secret.
-     * A secret stored during enrollment but not yet verified (name='totp_unverified')
+     * A secret stored during enrollment but not yet confirmed (name='totp_pending')
      * is NOT considered enabled.
      */
     public function hasTotpEnabled(): bool
     {
         $identity = $this->getTotpIdentity();
 
-        return $identity instanceof UserIdentity && $identity->name === 'totp';
+        return $identity instanceof UserIdentity && $identity->name === TotpState::CONFIRMED->value;
     }
 
     /**
-     * Returns the raw TOTP secret for the user, or null if TOTP is not configured.
+     * Returns true if a TOTP secret exists but has not yet been confirmed by the user.
+     * This happens when the setup QR has been shown but the first code not yet verified.
+     */
+    public function hasTotpPending(): bool
+    {
+        $identity = $this->getTotpIdentity();
+
+        return $identity instanceof UserIdentity && $identity->name === TotpState::PENDING->value;
+    }
+
+    /**
+     * Returns the decrypted TOTP secret for the user, or null if TOTP is not configured.
+     *
+     * The value stored in the database is AES-encrypted + base64-encoded.
+     * This method transparently decrypts and returns the original base32 secret.
      */
     public function getTotpSecret(): ?string
     {
         $identity = $this->getTotpIdentity();
 
-        return $identity instanceof UserIdentity ? $identity->secret : null;
+        if (! $identity instanceof UserIdentity || $identity->secret === null) {
+            return null;
+        }
+
+        $decoded = base64_decode((string) $identity->secret, true);
+
+        if ($decoded === false) {
+            return null;
+        }
+
+        return (string) service('encrypter')->decrypt($decoded);
     }
 
     /**
      * Generates a new TOTP secret, saves it for this user (or replaces the existing one),
      * and returns the otpauth:// URL for QR code generation.
+     *
+     * The secret is stored encrypted (symmetric AES) using CI4's Encryption service.
+     * Use getTotpSecret() to retrieve the decrypted value.
      *
      * @param string|null $issuer App name shown in the authenticator app.
      *                            Defaults to `Auth.totpIssuer` from the config file.
@@ -79,18 +107,35 @@ trait HasTotp
         // Remove any existing TOTP secret
         $model->deleteIdentitiesByType($this, IdentityType::TOTP_SECRET->value);
 
-        $secret = TOTP::generateSecret();
+        $secret          = TOTP::generateSecret();
+        $encryptedSecret = base64_encode(service('encrypter')->encrypt($secret));
 
         $model->insert([
             'user_id' => $this->id,
             'type'    => IdentityType::TOTP_SECRET->value,
-            'name'    => 'totp',
-            'secret'  => $secret,
+            'name'    => TotpState::PENDING->value,
+            'secret'  => $encryptedSecret,
         ]);
 
         $account = $this->email ?? $this->username ?? (string) $this->id;
 
         return TOTP::getOtpAuthUrl($secret, $account, $issuer);
+    }
+
+    /**
+     * Confirms a pending TOTP enrollment by marking the secret as verified.
+     * Must be called after the user successfully verifies the first code from
+     * the authenticator app. Before this call, hasTotpEnabled() returns false.
+     */
+    public function confirmTotp(): void
+    {
+        $model    = $this->totpIdentityModel();
+        $identity = $this->getTotpIdentity();
+
+        if ($identity instanceof UserIdentity && $identity->name === TotpState::PENDING->value) {
+            $identity->name = TotpState::CONFIRMED->value;
+            $model->save($identity);
+        }
     }
 
     /**

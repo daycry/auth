@@ -17,6 +17,7 @@ use CodeIgniter\Config\Factories;
 use CodeIgniter\Settings\Config\Settings as SettingsConfig;
 use CodeIgniter\Settings\Settings;
 use CodeIgniter\Test\CIUnitTestCase;
+use Config\Encryption;
 use Config\Security;
 use Config\Services;
 use Daycry\Auth\Config\Auth;
@@ -59,6 +60,13 @@ abstract class TestCase extends CIUnitTestCase
         $config                 = config('Security');
         $config->csrfProtection = 'session';
         Factories::injectMock('config', 'Security', $config);
+
+        // Provide a fixed encryption key so service('encrypter') works in tests.
+        // The 64-char hex string gives a 32-byte key (AES-256).
+        /** @var Encryption $encConfig */
+        $encConfig      = config('Encryption');
+        $encConfig->key = hex2bin('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
+        Factories::injectMock('config', 'Encryption', $encConfig);
     }
 
     protected function inkectMockAttributes(array $attributes = []): void

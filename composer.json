@@ -20,6 +20,7 @@
         "daycry/encryption": "^2.0",
         "daycry/jobs": "^1",
         "daycry/jwt": "^1.0",
+        "endroid/qr-code": "^6.0",
         "league/oauth2-facebook": "^2.0",
         "league/oauth2-github": "^3.0",
         "league/oauth2-google": "^4.0",
