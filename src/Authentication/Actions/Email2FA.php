@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Actions;
 
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
@@ -23,7 +24,6 @@ use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
-use Daycry\Exceptions\Exceptions\RuntimeException;
 
 /**
  * Class Email2FA

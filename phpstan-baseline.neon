@@ -13,18 +13,6 @@ parameters:
 			path: src/Authentication/Actions/Email2FA.php
 
 		-
-			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\RuntimeException not found.
-			identifier: class.notFound
-			count: 4
-			path: src/Authentication/Actions/Email2FA.php
-
-		-
-			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\RuntimeException.
-			identifier: class.notFound
-			count: 4
-			path: src/Authentication/Actions/Email2FA.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 2
@@ -37,50 +25,8 @@ parameters:
 			path: src/Authentication/Actions/EmailActivator.php
 
 		-
-			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\LogicException not found.
-			identifier: class.notFound
-			count: 1
-			path: src/Authentication/Actions/EmailActivator.php
-
-		-
-			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\RuntimeException not found.
-			identifier: class.notFound
-			count: 3
-			path: src/Authentication/Actions/EmailActivator.php
-
-		-
-			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\LogicException.
-			identifier: class.notFound
-			count: 1
-			path: src/Authentication/Actions/EmailActivator.php
-
-		-
-			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\RuntimeException.
-			identifier: class.notFound
-			count: 3
-			path: src/Authentication/Actions/EmailActivator.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 3
-			path: src/Authentication/Actions/Totp2FA.php
-
-		-
-			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\RuntimeException not found.
-			identifier: class.notFound
-			count: 3
-			path: src/Authentication/Actions/Totp2FA.php
-
-		-
-			rawMessage: PHPDoc tag @throws with type Daycry\Exceptions\Exceptions\RuntimeException is not subtype of Throwable
-			identifier: throws.notThrowable
-			count: 1
-			path: src/Authentication/Actions/Totp2FA.php
-
-		-
-			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\RuntimeException.
-			identifier: class.notFound
 			count: 3
 			path: src/Authentication/Actions/Totp2FA.php
 
@@ -1211,18 +1157,6 @@ parameters:
 			identifier: staticMethod.notFound
 			count: 1
 			path: src/Services/RequestLogger.php
-
-		-
-			rawMessage: Instantiated class Daycry\Exceptions\Exceptions\LogicException not found.
-			identifier: class.notFound
-			count: 1
-			path: src/Test/MockInputOutput.php
-
-		-
-			rawMessage: Throwing object of an unknown class Daycry\Exceptions\Exceptions\LogicException.
-			identifier: class.notFound
-			count: 1
-			path: src/Test/MockInputOutput.php
 
 		-
 			rawMessage: 'Call to method Daycry\Auth\Result::isOK() with incorrect case: isOk'
