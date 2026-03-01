@@ -499,18 +499,6 @@ parameters:
 			path: src/Controllers/JwtController.php
 
 		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginRoute().'
-			identifier: method.notFound
-			count: 2
-			path: src/Controllers/LoginController.php
-
-		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginRoute().'
-			identifier: method.notFound
-			count: 2
-			path: src/Controllers/MagicLinkController.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
@@ -527,12 +515,6 @@ parameters:
 			identifier: function.internal
 			count: 1
 			path: src/Controllers/MagicLinkController.php
-
-		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::loginPage().'
-			identifier: method.notFound
-			count: 1
-			path: src/Controllers/OauthController.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
@@ -557,12 +539,6 @@ parameters:
 			identifier: function.internal
 			count: 1
 			path: src/Controllers/PasswordResetController.php
-
-		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Config\Auth::registerRoute().'
-			identifier: method.notFound
-			count: 3
-			path: src/Controllers/RegisterController.php
 
 		-
 			rawMessage: 'Call to function assert() with false and ''Config Auth…'' will always evaluate to false.'

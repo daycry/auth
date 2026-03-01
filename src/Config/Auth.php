@@ -538,6 +538,32 @@ class Auth extends BaseConfig
     public array $excludeMethods = ['initController', '_remap'];
 
     /**
+     * Returns the URL of the login page.
+     * Used to redirect back to login on error or when auth is required.
+     */
+    public function loginRoute(): string
+    {
+        return $this->getUrl('login');
+    }
+
+    /**
+     * Returns the URL of the registration page.
+     * Used to redirect back to register on validation errors.
+     */
+    public function registerRoute(): string
+    {
+        return $this->getUrl('register');
+    }
+
+    /**
+     * Alias for loginRoute(). Returns the URL of the login page.
+     */
+    public function loginPage(): string
+    {
+        return $this->loginRoute();
+    }
+
+    /**
      * Returns the URL that a user should be redirected
      * to after a successful login.
      */
