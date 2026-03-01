@@ -59,7 +59,7 @@ class UserSecurityController extends BaseAuthController
         $sessions   = $deviceModel->getActiveForUser($user);
         $currentSid = session_id();
 
-        return $this->view('Daycry\Auth\Views\profile\security', [
+        return $this->view(setting('Auth.views')['security_overview'], [
             'sessions'    => $sessions,
             'currentSid'  => $currentSid,
             'totpEnabled' => $user->hasTotpEnabled(),
@@ -122,7 +122,7 @@ class UserSecurityController extends BaseAuthController
         $otpAuthUrl = $user->enableTotp();
         $secret     = $user->getTotpSecret();
 
-        return $this->view('Daycry\Auth\Views\totp_setup_show', [
+        return $this->view(setting('Auth.views')['action_totp_setup_show'], [
             'otpAuthUrl' => $otpAuthUrl,
             'secret'     => $secret ?? '',
             'qrCodeUrl'  => TOTP::getQRCodeUrl($otpAuthUrl),
@@ -146,7 +146,7 @@ class UserSecurityController extends BaseAuthController
                 ->with('error', lang('Auth.totpSetupInvalidCode'));
         }
 
-        return $this->view('Daycry\Auth\Views\totp_setup_success', [
+        return $this->view(setting('Auth.views')['action_totp_setup_success'], [
             'redirectUrl' => url_to('security'),
         ]);
     }

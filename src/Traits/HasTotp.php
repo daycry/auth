@@ -42,11 +42,15 @@ trait HasTotp
     }
 
     /**
-     * Returns true if the user has TOTP 2FA configured.
+     * Returns true if the user has a confirmed TOTP 2FA secret.
+     * A secret stored during enrollment but not yet verified (name='totp_unverified')
+     * is NOT considered enabled.
      */
     public function hasTotpEnabled(): bool
     {
-        return $this->getTotpIdentity() instanceof UserIdentity;
+        $identity = $this->getTotpIdentity();
+
+        return $identity instanceof UserIdentity && $identity->name === 'totp';
     }
 
     /**
