@@ -59,8 +59,6 @@ class AuthOAuth extends AuthOAuthConfig
 
 ---
 
-*All features and fixes below were originally planned for v3.1.0.*
-
 ## [3.1.0] - 2026-02-28
 
 ### Added
@@ -176,5 +174,5 @@ class AuthOAuth extends AuthOAuthConfig
 - `ForcePasswordResetController::getValidationRules()` incorrect PHPDoc return type
 
 [Unreleased]: https://github.com/daycry/auth/compare/v4.0.0...HEAD
-[4.0.0]: https://github.com/daycry/auth/compare/v3.0.6...v4.0.0
+[4.0.0]: https://github.com/daycry/auth/compare/v3.1.0...v4.0.0
 [3.1.0]: https://github.com/daycry/auth/compare/v3.0.6...v3.1.0
