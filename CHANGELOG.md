@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-03-01
+
+### Breaking Changes
+
+- **`Config\Auth` split into three classes** — security and OAuth settings have been extracted into dedicated config files. Applications that extend or override `app/Config/Auth.php` must migrate the affected properties:
+
+  | Property | Old class | New class |
+  |----------|-----------|-----------|
+  | `$minimumPasswordLength`, `$passwordValidators`, `$maxSimilarity` | `Auth` | `AuthSecurity` |
+  | `$hashAlgorithm`, `$hashCost`, `$hashMemoryCost`, `$hashTimeCost`, `$hashThreads` | `Auth` | `AuthSecurity` |
+  | `$supportOldDangerousPassword` | `Auth` | `AuthSecurity` |
+  | `$recordLoginAttempt`, `$recordActiveDate`, `$enableLogs` | `Auth` | `AuthSecurity` |
+  | `$userMaxAttempts`, `$userLockoutTime` | `Auth` | `AuthSecurity` |
+  | `$enableInvalidAttempts`, `$maxAttempts`, `$timeBlocked` | `Auth` | `AuthSecurity` |
+  | `$limitMethod`, `$requestLimit`, `$timeLimit` | `Auth` | `AuthSecurity` |
+  | `$accessTokenEnabled`, `$unusedAccessTokenLifetime`, `$strictApiAndAuth` | `Auth` | `AuthSecurity` |
+  | `$allowMagicLinkLogins`, `$magicLinkLifetime` | `Auth` | `AuthSecurity` |
+  | `$passwordResetLifetime`, `$jwtRefreshLifetime` | `Auth` | `AuthSecurity` |
+  | `$totpIssuer`, `$permissionCacheEnabled`, `$permissionCacheTTL` | `Auth` | `AuthSecurity` |
+  | `RECORD_LOGIN_ATTEMPT_*` constants | `Auth` | `AuthSecurity` |
+  | `$providers` | `Auth` | `AuthOAuth` |
+
+- **`setting('Auth.X')` calls renamed** — any custom code using `setting('Auth.recordLoginAttempt')`, `setting('Auth.requestLimit')`, etc. must update to `setting('AuthSecurity.X')` or `setting('AuthOAuth.X')` accordingly.
+- **`Passwords` and `BaseValidator` constructor** now accept `AuthSecurity` instead of `Auth`. Custom password validators extending `BaseValidator` must update their type hints.
+- **`OauthManager` constructor** now accepts `AuthOAuth` instead of `Auth`.
+
+### Migration
+
+Create `app/Config/AuthSecurity.php` and `app/Config/AuthOAuth.php` extending the library classes, then move your customised properties into the respective files:
+
+```php
+// app/Config/AuthSecurity.php
+namespace Config;
+use Daycry\Auth\Config\AuthSecurity as AuthSecurityConfig;
+class AuthSecurity extends AuthSecurityConfig
+{
+    public int $minimumPasswordLength = 10;
+    // ...
+}
+
+// app/Config/AuthOAuth.php
+namespace Config;
+use Daycry\Auth\Config\AuthOAuth as AuthOAuthConfig;
+class AuthOAuth extends AuthOAuthConfig
+{
+    public array $providers = [ /* your providers */ ];
+}
+```
+
+---
+
 ## [3.1.0] - 2026-02-28
 
 ### Added
@@ -121,5 +172,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UserProviderInterface` missing `update()` method — caused PHPStan errors in `Session` authenticator per-user lockout code
 - `ForcePasswordResetController::getValidationRules()` incorrect PHPDoc return type
 
-[Unreleased]: https://github.com/daycry/auth/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/daycry/auth/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/daycry/auth/compare/v3.1.0...v4.0.0
 [3.1.0]: https://github.com/daycry/auth/compare/v3.0.6...v3.1.0

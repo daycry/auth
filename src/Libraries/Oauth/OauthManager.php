@@ -15,7 +15,7 @@ namespace Daycry\Auth\Libraries\Oauth;
 
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
-use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;

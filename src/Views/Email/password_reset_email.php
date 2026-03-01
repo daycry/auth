@@ -9,7 +9,7 @@
 </head>
 
 <body>
-    <p><?= lang('Auth.passwordResetEmailBody', [setting('Auth.passwordResetLifetime') / 60]) ?></p>
+    <p><?= lang('Auth.passwordResetEmailBody', [setting('AuthSecurity.passwordResetLifetime') / 60]) ?></p>
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-radius: 6px; border-collapse: separate !important;">
         <tbody>
             <tr>

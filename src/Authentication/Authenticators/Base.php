@@ -16,7 +16,7 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Config\Services;
-use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
@@ -77,7 +77,7 @@ abstract class Base
         $result = $this->check($credentials);
 
         if (! $result->isOK()) {
-            if (service('settings')->get('Auth.recordLoginAttempt') >= Auth::RECORD_LOGIN_ATTEMPT_FAILURE) {
+            if (service('settings')->get('AuthSecurity.recordLoginAttempt') >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE) {
                 // Record all failed login attempts.
                 $identifier = $this->getLogCredentials($credentials);
                 $this->loginModel->recordLoginAttempt(
@@ -97,7 +97,7 @@ abstract class Base
         $user = $result->extraInfo();
 
         if ($user->isBanned()) {
-            if (service('settings')->get('Auth.recordLoginAttempt') >= Auth::RECORD_LOGIN_ATTEMPT_FAILURE) {
+            if (service('settings')->get('AuthSecurity.recordLoginAttempt') >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE) {
                 // Record a banned login attempt.
                 $identifier = $this->getLogCredentials($credentials);
 
@@ -123,7 +123,7 @@ abstract class Base
 
         $this->login($user, true);
 
-        if (service('settings')->get('Auth.recordLoginAttempt') === Auth::RECORD_LOGIN_ATTEMPT_ALL) {
+        if (service('settings')->get('AuthSecurity.recordLoginAttempt') === AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL) {
             // Record a successful login attempt.
             $identifier = $this->getLogCredentials($credentials);
             if ($identifier !== null) {

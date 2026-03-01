@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Passwords;
 
 use Daycry\Auth\Authentication\Passwords\CompositionValidator;
-use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Tests\Support\TestCase;
 
@@ -24,13 +24,13 @@ use Tests\Support\TestCase;
 final class CompositionValidatorTest extends TestCase
 {
     private CompositionValidator $validator;
-    private AuthConfig $config;
+    private AuthSecurity $config;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->config    = config(AuthConfig::class);
+        $this->config    = config(AuthSecurity::class);
         $this->validator = new CompositionValidator($this->config);
     }
 

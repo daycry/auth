@@ -68,7 +68,7 @@ trait HasTotp
      */
     public function enableTotp(?string $issuer = null): string
     {
-        $issuer ??= (string) service('settings')->get('Auth.totpIssuer');
+        $issuer ??= (string) service('settings')->get('AuthSecurity.totpIssuer');
 
         $model = $this->totpIdentityModel();
 

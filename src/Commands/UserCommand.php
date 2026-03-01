@@ -16,6 +16,7 @@ namespace Daycry\Auth\Commands;
 use Config\Services;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\User as UserEntity;
 use Daycry\Auth\Exceptions\BadInputException;
 use Daycry\Auth\Exceptions\CancelException;
@@ -233,8 +234,8 @@ class UserCommand extends BaseCommand
             unset($passwordRules[$key]);
         }
 
-        /** @var Auth $config */
-        $config = config('Auth');
+        /** @var AuthSecurity $config */
+        $config = config('AuthSecurity');
 
         // Add `min_length`
         $passwordRules[] = 'min_length[' . $config->minimumPasswordLength . ']';

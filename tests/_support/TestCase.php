@@ -20,6 +20,8 @@ use CodeIgniter\Test\CIUnitTestCase;
 use Config\Security;
 use Config\Services;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Config\AuthOAuth;
+use Daycry\Auth\Config\AuthSecurity;
 
 /**
  * @internal
@@ -68,5 +70,27 @@ abstract class TestCase extends CIUnitTestCase
         }
 
         Factories::injectMock('config', 'Auth', $config);
+    }
+
+    protected function inkectMockAttributesSecurity(array $attributes = []): void
+    {
+        $config = config(AuthSecurity::class);
+
+        foreach ($attributes as $attribute => $value) {
+            $config->{$attribute} = $value;
+        }
+
+        Factories::injectMock('config', 'AuthSecurity', $config);
+    }
+
+    protected function inkectMockAttributesOAuth(array $attributes = []): void
+    {
+        $config = config(AuthOAuth::class);
+
+        foreach ($attributes as $attribute => $value) {
+            $config->{$attribute} = $value;
+        }
+
+        Factories::injectMock('config', 'AuthOAuth', $config);
     }
 }

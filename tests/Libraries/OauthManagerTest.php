@@ -15,7 +15,7 @@ namespace Tests\Libraries;
 
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\Test\DatabaseTestTrait;
-use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Libraries\Oauth\OauthManager;

@@ -92,7 +92,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
         if (
             $token->last_used_at
             && $token->last_used_at->isBefore(
-                Time::now()->subSeconds(service('settings')->get('Auth.unusedAccessTokenLifetime')),
+                Time::now()->subSeconds(service('settings')->get('AuthSecurity.unusedAccessTokenLifetime')),
             )
         ) {
             return new Result([

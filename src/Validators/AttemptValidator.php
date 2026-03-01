@@ -25,8 +25,8 @@ class AttemptValidator
     {
         $request = Services::request();
 
-        $maxAttempts = service('settings')->get('Auth.maxAttempts');
-        $timeBlocked = service('settings')->get('Auth.timeBlocked');
+        $maxAttempts = service('settings')->get('AuthSecurity.maxAttempts');
+        $timeBlocked = service('settings')->get('AuthSecurity.timeBlocked');
 
         /** @var AttemptModel $attemptModel */
         $attemptModel = new AttemptModel();

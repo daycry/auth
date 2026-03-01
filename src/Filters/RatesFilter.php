@@ -52,15 +52,15 @@ class RatesFilter implements FilterInterface
 
         $endpoint = checkEndpoint();
 
-        $limit = service('settings')->get('Auth.requestLimit') ?? 10;
-        $time  = service('settings')->get('Auth.timeLimit') ?? 60;
+        $limit = service('settings')->get('AuthSecurity.requestLimit') ?? 10;
+        $time  = service('settings')->get('AuthSecurity.timeLimit') ?? 60;
 
         if ($endpoint instanceof Endpoint) {
             $limit = $endpoint->limit ?: $limit;
             $time  = $endpoint->time ?: $time;
         }
 
-        $limitMethod = service('settings')->get('Auth.limitMethod') ?? 'ROUTED_URL';
+        $limitMethod = service('settings')->get('AuthSecurity.limitMethod') ?? 'ROUTED_URL';
         $limited_uri = $this->buildLimitedUri($request, $router, $limitMethod);
 
         $ignoreLimits = false;

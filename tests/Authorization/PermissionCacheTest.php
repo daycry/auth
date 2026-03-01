@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Authorization;
 
-use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\UserModel;
@@ -35,7 +34,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         $this->setUpFakeUser();
 
         // Enable permission caching in Auth config
-        $this->inkectMockAttributes(['permissionCacheEnabled' => true, 'permissionCacheTTL' => 60]);
+        $this->inkectMockAttributesSecurity(['permissionCacheEnabled' => true, 'permissionCacheTTL' => 60]);
     }
 
     protected function tearDown(): void

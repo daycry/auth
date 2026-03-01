@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication;
 
-use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\PasswordValidatorInterface;
@@ -27,9 +27,9 @@ use Daycry\Auth\Result;
  */
 class Passwords
 {
-    protected Auth $config;
+    protected AuthSecurity $config;
 
-    public function __construct(Auth $config)
+    public function __construct(AuthSecurity $config)
     {
         $this->config = $config;
     }
@@ -140,7 +140,7 @@ class Passwords
      */
     public static function getMaxLengthRule(): string
     {
-        if (config('Auth')->hashAlgorithm === PASSWORD_BCRYPT) {
+        if (config('AuthSecurity')->hashAlgorithm === PASSWORD_BCRYPT) {
             return 'max_byte[72]';
         }
 

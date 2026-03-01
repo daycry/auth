@@ -74,7 +74,7 @@ class AuthFilter implements FilterInterface
     private function handleSessionAuthentication(Session $authenticator, Auth $config)
     {
         if (auth()->loggedIn()) {
-            if (setting('Auth.recordActiveDate')) {
+            if (setting('AuthSecurity.recordActiveDate')) {
                 $authenticator->recordActiveDate();
             }
 
@@ -128,12 +128,12 @@ class AuthFilter implements FilterInterface
                 ->setJson(['message' => $result->reason()]);
         }
 
-        if (setting('Auth.recordActiveDate')) {
+        if (setting('AuthSecurity.recordActiveDate')) {
             $authenticator->recordActiveDate();
         }
 
         // Handle additional access token validation if enabled
-        if (service('settings')->get('Auth.accessTokenEnabled')) {
+        if (service('settings')->get('AuthSecurity.accessTokenEnabled')) {
             return $this->validateAccessToken();
         }
     }
@@ -145,7 +145,7 @@ class AuthFilter implements FilterInterface
     {
         $accessToken = (Services::auth(false))->setAuthenticator('access_token')->attempt();
 
-        if (! $accessToken->isOK() && service('settings')->get('Auth.strictApiAndAuth')) {
+        if (! $accessToken->isOK() && service('settings')->get('AuthSecurity.strictApiAndAuth')) {
             return service('response')
                 ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
                 ->setJson([

@@ -13,10 +13,12 @@ declare(strict_types=1);
 
 namespace Tests\Controllers;
 
+use CodeIgniter\Config\Factories;
 use CodeIgniter\Test\ControllerTestTrait;
 use CodeIgniter\Test\DatabaseTestTrait;
 use Config\Services;
-use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Auth;
+use Daycry\Auth\Config\AuthOAuth;
 use Daycry\Auth\Controllers\OauthController;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
 use Mockery;
@@ -39,7 +41,7 @@ final class OauthControllerTest extends TestCase
 
         // Load Routes
         $routes = Services::routes();
-        $auth   = new \Daycry\Auth\Auth(config('Auth'));
+        $auth   = new Auth(config('Auth'));
         $auth->routes($routes);
         Services::injectMock('routes', $routes);
     }
@@ -82,7 +84,7 @@ final class OauthControllerTest extends TestCase
 
         // Let's inject a Mock Config
 
-        $config                            = config('Auth');
+        $config                            = config(AuthOAuth::class);
         $config->providers['testprovider'] = [
             'clientId'                => 'demoapp',
             'clientSecret'            => 'demopass',
@@ -91,6 +93,7 @@ final class OauthControllerTest extends TestCase
             'urlAccessToken'          => 'http://example.com/oauth/token',
             'urlResourceOwnerDetails' => 'http://example.com/api/user',
         ];
+        Factories::injectMock('config', 'AuthOAuth', $config);
 
         $result = $this->controller(OauthController::class)
             ->execute('redirect', 'testprovider');

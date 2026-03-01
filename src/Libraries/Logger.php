@@ -41,8 +41,8 @@ class Logger
         $this->response = Services::response();
 
         if (
-            (null === $endpoint && service('settings')->get('Auth.enableLogs') === true)
-            || (service('settings')->get('Auth.enableLogs') === true && (null !== $endpoint && null === $endpoint->log))
+            (null === $endpoint && service('settings')->get('AuthSecurity.enableLogs') === true)
+            || (service('settings')->get('AuthSecurity.enableLogs') === true && (null !== $endpoint && null === $endpoint->log))
             || (null !== $endpoint && $endpoint->log)
         ) {
             $this->logAuthorized = true;

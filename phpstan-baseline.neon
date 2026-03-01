@@ -421,18 +421,6 @@ parameters:
 			path: src/Commands/UserCommand.php
 
 		-
-			rawMessage: Class Daycry\Auth\Authentication\Authenticators\Guest not found.
-			identifier: class.notFound
-			count: 1
-			path: src/Config/Auth.php
-
-		-
-			rawMessage: 'Property Daycry\Auth\Config\Auth::$authenticators (array<string, class-string<Daycry\Auth\Interfaces\AuthenticatorInterface>>) does not accept default value of type array<string, string>.'
-			identifier: property.defaultValue
-			count: 1
-			path: src/Config/Auth.php
-
-		-
 			rawMessage: 'Parameter #2 $params (list<string>) of method Daycry\Auth\Controllers\ActionController::_remap() should be contravariant with parameter $params (mixed) of method Daycry\Auth\Controllers\BaseAuthController::_remap()'
 			identifier: method.childParameterType
 			count: 1
@@ -1261,12 +1249,6 @@ parameters:
 			path: tests/Authentication/Actions/Email2FATest.php
 
 		-
-			rawMessage: Access to property $recordLoginAttempt on an unknown class Tests\Authentication\Authenticators\AuthToken.
-			identifier: class.notFound
-			count: 2
-			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
-
-		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
 			count: 1
@@ -1285,20 +1267,8 @@ parameters:
 			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
 
 		-
-			rawMessage: PHPDoc tag @var for variable $config contains unknown class Tests\Authentication\Authenticators\AuthToken.
-			identifier: class.notFound
-			count: 1
-			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
-
-		-
 			rawMessage: PHPDoc tag @var with type Tests\Authentication\Authenticators\AccessTokens is not subtype of native type Daycry\Auth\Interfaces\AuthenticatorInterface.
 			identifier: varTag.nativeType
-			count: 1
-			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
-
-		-
-			rawMessage: PHPDoc tag @var with type Tests\Authentication\Authenticators\AuthToken is not subtype of type Daycry\Auth\Config\Auth.
-			identifier: varTag.type
 			count: 1
 			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
 
@@ -1307,12 +1277,6 @@ parameters:
 			identifier: assign.propertyType
 			count: 1
 			path: tests/Authentication/Authenticators/AccessTokenAuthenticatorTest.php
-
-		-
-			rawMessage: Access to property $recordLoginAttempt on an unknown class Tests\Authentication\Authenticators\AuthJWT.
-			identifier: class.notFound
-			count: 2
-			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
 
 		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Result'' and Daycry\Auth\Result will always evaluate to true.'
@@ -1341,18 +1305,6 @@ parameters:
 		-
 			rawMessage: 'PHPDoc tag @param references unknown parameter: $clock'
 			identifier: parameter.notFound
-			count: 1
-			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
-
-		-
-			rawMessage: PHPDoc tag @var for variable $config contains unknown class Tests\Authentication\Authenticators\AuthJWT.
-			identifier: class.notFound
-			count: 1
-			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
-
-		-
-			rawMessage: PHPDoc tag @var with type Tests\Authentication\Authenticators\AuthJWT is not subtype of type Daycry\Auth\Config\Auth.
-			identifier: varTag.type
 			count: 1
 			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
 
@@ -1572,6 +1524,12 @@ parameters:
 		-
 			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::with().'
 			identifier: method.notFound
+			count: 1
+			path: tests/Controllers/OauthControllerTest.php
+
+		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
 			count: 1
 			path: tests/Controllers/OauthControllerTest.php
 
@@ -1848,5 +1806,5 @@ parameters:
 		-
 			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
 			identifier: staticMethod.internal
-			count: 3
+			count: 5
 			path: tests/_support/TestCase.php

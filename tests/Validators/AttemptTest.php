@@ -29,10 +29,10 @@ final class AttemptTest extends DatabaseTestCase
     {
         $this->expectException(FailTooManyRequestsException::class);
 
-        $this->inkectMockAttributes(['enableInvalidAttempts' => true]);
+        $this->inkectMockAttributesSecurity(['enableInvalidAttempts' => true]);
 
         $attemtpModel = new AttemptModel();
-        $attemtpModel->insert(['ip_address' => (Services::request())->getIPAddress(), 'attempts' => service('settings')->get('Auth.maxAttempts'), 'hour_started_at' => Time::now()]);
+        $attemtpModel->insert(['ip_address' => (Services::request())->getIPAddress(), 'attempts' => service('settings')->get('AuthSecurity.maxAttempts'), 'hour_started_at' => Time::now()]);
 
         $response = service('response');
         AttemptValidator::check($response);
