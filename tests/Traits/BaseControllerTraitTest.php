@@ -313,13 +313,11 @@ final class BaseControllerTraitTest extends DatabaseTestCase
         $reflection = new ReflectionClass($this->controller);
 
         $argsProperty = $reflection->getProperty('args');
-        $argsProperty->setAccessible(true);
-        $args = $argsProperty->getValue($this->controller);
+        $args         = $argsProperty->getValue($this->controller);
         $this->assertIsArray($args);
 
         $contentProperty = $reflection->getProperty('content');
-        $contentProperty->setAccessible(true);
-        $content = $contentProperty->getValue($this->controller);
+        $content         = $contentProperty->getValue($this->controller);
         // Content can be null or whatever was in the body
         $this->assertTrue($content === null || is_string($content) || is_array($content));
     }
