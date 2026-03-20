@@ -47,6 +47,7 @@ class AuthOAuth extends BaseConfig
             'scopes'                 => ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
             'defaultEndPointVersion' => '2.0',
             'tenant'                 => 'common', // 'common' | 'organizations' | <tenantId>
+            // 'fields'              => ['department', 'jobTitle', 'officeLocation', 'mobilePhone'],
         ],
 
         // ----------------------------------------------------------------
@@ -89,6 +90,9 @@ class AuthOAuth extends BaseConfig
         //     'urlAuthorize'            => 'https://provider.example.com/oauth/authorize',
         //     'urlAccessToken'          => 'https://provider.example.com/oauth/token',
         //     'urlResourceOwnerDetails' => 'https://provider.example.com/api/user',
+        //     'fields'                  => ['role', 'team'],
+        //     'fieldsEndpoint'          => 'https://api.example.com/userinfo',
+        //     'profileResolver'         => App\OAuth\MyCustomResolver::class,
         // ],
     ];
 }

@@ -53,10 +53,11 @@ composer ci
 
 - All PHP files must start with `declare(strict_types=1);`
 - All classes and methods must have DocBlocks with types
-- Code must pass PHPStan level 5 (`phpstan.neon.dist`). The baseline (`phpstan-baseline.neon`) suppresses ~565 known pre-existing errors from CI4 tooling. **Regenerate the baseline after fixing real errors** — never add suppressions manually.
+- Code must pass PHPStan level 5 (`phpstan.neon.dist`). The baseline (`phpstan-baseline.neon`) suppresses ~573 known pre-existing errors from CI4 tooling. **Regenerate the baseline after fixing real errors** — never add suppressions manually.
 - Namespace root: `Daycry\Auth`
 - `model(ClassName::class)` calls are flagged by the PHPStan CI4 plugin (they go to the baseline). Inside traits, centralize them in a private getter method rather than repeating them per method.
 - Use `setting('AuthSecurity.totpIssuer')` / `setting('Auth.views')` etc. (the `setting()` helper) rather than `config('Auth')->...` for settings that can be overridden at runtime.
+- Notable `AuthSecurity` properties: `$rememberMePurgeChance` (int, default 20) — probability of remember-me token purge; `$pwnedPasswordsApiUrl` (string) — configurable HaveIBeenPwned API URL.
 
 ## Architecture
 
@@ -74,11 +75,20 @@ src/
 │   ├── Authenticators/
 │   │   ├── Base.php             # Abstract base: checkLogin(), forceLogin(), recordActiveDate()
 │   │   ├── StatelessAuthenticator.php  # Abstract: login/logout/loggedIn/loginById for stateless auth
-│   │   ├── Session.php          # Stateful: $_SESSION + remember-me + device sessions
+│   │   ├── Session.php          # Stateful: orchestrates services (see delegation pattern below)
 │   │   ├── AccessToken.php      # Stateless: X-API-KEY header or query param
 │   │   ├── JWT.php              # Stateless: Authorization: Bearer <token>
 │   │   └── Guest.php            # Anonymous fallback
-│   ├── Actions/                 # Post-auth hooks: Email2FA, EmailActivator, Totp2FA
+│   ├── Actions/
+│   │   ├── AbstractAction.php      # Base: requirePendingUser(), getIdentity(), getIdentityModel()
+│   │   ├── Email2FA.php            # Extends AbstractAction
+│   │   ├── EmailActivator.php      # Extends AbstractAction
+│   │   └── Totp2FA.php             # Extends AbstractAction
+│   ├── Services/
+│   │   ├── DeviceSessionRecorder.php   # recordSession(), terminateCurrentSession()
+│   │   ├── PendingActionCoordinator.php # findPendingAction(), activateAction()
+│   │   ├── RememberMe.php              # Remember-me token lifecycle
+│   │   └── UserLockoutManager.php      # isLockedOut(), recordFailedAttempt(), resetOnSuccess()
 │   ├── JWT/Adapters/            # DaycryJWTAdapter (wraps daycry/jwt)
 │   └── Passwords/               # CompositionValidator, NothingPersonalValidator, DictionaryValidator
 ├── Authorization/Groups.php     # Group utilities
@@ -91,14 +101,24 @@ src/
 ├── Entities/                    # User (all traits), UserIdentity, AccessToken, DeviceSession, etc.
 ├── Enums/
 │   ├── AuthenticationState.php  # UNKNOWN, PENDING, LOGGED_IN, LOGGED_OUT
-│   ├── IdentityType.php         # All identity type strings (EMAIL_PASSWORD, ACCESS_TOKEN, TOTP_SECRET…)
+│   ├── IdentityType.php         # All identity type strings + oauthProvider() dynamic helper
 │   └── TotpState.php            # PENDING = 'totp_pending', CONFIRMED = 'totp'
 ├── Filters/                     # AbstractAuthFilter + Group/Permission/Auth/Chain/Rates filters
-├── Models/                      # UserModel, UserIdentityModel (central identity store), DeviceSessionModel, etc.
+├── Models/
+│   ├── UserModel.php               # User CRUD + UUID generation
+│   ├── UserIdentityModel.php       # Central identity store (base queries)
+│   ├── AccessTokenRepository.php   # Access token CRUD (wraps UserIdentityModel)
+│   ├── JwtTokenRepository.php      # JWT refresh token CRUD (wraps UserIdentityModel)
+│   ├── OAuthTokenRepository.php    # OAuth identity CRUD (wraps UserIdentityModel)
+│   ├── DeviceSessionModel.php      # Device session CRUD + UUID generation
+│   └── ...                         # GroupModel, PermissionModel, LoginModel, etc.
+├── Libraries/
+│   ├── TOTP.php                    # TOTP secret/QR generation + verification
+│   └── TokenEmailSender.php        # Token generation + email sending (used by MagicLink, PasswordReset)
 ├── Services/                    # AttemptHandler, ExceptionHandler, RequestLogger
 ├── Traits/
 │   ├── Authorizable.php         # RBAC: groups/permissions with optional cache
-│   ├── HasAccessTokens.php      # Token CRUD (delegates to UserIdentityModel)
+│   ├── HasAccessTokens.php      # Token CRUD (delegates to AccessTokenRepository)
 │   ├── HasDeviceSessions.php    # Device session management
 │   ├── HasTotp.php              # TOTP enable/disable/verify (secret stored AES-encrypted)
 │   ├── Activatable.php          # Email activation flow
@@ -122,6 +142,19 @@ Base (abstract)
 
 **Critical**: `loggedIn()` on stateless authenticators re-validates the token on **every call** (no in-memory cache between calls). Calling `auth()->loggedIn()` twice in a request hits the DB/JWT check twice.
 
+### Session delegates to focused services
+
+`Session.php` orchestrates four extracted service classes instead of implementing all logic inline:
+
+| Service | Responsibility |
+|---------|---------------|
+| `UserLockoutManager` | Per-user lockout: `isLockedOut()`, `recordFailedAttempt()`, `resetOnSuccess()` |
+| `DeviceSessionRecorder` | Device session tracking: `recordSession()`, `terminateCurrentSession()` |
+| `PendingActionCoordinator` | Post-auth actions: `findPendingAction()`, `activateAction()` |
+| `RememberMe` | Remember-me token lifecycle |
+
+All services are injected or instantiated in Session's constructor and read config via `setting()`.
+
 ### Identity model is the central identity store
 
 `UserIdentityModel` stores **all** identity types in a single `auth_users_identities` table. Use the `IdentityType` enum for all type strings:
@@ -133,6 +166,18 @@ Base (abstract)
 | `JWT_REFRESH` | SHA-256 hash of raw token |
 | `TOTP_SECRET` | AES-encrypted + base64 secret (use `service('encrypter')`) |
 | `MAGIC_LINK`, `EMAIL_2FA`, `EMAIL_ACTIVATE`, `RESET_PASSWORD`, `EMAIL_CHANGE` | ephemeral codes |
+
+### Token repositories
+
+Token-specific CRUD is encapsulated in focused repository classes that wrap `UserIdentityModel`:
+
+| Repository | Delegates from | Key methods |
+|-----------|---------------|-------------|
+| `AccessTokenRepository` | `HasAccessTokens` trait, `AccessToken` authenticator | `generateAccessToken()`, `softRevokeAccessToken()`, `getAccessTokenByRawToken()` |
+| `JwtTokenRepository` | `JwtController` | `createRefreshToken()`, `getRefreshToken()`, `softRevokeRefreshToken()` |
+| `OAuthTokenRepository` | `OauthManager` | `findByUserAndProvider()`, `findByProviderAndSocialId()`, `createOAuthIdentity()`, `updateOAuthIdentity()`, `getProfileData()`, `parseExtra()` |
+
+Both AccessToken and JWT use soft-revocation (`revoked_at` column) by default. The old hard-delete methods on `UserIdentityModel` are `@deprecated`.
 
 ### TOTP two-phase enrollment
 
@@ -151,6 +196,13 @@ After login/register, `Session` checks `Config\Auth::$actions['login']` and `$ac
 - `Email2FA` — sends a 6-digit code and requires it
 - `EmailActivator` — requires email confirmation before allowing login
 - `Totp2FA` — validates a TOTP code; user must have confirmed TOTP (`hasTotpEnabled() === true`)
+
+All three action classes extend `AbstractAction`, which provides shared helpers:
+- `requirePendingUser()` — returns the pending-login user from the session authenticator
+- `getIdentity(User $user)` — returns the identity for this action's type
+- `getIdentityModel()` — returns the `UserIdentityModel` instance
+
+Adding a new action: extend `AbstractAction`, implement `ActionInterface`, set `$type` to the `IdentityType` string.
 
 `Session::completeLogin()` always clears `auth_action` / `auth_action_message` from the PHP session before setting `LOGGED_IN` state — this prevents stale pending-action state on subsequent requests.
 
@@ -203,6 +255,29 @@ All table names are configurable via `$tables` in `Config/Auth.php`.
 ### OAuth2
 
 `OauthManager` uses League OAuth2 providers. Supported out of the box: `azure` (thenetworg/oauth2-azure), `google`, `facebook`, `github` (league/oauth2-*). Generic OIDC/OAuth via `GenericProvider`. Configured in `Config/AuthOAuth.php::$providers`.
+
+OAuth identity types are dynamic (`oauth_google`, `oauth_github`, etc.) — use `IdentityType::oauthProvider($name)` instead of string concatenation.
+
+`OauthManager` delegates all identity CRUD to `OAuthTokenRepository` (lazy-initialised via `getRepository()`). The centralized `getIdentityModel()` avoids repeated `model()` calls.
+
+**Profile system**: When `$providerConfig['fields']` is configured, `OauthManager` fetches extra profile data via `ProfileResolverFactory`. The factory supports three resolver strategies:
+1. `$providerConfig['profileResolver']` — custom class (must implement `ProfileResolverInterface`)
+2. Built-in map (`azure` → `AzureProfileResolver`)
+3. Fallback → `GenericProfileResolver`
+
+Profile data and metadata are stored in the identity's `extra` JSON column:
+```json
+{
+  "refresh_token": "...",
+  "scopes_granted": ["openid", "profile", "email"],
+  "profile": {"department": "Engineering"},
+  "profile_fetched_at": "2026-03-20 12:00:00"
+}
+```
+
+**OAuth events** (fired by `handleCallback()`):
+- `oauth-login` — after successful login: `Events::trigger('oauth-login', $user, $providerName)`
+- `oauth-profile-fetched` — when profile fields were resolved: `Events::trigger('oauth-profile-fetched', $user, $providerName, $profileData)`
 
 ### Device Sessions
 

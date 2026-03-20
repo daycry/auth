@@ -13,12 +13,15 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Libraries\Oauth;
 
+use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Libraries\Oauth\ProfileResolver\ProfileResolverFactory;
+use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use League\OAuth2\Client\Grant\RefreshToken;
 use League\OAuth2\Client\Provider\AbstractProvider;
@@ -31,12 +34,14 @@ use League\OAuth2\Client\Provider\ResourceOwnerInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use TheNetworg\OAuth2\Client\Provider\Azure;
 use TheNetworg\OAuth2\Client\Provider\AzureResourceOwner;
+use Throwable;
 
 class OauthManager
 {
     protected AuthConfig $config;
     protected AbstractProvider $provider;
     protected string $providerName;
+    private ?OAuthTokenRepository $repository = null;
 
     /**
      * Map of provider alias → FQCN for well-known providers.
@@ -54,6 +59,25 @@ class OauthManager
     public function __construct(AuthConfig $config)
     {
         $this->config = $config;
+    }
+
+    /**
+     * Lazy-initialise the OAuth token repository.
+     */
+    private function getRepository(): OAuthTokenRepository
+    {
+        return $this->repository ??= new OAuthTokenRepository(
+            $this->getIdentityModel(),
+        );
+    }
+
+    /**
+     * Centralised model() call — avoids repeating it across methods.
+     */
+    private function getIdentityModel(): UserIdentityModel
+    {
+        /** @var UserIdentityModel */
+        return model(UserIdentityModel::class);
     }
 
     /**
@@ -101,35 +125,45 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.unknownOauthProvider', [$this->providerName ?? 'null']));
         }
 
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
+        $repo     = $this->getRepository();
+        $identity = $repo->findByUserAndProvider((int) $user->id, $this->providerName);
 
-        $type = 'oauth_' . $this->providerName;
+        if ($identity === null || empty($identity->extra)) {
+            return null;
+        }
 
-        /** @var UserIdentity|null $identity */
-        $identity = $identityModel->where('user_id', $user->id)
-            ->where('type', $type)
-            ->first();
+        $extraData    = $repo->parseExtra($identity->extra);
+        $refreshToken = $extraData['refresh_token'] ?? null;
 
-        if (! $identity || empty($identity->extra)) {
+        if (empty($refreshToken)) {
             return null;
         }
 
         try {
             $grant = new RefreshToken();
-            $token = $this->provider->getAccessToken($grant, ['refresh_token' => $identity->extra]);
+            $token = $this->provider->getAccessToken($grant, ['refresh_token' => $refreshToken]);
 
             $identity->secret2 = $token->getToken();
 
             if ($token->getRefreshToken()) {
-                $identity->extra = $token->getRefreshToken();
+                $extraData['refresh_token'] = $token->getRefreshToken();
             }
+
+            // Update scopes if the refreshed token includes them
+            $tokenValues = $token->getValues();
+            if (isset($tokenValues['scope'])) {
+                $extraData['scopes_granted'] = is_string($tokenValues['scope'])
+                    ? explode(' ', $tokenValues['scope'])
+                    : (array) $tokenValues['scope'];
+            }
+
+            $identity->extra = json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
             if ($token->getExpires()) {
                 $identity->expires = Time::createFromTimestamp($token->getExpires());
             }
 
-            $identityModel->save($identity);
+            $repo->updateOAuthIdentity($identity);
 
             return $token;
         } catch (IdentityProviderException) {
@@ -166,8 +200,17 @@ class OauthManager
         try {
             $token       = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
             $userProfile = $this->provider->getResourceOwner($token);
+            $profileData = $this->fetchProfileFields($token, $userProfile);
 
-            return $this->processUser($userProfile, $token);
+            $user = $this->processUser($userProfile, $token, $profileData);
+
+            Events::trigger('oauth-login', $user, $this->providerName);
+
+            if ($profileData !== []) {
+                Events::trigger('oauth-profile-fetched', $user, $this->providerName, $profileData);
+            }
+
+            return $user;
         } catch (IdentityProviderException $e) {
             throw new AuthenticationException($e->getMessage());
         }
@@ -217,11 +260,12 @@ class OauthManager
 
     /**
      * Find or create a local user and OAuth identity for the resource owner.
+     *
+     * @param array<string, mixed> $profileData Extra profile fields from the resolver
      */
-    protected function processUser(ResourceOwnerInterface $userProfile, AccessTokenInterface $token): User
+    protected function processUser(ResourceOwnerInterface $userProfile, AccessTokenInterface $token, array $profileData = []): User
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
+        $repo = $this->getRepository();
 
         $data     = $this->extractUserData($userProfile);
         $socialId = $data['id'];
@@ -232,16 +276,40 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.emailNotFoundInOauth'));
         }
 
-        $type     = 'oauth_' . $this->providerName;
-        $identity = $identityModel->where('type', $type)
-            ->where('secret', $socialId)
-            ->first();
+        $extraData = ['refresh_token' => $token->getRefreshToken()];
+
+        // Scopes (RFC 6749 §3.3: space-delimited)
+        $tokenValues = $token->getValues();
+        if (isset($tokenValues['scope'])) {
+            $extraData['scopes_granted'] = is_string($tokenValues['scope'])
+                ? explode(' ', $tokenValues['scope'])
+                : (array) $tokenValues['scope'];
+        }
+
+        if ($profileData !== []) {
+            $extraData['profile']            = $profileData;
+            $extraData['profile_fetched_at'] = Time::now()->toDateTimeString();
+        }
+
+        $extraJson = json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        $identity = $repo->findByProviderAndSocialId($this->providerName, $socialId);
 
         $user = null;
 
         if ($identity) {
             /** @var UserIdentity $identity */
             $user = $identity->user();
+
+            // Update token and profile data on re-login
+            $identity->secret2 = $token->getToken();
+            $identity->extra   = $extraJson;
+
+            if ($token->getExpires()) {
+                $identity->expires = Time::createFromTimestamp($token->getExpires());
+            }
+
+            $repo->updateOAuthIdentity($identity);
         } else {
             $provider = auth()->getProvider();
             $user     = $provider->findByCredentials(['email' => $email]);
@@ -258,13 +326,11 @@ class OauthManager
                 $provider->addToDefaultGroup($user);
             }
 
-            $identityModel->insert([
-                'user_id' => $user->id,
-                'type'    => $type,
+            $repo->createOAuthIdentity((int) $user->id, $this->providerName, [
                 'name'    => $name ?? $email,
                 'secret'  => $socialId,
                 'secret2' => $token->getToken(),
-                'extra'   => $token->getRefreshToken(),
+                'extra'   => $extraJson,
                 'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
             ]);
         }
@@ -272,5 +338,39 @@ class OauthManager
         auth()->login($user);
 
         return $user;
+    }
+
+    /**
+     * Fetch additional profile fields using the appropriate resolver.
+     *
+     * @return array<string, mixed>
+     */
+    private function fetchProfileFields(AccessTokenInterface $token, ResourceOwnerInterface $resourceOwner): array
+    {
+        $providerConfig = $this->config->providers[$this->providerName] ?? [];
+        $fields         = $providerConfig['fields'] ?? [];
+
+        if ($fields === []) {
+            return [];
+        }
+
+        try {
+            return ProfileResolverFactory::create($this->providerName, $providerConfig)
+                ->fetchFields($this->provider, $token, $resourceOwner, $fields, $providerConfig);
+        } catch (Throwable $e) {
+            log_message('warning', 'OAuth profile fetch failed: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
+     * Get the stored profile data for a user's OAuth identity.
+     *
+     * @return array<string, mixed>
+     */
+    public function getProfileData(User $user): array
+    {
+        return $this->getRepository()->getProfileData((int) $user->id, $this->providerName);
     }
 }

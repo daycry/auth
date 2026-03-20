@@ -52,7 +52,7 @@ Welcome to the complete documentation for **Daycry Auth**, a comprehensive authe
 - **Force Password Reset**: Flag accounts for mandatory password change
 - **Permission System**: Groups and granular permissions with optional cache
 - **Flexible Filters**: Auth, chain, group, permission, rate limiting, force-reset
-- **OAuth 2.0 / Social Login**: Google, GitHub, Facebook, Microsoft Azure
+- **OAuth 2.0 / Social Login**: Google, GitHub, Facebook, Microsoft Azure, custom profile fields, OAuth events
 - **Per-User Account Lockout**: Independent of IP-based blocking
 - **Complete Logging**: CI4 Events + database login attempt logs
 - **Highly Customizable**: Extend or replace any component
@@ -86,7 +86,7 @@ Every configuration option explained with examples.
 Session, Access Token, JWT (with refresh), Magic Link, Password Reset, and more.
 
 ### [OAuth 2.0 & Social Login](09-oauth.md)
-Google, GitHub, Facebook, Microsoft Azure — and any OIDC provider.
+Google, GitHub, Facebook, Microsoft Azure — and any OIDC provider. Profile fields, custom resolvers, OAuth events, scopes tracking.
 
 ### [TOTP Two-Factor Authentication](10-totp-2fa.md)
 Time-based OTP with authenticator apps.

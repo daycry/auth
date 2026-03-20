@@ -16,14 +16,10 @@ namespace Daycry\Auth\Authentication\Actions;
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
-use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Libraries\TOTP;
-use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Traits\Viewable;
 
 /**
  * Class Totp2FA
@@ -37,28 +33,19 @@ use Daycry\Auth\Traits\Viewable;
  * Users enable/disable TOTP from their account security settings via
  * UserSecurityController (totpSetup / totpDisable).
  */
-class Totp2FA implements ActionInterface
+class Totp2FA extends AbstractAction
 {
-    use Viewable;
-
     /**
      * Identity type for the pending-login marker.
      */
-    private string $type = IdentityType::TOTP->value;
+    protected string $type = IdentityType::TOTP->value;
 
     /**
      * Displays the TOTP code entry form.
      */
     public function show(): string
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
-        $user = $authenticator->getPendingUser();
-
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
+        $this->requirePendingUser();
 
         return $this->view(setting('Auth.views')['action_totp_2fa_verify']);
     }
@@ -80,8 +67,7 @@ class Totp2FA implements ActionInterface
      */
     public function verify(IncomingRequest $request)
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
+        $authenticator = $this->getSessionAuthenticator();
 
         $user = $authenticator->getPendingUser();
 
@@ -98,9 +84,7 @@ class Totp2FA implements ActionInterface
         }
 
         // Remove the pending marker and complete login
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-        $identityModel->deleteIdentitiesByType($user, $this->type);
+        $this->getIdentityModel()->deleteIdentitiesByType($user, $this->type);
 
         $authenticator->completeLogin($user);
 
@@ -118,8 +102,7 @@ class Totp2FA implements ActionInterface
      */
     public function createIdentity(User $user): string
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
+        $identityModel = $this->getIdentityModel();
 
         // Remove any stale marker from a previous attempt
         $identityModel->deleteIdentitiesByType($user, $this->type);
@@ -141,22 +124,11 @@ class Totp2FA implements ActionInterface
     }
 
     /**
-     * Returns the string type of this action.
-     */
-    public function getType(): string
-    {
-        return $this->type;
-    }
-
-    /**
      * Verifies the TOTP code against the user's permanent secret.
      */
     private function verifyCodeForUser(User $user, string $code): bool
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        $totpSecret = $identityModel->getIdentityByType($user, IdentityType::TOTP_SECRET->value);
+        $totpSecret = $this->getIdentityModel()->getIdentityByType($user, IdentityType::TOTP_SECRET->value);
 
         if (! $totpSecret instanceof UserIdentity) {
             return false;

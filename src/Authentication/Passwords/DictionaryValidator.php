@@ -26,6 +26,14 @@ use Daycry\Auth\Result;
 class DictionaryValidator extends BaseValidator implements PasswordValidatorInterface
 {
     /**
+     * In-memory cache of dictionary words for O(1) lookups.
+     * Keys are the dictionary words, values are irrelevant (array_flip).
+     *
+     * @var array<string, int>|null
+     */
+    private static ?array $dictionary = null;
+
+    /**
      * Checks the password against the words in the file and returns false
      * if a match is found. Returns true if no match is found.
      * If true is returned the password will be passed to next validator.
@@ -33,26 +41,51 @@ class DictionaryValidator extends BaseValidator implements PasswordValidatorInte
      */
     public function check(string $password, ?User $user = null): Result
     {
-        // Loop over our file
-        $fp = fopen(__DIR__ . '/_dictionary.txt', 'rb');
-        if ($fp) {
-            while (($line = fgets($fp, 4096)) !== false) {
-                if ($password === trim($line)) {
-                    fclose($fp);
-
-                    return new Result([
-                        'success'   => false,
-                        'reason'    => lang('Auth.errorPasswordCommon'),
-                        'extraInfo' => lang('Auth.suggestPasswordCommon'),
-                    ]);
-                }
-            }
+        if (self::$dictionary === null) {
+            self::$dictionary = $this->loadDictionary();
         }
 
-        fclose($fp);
+        if (isset(self::$dictionary[$password])) {
+            return new Result([
+                'success'   => false,
+                'reason'    => lang('Auth.errorPasswordCommon'),
+                'extraInfo' => lang('Auth.suggestPasswordCommon'),
+            ]);
+        }
 
         return new Result([
             'success' => true,
         ]);
+    }
+
+    /**
+     * Loads the dictionary file into an associative array for O(1) lookups.
+     * Returns an empty array if the file cannot be opened.
+     *
+     * @return array<string, int>
+     */
+    private function loadDictionary(): array
+    {
+        $fp = fopen(__DIR__ . '/_dictionary.txt', 'rb');
+
+        if ($fp === false) {
+            return [];
+        }
+
+        try {
+            $words = [];
+
+            while (($line = fgets($fp, 4096)) !== false) {
+                $word = trim($line);
+
+                if ($word !== '') {
+                    $words[] = $word;
+                }
+            }
+
+            return array_flip($words);
+        } finally {
+            fclose($fp);
+        }
     }
 }

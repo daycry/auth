@@ -14,12 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\Events\Events;
-use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
-use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 
@@ -98,50 +98,19 @@ class MagicLinkController extends BaseAuthController
             return $this->handleError('magic-link', lang('Auth.invalidEmail'));
         }
 
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
+        $sender = new TokenEmailSender();
 
-        // Delete any previous magic-link identities
-        $identityModel->deleteIdentitiesByType($user, Session::ID_TYPE_MAGIC_LINK);
-
-        // Generate the code and save it as an identity
-        helper('text');
-        $token = random_string('crypto', 20);
-
-        $identityModel->insert([
-            'user_id' => $user->id,
-            'type'    => Session::ID_TYPE_MAGIC_LINK,
-            'secret'  => $token,
-            'expires' => Time::now()->addSeconds(setting('AuthSecurity.magicLinkLifetime'))->format('Y-m-d H:i:s'),
-        ]);
-
-        /** @var IncomingRequest $request */
-        $request = service('request');
-
-        $ipAddress = $request->getIPAddress();
-        $userAgent = (string) $request->getUserAgent();
-        $date      = Time::now()->toDateTimeString();
-
-        // Send the user an email with the code
-        helper('email');
-        $email = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
-        $email->setTo($user->email);
-        $email->setSubject(lang('Auth.magicLinkSubject'));
-        $email->setMessage($this->view(setting('Auth.views')['magic-link-email'], [
-            'token'     => $token,
-            'ipAddress' => $ipAddress,
-            'userAgent' => $userAgent,
-            'date'      => $date,
-        ]));
-
-        if ($email->send(false) === false) {
-            log_message('error', $email->printDebugger(['headers']));
-
+        try {
+            $sender->sendTokenEmail(
+                $user,
+                Session::ID_TYPE_MAGIC_LINK,
+                setting('AuthSecurity.magicLinkLifetime'),
+                lang('Auth.magicLinkSubject'),
+                setting('Auth.views')['magic-link-email'],
+            );
+        } catch (RuntimeException $e) {
             return $this->handleError('magic-link', lang('Auth.unableSendEmailToUser', [$user->email]));
         }
-
-        // Clear the email
-        $email->clear();
 
         // Redirect to message page instead of returning the view directly
         return redirect()->route('magic-link-message');
@@ -185,7 +154,7 @@ class MagicLinkController extends BaseAuthController
 
         // No token found?
         if ($identity === null) {
-            $this->recordLoginAttempt($identifier, false);
+            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false);
 
             $credentials = ['magicLinkToken' => $token];
             Events::trigger('failedLogin', $credentials);
@@ -198,7 +167,7 @@ class MagicLinkController extends BaseAuthController
 
         // Token expired?
         if (Time::now()->isAfter($identity->expires)) {
-            $this->recordLoginAttempt($identifier, false);
+            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false);
 
             $credentials = ['magicLinkToken' => $token];
             Events::trigger('failedLogin', $credentials);
@@ -219,7 +188,7 @@ class MagicLinkController extends BaseAuthController
 
         $user = $authenticator->getUser();
 
-        $this->recordLoginAttempt($identifier, true, $user->id);
+        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, true, $user->id);
 
         // Give the developer a way to know the user
         // logged in via a magic link.
@@ -229,27 +198,6 @@ class MagicLinkController extends BaseAuthController
 
         // Get our login redirect url
         return redirect()->to(config('Auth')->loginRedirect());
-    }
-
-    /**
-     * @param int|string|null $userId
-     */
-    private function recordLoginAttempt(
-        string $identifier,
-        bool $success,
-        $userId = null,
-    ): void {
-        /** @var LoginModel $loginModel */
-        $loginModel = model(LoginModel::class);
-
-        $loginModel->recordLoginAttempt(
-            Session::ID_TYPE_MAGIC_LINK,
-            $identifier,
-            $success,
-            $this->request->getIPAddress(),
-            (string) $this->request->getUserAgent(),
-            $userId,
-        );
     }
 
     /**

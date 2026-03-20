@@ -572,10 +572,12 @@ composer test -- --display-deprecations
 For more test examples, check the `/tests` directory:
 
 - `tests/Authentication/` - Authentication tests
-- `tests/Authorization/` - Authorization tests  
+- `tests/Authorization/` - Authorization tests
 - `tests/Controllers/` - Controller tests
 - `tests/Entities/` - Entity tests
-- `tests/Models/` - Model tests
+- `tests/Models/` - Model tests (including `OAuthTokenRepositoryTest`)
+- `tests/Libraries/OauthManagerTest.php` - OAuth manager tests (events, scopes, profile, refresh)
+- `tests/Libraries/Oauth/ProfileResolver/` - Profile resolver tests (factory, Azure, generic)
 
 ## 🔗 Related Documentation
 

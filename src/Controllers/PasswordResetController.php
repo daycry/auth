@@ -14,12 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\Events\Events;
-use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 
@@ -75,55 +75,26 @@ class PasswordResetController extends BaseAuthController
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
         if ($user !== null) {
-            /** @var UserIdentityModel $identityModel */
-            $identityModel = model(UserIdentityModel::class);
+            $sender = new TokenEmailSender();
 
-            // Delete any previous reset_password identities
-            $identityModel->deleteIdentitiesByType($user, IdentityType::RESET_PASSWORD->value);
-
-            // Generate the token and save it as an identity
-            helper('text');
-            $token = random_string('crypto', 20);
-
-            $identityModel->insert([
-                'user_id' => $user->id,
-                'type'    => IdentityType::RESET_PASSWORD->value,
-                'secret'  => $token,
-                'expires' => Time::now()->addSeconds(setting('AuthSecurity.passwordResetLifetime'))->format('Y-m-d H:i:s'),
-            ]);
-
-            /** @var IncomingRequest $request */
-            $request = service('request');
-
-            $ipAddress = $request->getIPAddress();
-            $userAgent = (string) $request->getUserAgent();
-            $date      = Time::now()->toDateTimeString();
-
-            // Send the user an email with the reset link
-            helper('email');
-            $emailService = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
-            $emailService->setTo($user->email);
-            $emailService->setSubject(lang('Auth.passwordResetSubject'));
-            $emailService->setMessage($this->view(setting('Auth.views')['password-reset-email'], [
-                'token'     => $token,
-                'ipAddress' => $ipAddress,
-                'userAgent' => $userAgent,
-                'date'      => $date,
-                'user'      => $user,
-            ]));
-
-            if ($emailService->send(false) === false) {
-                log_message('error', $emailService->printDebugger(['headers']));
+            try {
+                $sender->sendTokenEmail(
+                    $user,
+                    IdentityType::RESET_PASSWORD->value,
+                    setting('AuthSecurity.passwordResetLifetime'),
+                    lang('Auth.passwordResetSubject'),
+                    setting('Auth.views')['password-reset-email'],
+                    ['user' => $user],
+                );
+            } catch (RuntimeException $e) {
+                log_message('error', $e->getMessage());
             }
 
-            // Clear the email
-            $emailService->clear();
-
             // Record the attempt
-            $this->recordAttempt($email, true, $user->id);
+            $this->recordLoginAttempt(IdentityType::RESET_PASSWORD->value, $email, true, $user->id);
         } else {
             // Record failed attempt but don't reveal that user doesn't exist
-            $this->recordAttempt($email, false);
+            $this->recordLoginAttempt(IdentityType::RESET_PASSWORD->value, $email, false);
         }
 
         // Always redirect to message view (don't reveal if user exists)
@@ -235,29 +206,6 @@ class PasswordResetController extends BaseAuthController
 
         return redirect()->route('login')
             ->with('message', lang('Auth.passwordResetSuccess'));
-    }
-
-    /**
-     * Records a login attempt for the password reset flow.
-     *
-     * @param int|string|null $userId
-     */
-    private function recordAttempt(
-        string $identifier,
-        bool $success,
-        $userId = null,
-    ): void {
-        /** @var LoginModel $loginModel */
-        $loginModel = model(LoginModel::class);
-
-        $loginModel->recordLoginAttempt(
-            IdentityType::RESET_PASSWORD->value,
-            $identifier,
-            $success,
-            $this->request->getIPAddress(),
-            (string) $this->request->getUserAgent(),
-            $userId,
-        );
     }
 
     /**

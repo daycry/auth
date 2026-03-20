@@ -17,31 +17,47 @@ use CodeIgniter\Router\RouteCollection;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 
 /**
  * Facade for Authentication
  *
- * @method Result    attempt(array $credentials)
- * @method Result    check(array $credentials)
- * @method bool      checkAction(string $token, string $type) [Session]
- * @method void      forget(?User $user = null)               [Session]
+ * Common methods (all authenticators):
+ *
+ * @method Result               attempt(array $credentials)
+ * @method Result               check(array $credentials)
+ * @method bool                 checkAction(UserIdentity $identity, string $token)
+ * @method void                 completeLogin(User $user)
+ * @method void                 forget(?User $user = null)
+ * @method ActionInterface|null getAction()
+ * @method mixed                getLogCredentials(array $credentials)
+ *
+ * Session-only methods:
+ * @method string    getPendingMessage()
+ * @method User|null getPendingUser()
  * @method User|null getUser()
+ * @method bool      hasAction(int|string|null $userId = null)
+ * @method bool      isAnonymous()
+ * @method bool      isPending()
  * @method bool      loggedIn()
- * @method bool      login(User $user)
- * @method void      loginById($userId)
- * @method bool      logout()
+ * @method void      login(User $user, bool $actions = true)
+ * @method void      loginById(int|string $userId)
+ * @method void      logout()
  * @method void      recordActiveDate()
- * @method $this     remember(bool $shouldRemember = true)    [Session]
+ * @method self      remember(bool $shouldRemember = true)
+ * @method void      startLogin(User $user)
+ * @method bool      startUpAction(string $type, User $user)
  */
 class Auth
 {
     /**
      * The current version of CodeIgniter Shield
      */
-    public const SHIELD_VERSION = '3.0.5';
+    public const SHIELD_VERSION = '5.0.0';
 
     protected ?UserProviderInterface $userProvider = null;
     protected ?Authentication $authenticate        = null;

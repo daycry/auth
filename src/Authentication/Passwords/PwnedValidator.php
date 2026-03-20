@@ -50,7 +50,7 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
 
         try {
             $client = Services::curlrequest([
-                'base_uri' => 'https://api.pwnedpasswords.com/',
+                'base_uri' => setting('AuthSecurity.pwnedPasswordsApiUrl'),
             ]);
 
             $response = $client->get(

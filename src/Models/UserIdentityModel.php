@@ -149,6 +149,8 @@ class UserIdentityModel extends BaseModel
     /**
      * Generates a new personal access token for the user.
      *
+     * @deprecated Use AccessTokenRepository::generateAccessToken() instead.
+     *
      * @param string       $name   Token name
      * @param list<string> $scopes Permissions the token grants
      */
@@ -178,6 +180,9 @@ class UserIdentityModel extends BaseModel
         return $token;
     }
 
+    /**
+     * @deprecated Use AccessTokenRepository::getAccessTokenByRawToken() instead.
+     */
     public function getAccessTokenByRawToken(string $rawToken): ?AccessTokenIdentity
     {
         return $this
@@ -188,6 +193,9 @@ class UserIdentityModel extends BaseModel
             ->first();
     }
 
+    /**
+     * @deprecated Use AccessTokenRepository::getAccessToken() instead.
+     */
     public function getAccessToken(User $user, string $rawToken): ?AccessTokenIdentity
     {
         $this->checkUserId($user);
@@ -201,6 +209,8 @@ class UserIdentityModel extends BaseModel
 
     /**
      * Given the ID, returns the given access token.
+     *
+     * @deprecated Use AccessTokenRepository::getAccessTokenById() instead.
      *
      * @param int|string $id
      */
@@ -216,6 +226,8 @@ class UserIdentityModel extends BaseModel
     }
 
     /**
+     * @deprecated Use AccessTokenRepository::getAllAccessTokens() instead.
+     *
      * @return list<AccessTokenIdentity>
      */
     public function getAllAccessToken(User $user): array
@@ -325,6 +337,8 @@ class UserIdentityModel extends BaseModel
 
     /**
      * Delete any access tokens for the given raw token.
+     *
+     * @deprecated Use AccessTokenRepository::deleteAccessToken() or softRevokeAccessToken() instead.
      */
     public function revokeAccessToken(User $user, string $rawToken): void
     {
@@ -340,6 +354,8 @@ class UserIdentityModel extends BaseModel
 
     /**
      * Delete any access tokens for the given secret token.
+     *
+     * @deprecated Use AccessTokenRepository::deleteAccessTokenBySecret() or softRevokeAccessTokenBySecret() instead.
      */
     public function revokeAccessTokenBySecret(User $user, string $secretToken): void
     {
@@ -355,6 +371,8 @@ class UserIdentityModel extends BaseModel
 
     /**
      * Revokes all access tokens for this user.
+     *
+     * @deprecated Use AccessTokenRepository::deleteAllAccessTokens() or softRevokeAllAccessTokens() instead.
      */
     public function revokeAllAccessToken(User $user): void
     {
@@ -365,6 +383,18 @@ class UserIdentityModel extends BaseModel
             ->delete();
 
         $this->checkQueryReturn($return);
+    }
+
+    /**
+     * Soft-revoke all non-revoked identities for a user and type in a single UPDATE.
+     */
+    public function revokeIdentitiesByUserAndType(int $userId, string $type): void
+    {
+        $this->where('user_id', $userId)
+            ->where('type', $type)
+            ->where('revoked_at', null)
+            ->set('revoked_at', Time::now()->format('Y-m-d H:i:s'))
+            ->update();
     }
 
     /**
@@ -382,6 +412,8 @@ class UserIdentityModel extends BaseModel
      *
      * The raw token is hashed (SHA-256) before storage.
      *
+     * @deprecated Use JwtTokenRepository::createRefreshToken() instead.
+     *
      * @param int    $userId    User primary key
      * @param string $rawToken  The raw (unhashed) token to store
      * @param string $expiresAt Datetime string 'Y-m-d H:i:s'
@@ -398,6 +430,8 @@ class UserIdentityModel extends BaseModel
 
     /**
      * Finds a valid (non-expired, non-revoked) JWT refresh token.
+     *
+     * @deprecated Use JwtTokenRepository::getRefreshToken() instead.
      *
      * @param int    $userId   User primary key
      * @param string $rawToken The raw (unhashed) token

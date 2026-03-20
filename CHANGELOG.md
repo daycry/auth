@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-03-20
+
+### Added
+
+#### OAuth Profile System
+- **`IdentityType::oauthProvider()` static helper** — centralises the `oauth_` prefix convention for dynamic provider types. Replaces all manual `'oauth_' . $provider` string concatenation across the codebase.
+- **`OAuthTokenRepository`** (`src/Models/OAuthTokenRepository.php`) — dedicated repository for OAuth identity CRUD, following the same pattern as `AccessTokenRepository` and `JwtTokenRepository`. Methods:
+  - `findByUserAndProvider(int $userId, string $provider)` — find OAuth identity for a user/provider pair
+  - `findByProviderAndSocialId(string $provider, string $socialId)` — find by provider type and social ID
+  - `createOAuthIdentity(int $userId, string $provider, array $data)` — insert a new OAuth identity
+  - `updateOAuthIdentity(UserIdentity $identity)` — update an existing identity (token refresh, re-login)
+  - `getProfileData(int $userId, string $provider)` — get stored profile data from the `extra` JSON
+  - `parseExtra(?string $extra)` — parse `extra` column with backward compatibility (JSON and legacy plain-string format)
+- **Config-based `ProfileResolverFactory`** — the factory now accepts `$providerConfig` and resolves profile resolvers in this order:
+  1. `$providerConfig['profileResolver']` — custom class (must implement `ProfileResolverInterface`, throws `LogicException` otherwise)
+  2. Built-in map (`azure` -> `AzureProfileResolver`)
+  3. Fallback -> `GenericProfileResolver`
+- **`profileResolver` config key** — documented in `AuthOAuth.php` Generic provider example; allows per-provider custom resolver classes
+- **`scopes_granted` in extra JSON** — when the OAuth provider returns granted scopes in the token response (RFC 6749 SS3.3), they are stored as an array in the identity's `extra` JSON. Updated on both initial login and token refresh.
+- **`profile_fetched_at` in extra JSON** — ISO 8601 timestamp recorded when profile fields are fetched, allowing consumers to know the freshness of cached profile data
+
+#### OAuth Events
+- **`oauth-login`** — fired after every successful OAuth login via `handleCallback()`. Arguments: `User $user`, `string $providerName`
+- **`oauth-profile-fetched`** — fired when profile fields were resolved (only when `fields` is configured and data was returned). Arguments: `User $user`, `string $providerName`, `array $profileData`
+
+#### Tests
+- `tests/Models/OAuthTokenRepositoryTest.php` — 10 tests covering find, create, update, getProfileData, parseExtra (JSON, legacy, empty)
+- `tests/Libraries/Oauth/ProfileResolver/ProfileResolverFactoryTest.php` — 4 tests: Azure resolver, generic fallback, config-based override, invalid resolver throws
+- `tests/Libraries/OauthManagerTest.php` — 9 new tests:
+  - `testRefreshAccessTokenWithJsonExtra` / `testRefreshAccessTokenWithLegacyExtra` — refresh with JSON and legacy extra formats
+  - `testRefreshAccessTokenNoIdentity` / `testRefreshAccessTokenProviderFails` — null return cases
+  - `testHandleCallbackTriggersOauthLoginEvent` / `testHandleCallbackTriggersProfileFetchedEvent` — event verification
+  - `testHandleCallbackStoresScopesGranted` — scopes extracted from token response
+  - `testHandleCallbackStoresProfileFetchedAt` — timestamp presence in extra JSON
+
+#### Documentation
+- `docs/09-oauth.md` — complete rewrite with 11 new sections: Architecture, Stored Token Data (JSON structure), Profile Fields (configuring, resolvers, custom resolver, reading data), Scopes Granted, OAuth Events, OAuthTokenRepository reference, IdentityType Helper, Testing OAuth
+- `docs/02-configuration.md` — updated OAuth section with `fields`, `fieldsEndpoint`, `profileResolver` keys; added Provider Configuration Keys reference table
+- `docs/07-logging.md` — added `oauth-login` and `oauth-profile-fetched` to the events table; added OAuth Login Tracking section
+- `docs/08-testing.md` — added OAuth test file references
+- `docs/README.md` — added OAuth Profile Fields & Resolvers, OAuth Events, OAuthTokenRepository to Feature Matrix
+- `docs/index.md` — updated OAuth description
+- `CLAUDE.md` — added `OAuthTokenRepository` to source layout and token repositories table; expanded OAuth2 section
+
+### Changed
+
+- **`OauthManager` refactored** — all identity CRUD delegated to `OAuthTokenRepository` via lazy-initialised `getRepository()` getter. Centralised `getIdentityModel()` replaces three separate `model(UserIdentityModel::class)` calls. Removed private `parseExtra()` method (now public on repository).
+- **`ProfileResolverFactory::create()` signature** — now accepts optional `array $providerConfig = []` as second parameter for config-based resolver resolution
+- **`OauthManager::processUser()`** — login event (`auth()->login()`) no longer triggers events itself; `oauth-login` and `oauth-profile-fetched` are fired from `handleCallback()` after `processUser()` returns
+- **`OauthManager::refreshAccessToken()`** — now updates `scopes_granted` in extra JSON when the refreshed token includes scope information
+- PHPStan baseline regenerated: 599 -> 627 suppressions (new repository, tests, Mockery patterns)
+
 ## [4.0.0] - 2026-03-01
 
 ### Breaking Changes
@@ -172,6 +224,7 @@ class AuthOAuth extends AuthOAuthConfig
 - `UserProviderInterface` missing `update()` method — caused PHPStan errors in `Session` authenticator per-user lockout code
 - `ForcePasswordResetController::getValidationRules()` incorrect PHPDoc return type
 
-[Unreleased]: https://github.com/daycry/auth/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/daycry/auth/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/daycry/auth/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/daycry/auth/compare/v3.1.0...v4.0.0
 [3.1.0]: https://github.com/daycry/auth/compare/v3.0.6...v3.1.0

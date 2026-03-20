@@ -22,6 +22,11 @@ use Daycry\Auth\Exceptions\AuthenticationException;
  * Provides shared login/logout/loggedIn/loginById logic.
  * Concrete classes must implement getTokenFromRequest() to extract
  * the raw credential from the current HTTP request.
+ *
+ * Note on memoization: loggedIn() short-circuits via `$this->user !== null`
+ * after the first successful attempt(). The token is only re-validated on
+ * the very first call per request. Subsequent calls within the same request
+ * return immediately without hitting the DB or JWT verification again.
  */
 abstract class StatelessAuthenticator extends Base
 {
@@ -49,8 +54,11 @@ abstract class StatelessAuthenticator extends Base
 
     /**
      * Checks if the user is currently logged in.
-     * Since stateless authenticators carry no session state,
-     * the token is re-validated on every request.
+     *
+     * On the first call per request, the token from the HTTP request is
+     * validated (DB lookup for AccessToken, signature check for JWT).
+     * Once a user is resolved, subsequent calls short-circuit via the
+     * in-memory `$this->user` reference — no repeated validation.
      */
     public function loggedIn(): bool
     {

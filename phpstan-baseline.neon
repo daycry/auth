@@ -3,8 +3,8 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
-			path: src/Authentication/Actions/Email2FA.php
+			count: 1
+			path: src/Authentication/Actions/AbstractAction.php
 
 		-
 			rawMessage: 'Call to internal function emailer().'
@@ -13,22 +13,10 @@ parameters:
 			path: src/Authentication/Actions/Email2FA.php
 
 		-
-			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
-			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
-			path: src/Authentication/Actions/EmailActivator.php
-
-		-
 			rawMessage: 'Call to internal function emailer().'
 			identifier: function.internal
 			count: 1
 			path: src/Authentication/Actions/EmailActivator.php
-
-		-
-			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
-			identifier: codeigniter.factoriesClassConstFetch
-			count: 3
-			path: src/Authentication/Actions/Totp2FA.php
 
 		-
 			rawMessage: 'Call to an undefined method CodeIgniter\HTTP\Request::getGetPost().'
@@ -39,6 +27,15 @@ parameters:
 		-
 			rawMessage: 'Call to an undefined method CodeIgniter\HTTP\Request::getVar().'
 			identifier: method.notFound
+			count: 1
+			path: src/Authentication/Authenticators/AccessToken.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessTokenByRawToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessTokenByRawToken() instead.
+			'''
+			identifier: method.deprecated
 			count: 1
 			path: src/Authentication/Authenticators/AccessToken.php
 
@@ -142,12 +139,6 @@ parameters:
 			rawMessage: Access to property $csrfProtection on an unknown class Daycry\Auth\Authentication\Authenticators\Security.
 			identifier: class.notFound
 			count: 1
-			path: src/Authentication/Authenticators/Session.php
-
-		-
-			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
-			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
 			path: src/Authentication/Authenticators/Session.php
 
 		-
@@ -287,6 +278,12 @@ parameters:
 			identifier: varTag.type
 			count: 1
 			path: src/Authentication/Passwords/PwnedValidator.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Authentication/Services/DeviceSessionRecorder.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.
@@ -457,6 +454,12 @@ parameters:
 			path: src/Controllers/Admin/UsersController.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Controllers/BaseAuthController.php
+
+		-
 			rawMessage: 'Method Daycry\Auth\Controllers\BaseAuthController::getSessionAuthenticator() should return Daycry\Auth\Authentication\Authenticators\Session but returns Daycry\Auth\Interfaces\AuthenticatorInterface.'
 			identifier: return.type
 			count: 1
@@ -487,6 +490,24 @@ parameters:
 			path: src/Controllers/ForcePasswordResetController.php
 
 		-
+			rawMessage: '''
+				Call to deprecated method createJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::createRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Controllers/JwtController.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::getRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 2
+			path: src/Controllers/JwtController.php
+
+		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 3
@@ -499,7 +520,7 @@ parameters:
 			path: src/Controllers/JwtController.php
 
 		-
-			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
 			path: src/Controllers/MagicLinkController.php
@@ -508,35 +529,11 @@ parameters:
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 2
-			path: src/Controllers/MagicLinkController.php
-
-		-
-			rawMessage: 'Call to internal function emailer().'
-			identifier: function.internal
-			count: 1
-			path: src/Controllers/MagicLinkController.php
-
-		-
-			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
-			identifier: codeigniter.factoriesClassConstFetch
-			count: 1
-			path: src/Controllers/PasswordResetController.php
-
-		-
-			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
-			identifier: codeigniter.factoriesClassConstFetch
-			count: 3
 			path: src/Controllers/PasswordResetController.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 1
-			path: src/Controllers/PasswordResetController.php
-
-		-
-			rawMessage: 'Call to internal function emailer().'
-			identifier: function.internal
 			count: 1
 			path: src/Controllers/PasswordResetController.php
 
@@ -747,6 +744,51 @@ parameters:
 		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Models\UserIdentityModel::revokeAllAccessTokens().'
 			identifier: method.notFound
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method generateAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::generateAccessToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessTokenById() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessTokenById() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method revokeAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::deleteAccessToken() or softRevokeAccessToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Entities/User.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method revokeAccessTokenBySecret() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::deleteAccessTokenBySecret() or softRevokeAccessTokenBySecret() instead.
+			'''
+			identifier: method.deprecated
 			count: 1
 			path: src/Entities/User.php
 
@@ -1011,7 +1053,7 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 1
 			path: src/Libraries/Oauth/OauthManager.php
 
 		-
@@ -1019,6 +1061,63 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: src/Libraries/Oauth/OauthManager.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Libraries/TokenEmailSender.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 1
+			path: src/Libraries/TokenEmailSender.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method generateAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::generateAccessToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Models/AccessTokenRepository.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 2
+			path: src/Models/AccessTokenRepository.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessTokenById() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessTokenById() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Models/AccessTokenRepository.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessTokenByRawToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessTokenByRawToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Models/AccessTokenRepository.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAllAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAllAccessTokens() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Models/AccessTokenRepository.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.
@@ -1037,6 +1136,24 @@ parameters:
 			identifier: varTag.variableNotFound
 			count: 1
 			path: src/Models/DeviceSessionModel.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method createJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::createRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Models/JwtTokenRepository.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::getRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: src/Models/JwtTokenRepository.php
 
 		-
 			rawMessage: PHPDoc tag @param for parameter $userId with type int|string|null is not subtype of native type int|null.
@@ -1540,9 +1657,51 @@ parameters:
 			path: tests/Libraries/LoggerTest.php
 
 		-
+			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::andThrow().'
+			identifier: method.notFound
+			count: 1
+			path: tests/Libraries/Oauth/ProfileResolver/AzureProfileResolverTest.php
+
+		-
+			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\ProfileResolver\AzureProfileResolver::fetchFields() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
+			identifier: argument.type
+			count: 4
+			path: tests/Libraries/Oauth/ProfileResolver/AzureProfileResolverTest.php
+
+		-
+			rawMessage: 'Parameter #3 $resourceOwner of method Daycry\Auth\Libraries\Oauth\ProfileResolver\AzureProfileResolver::fetchFields() expects League\OAuth2\Client\Provider\ResourceOwnerInterface, Mockery\MockInterface given.'
+			identifier: argument.type
+			count: 4
+			path: tests/Libraries/Oauth/ProfileResolver/AzureProfileResolverTest.php
+
+		-
 			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::with().'
 			identifier: method.notFound
 			count: 2
+			path: tests/Libraries/Oauth/ProfileResolver/GenericProfileResolverTest.php
+
+		-
+			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\ProfileResolver\GenericProfileResolver::fetchFields() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
+			identifier: argument.type
+			count: 5
+			path: tests/Libraries/Oauth/ProfileResolver/GenericProfileResolverTest.php
+
+		-
+			rawMessage: 'Parameter #3 $resourceOwner of method Daycry\Auth\Libraries\Oauth\ProfileResolver\GenericProfileResolver::fetchFields() expects League\OAuth2\Client\Provider\ResourceOwnerInterface, Mockery\MockInterface given.'
+			identifier: argument.type
+			count: 5
+			path: tests/Libraries/Oauth/ProfileResolver/GenericProfileResolverTest.php
+
+		-
+			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::andThrow().'
+			identifier: method.notFound
+			count: 1
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Call to an undefined method Mockery\ExpectationInterface|Mockery\HigherOrderMessage::with().'
+			identifier: method.notFound
+			count: 18
 			path: tests/Libraries/OauthManagerTest.php
 
 		-
@@ -1554,13 +1713,25 @@ parameters:
 		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\User'' and Daycry\Auth\Entities\User will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
-			count: 1
+			count: 2
 			path: tests/Libraries/OauthManagerTest.php
 
 		-
 			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\OauthManager::setProviderInstance() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
 			identifier: argument.type
-			count: 3
+			count: 17
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Parameter #2 $callback of static method CodeIgniter\Events\Events::on() expects callable(mixed): mixed, Closure(mixed, mixed): void given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Libraries/OauthManagerTest.php
+
+		-
+			rawMessage: 'Parameter #2 $callback of static method CodeIgniter\Events\Events::on() expects callable(mixed): mixed, Closure(mixed, mixed, mixed): void given.'
+			identifier: argument.type
+			count: 1
 			path: tests/Libraries/OauthManagerTest.php
 
 		-

@@ -282,4 +282,21 @@ class AuthSecurity extends BaseConfig
     public bool $permissionCacheEnabled = false;
 
     public int $permissionCacheTTL = 300;
+
+    /**
+     * --------------------------------------------------------------------
+     * Remember-Me Purge Chance
+     * --------------------------------------------------------------------
+     * Probability (1–100) that old remember-me tokens are purged on login.
+     * Higher values mean more frequent purging. 0 = never purge automatically.
+     */
+    public int $rememberMePurgeChance = 20;
+
+    /**
+     * --------------------------------------------------------------------
+     * Pwned Passwords API URL
+     * --------------------------------------------------------------------
+     * Base URI for the Have I Been Pwned passwords range API.
+     */
+    public string $pwnedPasswordsApiUrl = 'https://api.pwnedpasswords.com/';
 }

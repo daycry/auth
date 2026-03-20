@@ -20,21 +20,16 @@ use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
-use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Libraries\Utils;
-use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Traits\Viewable;
 
 /**
  * Class Email2FA
  *
  * Sends an email to the user with a code to verify their account.
  */
-class Email2FA implements ActionInterface
+class Email2FA extends AbstractAction
 {
-    use Viewable;
-
-    private string $type = Session::ID_TYPE_EMAIL_2FA;
+    protected string $type = Session::ID_TYPE_EMAIL_2FA;
 
     /**
      * Displays the "Hey we're going to send you a number to your email"
@@ -42,13 +37,7 @@ class Email2FA implements ActionInterface
      */
     public function show(): string
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
-        $user = $authenticator->getPendingUser();
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
+        $user = $this->requirePendingUser();
 
         $this->createIdentity($user);
 
@@ -66,13 +55,7 @@ class Email2FA implements ActionInterface
     {
         $email = $request->getPost('email');
 
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
-        $user = $authenticator->getPendingUser();
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
+        $user = $this->requirePendingUser();
 
         if (empty($email) || $email !== $user->email) {
             return redirect()->route('auth-action-show')->with('error', lang('Auth.invalidEmail'));
@@ -117,8 +100,7 @@ class Email2FA implements ActionInterface
      */
     public function verify(IncomingRequest $request)
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
+        $authenticator = $this->getSessionAuthenticator();
 
         $postedToken = $request->getPost('token');
 
@@ -147,8 +129,7 @@ class Email2FA implements ActionInterface
      */
     public function createIdentity(User $user): string
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
+        $identityModel = $this->getIdentityModel();
 
         // Delete any previous identities for action
         $identityModel->deleteIdentitiesByType($user, $this->type);
@@ -162,27 +143,5 @@ class Email2FA implements ActionInterface
             ],
             static fn (): string => Utils::generateNumericCode(),
         );
-    }
-
-    /**
-     * Returns an identity for the action of the user.
-     */
-    private function getIdentity(User $user): ?UserIdentity
-    {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return $identityModel->getIdentityByType(
-            $user,
-            $this->type,
-        );
-    }
-
-    /**
-     * Returns the string type of the action class.
-     */
-    public function getType(): string
-    {
-        return $this->type;
     }
 }

@@ -27,4 +27,15 @@ enum IdentityType: string
     case RESET_PASSWORD = 'reset_password';
     case JWT_REFRESH    = 'jwt_refresh';
     case EMAIL_CHANGE   = 'email_change';
+
+    /**
+     * Build the identity type string for a dynamic OAuth provider.
+     *
+     * OAuth providers cannot be enum cases because the set is user-defined.
+     * This helper centralises the 'oauth_' prefix convention.
+     */
+    public static function oauthProvider(string $provider): string
+    {
+        return 'oauth_' . $provider;
+    }
 }
