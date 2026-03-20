@@ -268,6 +268,12 @@ parameters:
 			path: src/Authentication/Authenticators/StatelessAuthenticator.php
 
 		-
+			rawMessage: 'Parameter #1 $name of function config expects a valid class string, ''JWT'' given.'
+			identifier: codeigniter.configArgumentType
+			count: 2
+			path: src/Authentication/JWT/Adapters/DaycryJWTAdapter.php
+
+		-
 			rawMessage: 'Call to method Daycry\Auth\Result::isOK() with incorrect case: isOk'
 			identifier: method.nameCase
 			count: 1
