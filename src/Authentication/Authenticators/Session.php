@@ -16,11 +16,12 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
-use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
-use CodeIgniter\I18n\Time;
 use Config\Services;
+use Daycry\Auth\Authentication\Services\DeviceSessionRecorder;
+use Daycry\Auth\Authentication\Services\PendingActionCoordinator;
 use Daycry\Auth\Authentication\Services\RememberMe;
+use Daycry\Auth\Authentication\Services\UserLockoutManager;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\AuthenticationState;
@@ -31,7 +32,6 @@ use Daycry\Auth\Exceptions\SecurityException;
 use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
-use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -61,6 +61,21 @@ class Session extends Base implements AuthenticatorInterface
      */
     protected bool $shouldRemember = false;
 
+    /**
+     * Manages per-user account lockout after repeated failed login attempts.
+     */
+    private UserLockoutManager $lockoutManager;
+
+    /**
+     * Handles creation and termination of device session records.
+     */
+    private DeviceSessionRecorder $deviceRecorder;
+
+    /**
+     * Coordinates post-authentication actions (Email2FA, EmailActivator, Totp2FA).
+     */
+    private PendingActionCoordinator $actionCoordinator;
+
     public function __construct(
         UserProviderInterface $provider,
         Request $request,
@@ -71,6 +86,10 @@ class Session extends Base implements AuthenticatorInterface
         $this->method = self::ID_TYPE_USERNAME;
 
         parent::__construct($provider, $request, $userIdentityModel, $loginModel);
+
+        $this->lockoutManager    = new UserLockoutManager($provider);
+        $this->deviceRecorder    = new DeviceSessionRecorder();
+        $this->actionCoordinator = new PendingActionCoordinator($userIdentityModel);
 
         $this->checkSecurityConfig();
     }
@@ -174,22 +193,9 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         // Check per-user lockout (independent of IP-based blocking)
-        $maxAttempts = (int) setting('AuthSecurity.userMaxAttempts');
-
-        if ($maxAttempts > 0 && $user->locked_until !== null) {
-            $lockedUntil = Time::parse((string) $user->locked_until);
-
-            if ($lockedUntil->isAfter(Time::now())) {
-                $minutesLeft = (int) ceil(Time::now()->difference($lockedUntil)->getMinutes());
-
-                return new Result([
-                    'success' => false,
-                    'reason'  => lang('Auth.userLockedOut', [$minutesLeft]),
-                ]);
-            }
-
-            // Lockout has expired — reset counter automatically
-            $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
+        $lockoutResult = $this->lockoutManager->isLockedOut($user);
+        if ($lockoutResult !== null) {
+            return $lockoutResult;
         }
 
         /** @var Passwords $passwords */
@@ -197,19 +203,7 @@ class Session extends Base implements AuthenticatorInterface
 
         // Now, try matching the passwords.
         if (! $passwords->verify($givenPassword, $user->password_hash)) {
-            // Increment the per-user failed login counter
-            if ($maxAttempts > 0) {
-                $count = ((int) ($user->failed_login_count ?? 0)) + 1;
-                $data  = ['failed_login_count' => $count];
-
-                if ($count >= $maxAttempts) {
-                    $data['locked_until'] = Time::now()
-                        ->addSeconds((int) setting('AuthSecurity.userLockoutTime'))
-                        ->format('Y-m-d H:i:s');
-                }
-
-                $this->provider->update($user->id, $data);
-            }
+            $this->lockoutManager->recordFailedAttempt($user);
 
             return new Result([
                 'success' => false,
@@ -342,11 +336,7 @@ class Session extends Base implements AuthenticatorInterface
         $this->user = $user;
 
         // Reset per-user failed login counter on successful login
-        if ((int) setting('AuthSecurity.userMaxAttempts') > 0
-            && ((int) ($user->failed_login_count ?? 0) > 0 || $user->locked_until !== null)
-        ) {
-            $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
-        }
+        $this->lockoutManager->resetOnSuccess($user);
 
         if ($actions) {
             // Update the user's last used date on their password identity.
@@ -409,12 +399,7 @@ class Session extends Base implements AuthenticatorInterface
 
         // Terminate the device session record if tracking is enabled
         if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
-            $sessionId = session_id();
-            if ($sessionId !== '' && $sessionId !== false) {
-                /** @var DeviceSessionModel $deviceSessionModel */
-                $deviceSessionModel = model(DeviceSessionModel::class);
-                $deviceSessionModel->terminateSession($sessionId);
-            }
+            $this->deviceRecorder->terminateCurrentSession();
         }
 
         // Destroy the session data - but ensure a session is still
@@ -478,31 +463,7 @@ class Session extends Base implements AuthenticatorInterface
      */
     private function getIdentitiesForAction(User $user): array
     {
-        return $this->userIdentityModel->getIdentitiesByTypes(
-            $user,
-            $this->getActionTypes(),
-        );
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function getActionTypes(): array
-    {
-        $actions = setting('Auth.actions');
-        $types   = [];
-
-        foreach ($actions as $actionClass) {
-            if ($actionClass === null) {
-                continue;
-            }
-
-            /** @var ActionInterface $action */
-            $action  = Factories::actions($actionClass);  // @phpstan-ignore-line
-            $types[] = $action->getType();
-        }
-
-        return $types;
+        return $this->actionCoordinator->getIdentitiesForAction($user);
     }
 
     /**
@@ -572,7 +533,7 @@ class Session extends Base implements AuthenticatorInterface
         // We'll give a 20% chance to need to do a purge since we
         // don't need to purge THAT often, it's just a maintenance issue.
         // to keep the table from getting out of control.
-        if (random_int(1, 100) <= 20) {
+        if (random_int(1, 100) <= (int) setting('AuthSecurity.rememberMePurgeChance')) {
             $this->rememberMe->purgeOldTokens();
         }
     }
@@ -586,23 +547,10 @@ class Session extends Base implements AuthenticatorInterface
      */
     public function startUpAction(string $type, User $user): bool
     {
-        $actionClass = setting('Auth.actions')[$type] ?? null;
+        $activated = $this->actionCoordinator->activateAction($type, $user);
 
-        if ($actionClass === null) {
-            return false;
-        }
-
-        /** @var ActionInterface $action */
-        $action = Factories::actions($actionClass); // @phpstan-ignore-line
-
-        // Create identity for the action.
-        $secret = $action->createIdentity($user);
-
-        // An empty return value means the action decided to skip itself for this user
-        // (e.g. Totp2FA when the user has no TOTP configured).
-        // Clear any stale auth_action session key that setAuthAction() may have set
-        // earlier in login() from a leftover DB marker.
-        if ($secret === '') {
+        if (! $activated) {
+            // Action was skipped or not configured — clear any stale session state
             $this->removeSessionKey('auth_action');
             $this->removeSessionKey('auth_action_message');
 
@@ -688,29 +636,18 @@ class Session extends Base implements AuthenticatorInterface
             return false;
         }
 
-        $authActions = setting('Auth.actions');
+        $pending = $this->actionCoordinator->findPendingAction($this->user);
 
-        foreach ($authActions as $actionClass) {
-            if ($actionClass === null) {
-                continue;
-            }
-
-            /** @var ActionInterface $action */
-            $action = Factories::actions($actionClass);  // @phpstan-ignore-line
-
-            $identity = $this->userIdentityModel->getIdentityByType($this->user, $action->getType());
-
-            if ($identity instanceof UserIdentity) {
-                $this->userState = AuthenticationState::PENDING;
-
-                $this->setSessionKey('auth_action', $actionClass);
-                $this->setSessionKey('auth_action_message', $identity->extra);
-
-                return true;
-            }
+        if ($pending === null) {
+            return false;
         }
 
-        return false;
+        $this->userState = AuthenticationState::PENDING;
+
+        $this->setSessionKey('auth_action', $pending['actionClass']);
+        $this->setSessionKey('auth_action_message', $pending['message']);
+
+        return true;
     }
 
     /**
@@ -793,7 +730,7 @@ class Session extends Base implements AuthenticatorInterface
 
         // Track the device session if enabled
         if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
-            $this->recordDeviceSession($user);
+            $this->deviceRecorder->recordSession($user, $this->request->getIPAddress());
         }
 
         /** @var Response $response */
@@ -801,30 +738,6 @@ class Session extends Base implements AuthenticatorInterface
 
         // When logged in, ensure cache control headers are in place
         $response->noCache();
-    }
-
-    /**
-     * Creates a device session record for the given user.
-     */
-    private function recordDeviceSession(User $user): void
-    {
-        $sessionId = session_id();
-
-        // No active session (e.g. testing environment without a real session)
-        if ($sessionId === '' || $sessionId === false) {
-            return;
-        }
-
-        /** @var DeviceSessionModel $deviceSessionModel */
-        $deviceSessionModel = model(DeviceSessionModel::class);
-
-        $ipAddress = $this->request->getIPAddress();
-
-        /** @var IncomingRequest $incomingRequest */
-        $incomingRequest = service('request');
-        $userAgent       = (string) $incomingRequest->getUserAgent();
-
-        $deviceSessionModel->createSession($user, $sessionId, $ipAddress, $userAgent !== '' ? $userAgent : null);
     }
 
     /**

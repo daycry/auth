@@ -22,17 +22,16 @@ use CodeIgniter\HTTP\Response;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Entities\UserIdentity;
-use Daycry\Auth\Interfaces\ActionInterface;
 use Daycry\Auth\Libraries\Utils;
-use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Traits\Viewable;
 
-class EmailActivator implements ActionInterface
+/**
+ * Class EmailActivator
+ *
+ * Sends an email to the user with a link to confirm their email address.
+ */
+class EmailActivator extends AbstractAction
 {
-    use Viewable;
-
-    private string $type = Session::ID_TYPE_EMAIL_ACTIVATE;
+    protected string $type = Session::ID_TYPE_EMAIL_ACTIVATE;
 
     /**
      * Shows the initial screen to the user telling them
@@ -41,13 +40,7 @@ class EmailActivator implements ActionInterface
      */
     public function show(): string
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
-
-        $user = $authenticator->getPendingUser();
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
+        $user = $this->requirePendingUser();
 
         $userEmail = $user->email;
         if ($userEmail === null) {
@@ -106,8 +99,7 @@ class EmailActivator implements ActionInterface
      */
     public function verify(IncomingRequest $request)
     {
-        /** @var Session $authenticator */
-        $authenticator = auth('session')->getAuthenticator();
+        $authenticator = $this->getSessionAuthenticator();
 
         $postedToken = $request->getVar('token');
 
@@ -142,8 +134,7 @@ class EmailActivator implements ActionInterface
      */
     public function createIdentity(User $user): string
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
+        $identityModel = $this->getIdentityModel();
 
         // Delete any previous identities for action
         $identityModel->deleteIdentitiesByType($user, $this->type);
@@ -157,27 +148,5 @@ class EmailActivator implements ActionInterface
             ],
             static fn (): string => Utils::generateNumericCode(),
         );
-    }
-
-    /**
-     * Returns an identity for the action of the user.
-     */
-    private function getIdentity(User $user): ?UserIdentity
-    {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return $identityModel->getIdentityByType(
-            $user,
-            $this->type,
-        );
-    }
-
-    /**
-     * Returns the string type of the action class.
-     */
-    public function getType(): string
-    {
-        return $this->type;
     }
 }

@@ -63,7 +63,7 @@ Events::on('registered', static function (object $user): void {
 
 ## Available Events
 
-| Event | When Fired | Argument |
+| Event | When Fired | Arguments |
 |-------|-----------|----------|
 | `pre-login` | Before credentials are checked | `array $credentials` |
 | `login` | After successful login | `User $user` |
@@ -73,6 +73,8 @@ Events::on('registered', static function (object $user): void {
 | `registered` | After successful registration | `User $user` |
 | `passwordReset` | After password successfully reset | `User $user` |
 | `magicLogin` | After magic link login | `User $user` |
+| `oauth-login` | After successful OAuth login | `User $user`, `string $providerName` |
+| `oauth-profile-fetched` | After profile fields resolved from OAuth provider | `User $user`, `string $providerName`, `array $profileData` |
 
 ---
 
@@ -126,6 +128,22 @@ Events::on('passwordReset', static function (object $user): void {
     ]);
 });
 ```
+
+### OAuth Login Tracking
+
+```php
+// Log all OAuth logins with provider name
+Events::on('oauth-login', static function (object $user, string $provider): void {
+    log_message('info', "OAuth login via {$provider} for user {$user->email}");
+});
+
+// Sync profile data when fetched from OAuth provider
+Events::on('oauth-profile-fetched', static function (object $user, string $provider, array $profileData): void {
+    log_message('info', "Profile fetched from {$provider}: " . json_encode(array_keys($profileData)));
+});
+```
+
+See [OAuth 2.0 & Social Login](09-oauth.md#oauth-events) for more details on OAuth events.
 
 ---
 

@@ -43,19 +43,15 @@ final class AuthCollectorTest extends DatabaseTestCase
         $reflection = new ReflectionClass($this->collector);
 
         $hasTimeline = $reflection->getProperty('hasTimeline');
-        $hasTimeline->setAccessible(true);
         $this->assertFalse($hasTimeline->getValue($this->collector));
 
         $hasTabContent = $reflection->getProperty('hasTabContent');
-        $hasTabContent->setAccessible(true);
         $this->assertTrue($hasTabContent->getValue($this->collector));
 
         $hasVarData = $reflection->getProperty('hasVarData');
-        $hasVarData->setAccessible(true);
         $this->assertFalse($hasVarData->getValue($this->collector));
 
         $title = $reflection->getProperty('title');
-        $title->setAccessible(true);
         $this->assertSame('Auth', $title->getValue($this->collector));
     }
 

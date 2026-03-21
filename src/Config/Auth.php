@@ -299,8 +299,20 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
-     * View files
+     * Views used by Auth Controllers
      * --------------------------------------------------------------------
+     * Specify the views used by each auth controller.
+     *
+     * @var array<string, string> Expected keys:
+     *                            'login', 'register', 'layout',
+     *                            'action_email_2fa', 'action_email_2fa_verify', 'action_email_2fa_email',
+     *                            'action_totp_2fa_verify', 'action_totp_setup_show', 'action_totp_setup_success',
+     *                            'action_email_activate_show', 'action_email_activate_email',
+     *                            'magic-link-login', 'magic-link-message', 'magic-link-email',
+     *                            'password-reset-request', 'password-reset-message', 'password-reset-form', 'password-reset-email',
+     *                            'force-password-reset',
+     *                            'email-change-email',
+     *                            'security_overview'
      */
     public array $views = [
         'login'                       => '\Daycry\Auth\Views\login',

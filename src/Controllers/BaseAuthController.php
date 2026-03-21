@@ -17,6 +17,7 @@ use App\Controllers\BaseController;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Interfaces\AuthController;
+use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Result;
 use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Auth\Traits\Viewable;
@@ -170,5 +171,32 @@ abstract class BaseAuthController extends BaseController implements AuthControll
         return $this->handleSuccess(
             config('Auth')->loginRedirect(),
         )->withCookies();
+    }
+
+    /**
+     * Records a login/action attempt in the login log.
+     *
+     * @param string          $type       Identity type (e.g. Session::ID_TYPE_MAGIC_LINK)
+     * @param string          $identifier The identifier used (email, token, etc.)
+     * @param bool            $success    Whether the attempt was successful
+     * @param int|string|null $userId     The user ID if known
+     */
+    protected function recordLoginAttempt(
+        string $type,
+        string $identifier,
+        bool $success,
+        $userId = null,
+    ): void {
+        /** @var LoginModel $loginModel */
+        $loginModel = model(LoginModel::class);
+
+        $loginModel->recordLoginAttempt(
+            $type,
+            $identifier,
+            $success,
+            $this->request->getIPAddress(),
+            (string) $this->request->getUserAgent(),
+            $userId,
+        );
     }
 }

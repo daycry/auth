@@ -506,12 +506,33 @@ public array $providers = [
         'clientSecret' => env('OAUTH_AZURE_CLIENT_SECRET'),
         'redirectUri'  => 'https://yourapp.com/oauth/azure/callback',
         'tenant'       => 'common',
-        'scopes'       => ['openid', 'profile', 'email', 'offline_access'],
+        'scopes'       => ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
+        'fields'       => ['department', 'jobTitle'],  // Extra profile data from Graph API
     ],
+    // Generic provider with custom profile resolver:
+    // 'my_provider' => [
+    //     'clientId'        => env('MY_PROVIDER_CLIENT_ID'),
+    //     'clientSecret'    => env('MY_PROVIDER_CLIENT_SECRET'),
+    //     'redirectUri'     => 'https://yourapp.com/oauth/my_provider/callback',
+    //     'fields'          => ['role', 'team'],
+    //     'fieldsEndpoint'  => 'https://api.example.com/userinfo',
+    //     'profileResolver' => \App\OAuth\MyCustomResolver::class,
+    // ],
 ];
 ```
 
-See [OAuth 2.0 & Social Login](09-oauth.md) for full setup instructions.
+### Provider Configuration Keys
+
+| Key | Description |
+|-----|-------------|
+| `clientId`, `clientSecret`, `redirectUri` | Standard OAuth credentials (required) |
+| `scopes` | OAuth scopes to request |
+| `fields` | Extra profile fields to fetch after login |
+| `fieldsEndpoint` | Custom API URL for profile fields (GenericProfileResolver) |
+| `profileResolver` | Custom resolver class (must implement `ProfileResolverInterface`) |
+| `tenant` | Azure-only: `'common'`, `'organizations'`, or tenant GUID |
+
+See [OAuth 2.0 & Social Login](09-oauth.md) for full setup instructions, profile resolvers, OAuth events, and the `OAuthTokenRepository`.
 
 ---
 

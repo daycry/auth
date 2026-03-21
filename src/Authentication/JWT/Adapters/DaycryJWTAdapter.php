@@ -26,7 +26,7 @@ class DaycryJWTAdapter implements JWTAdapterInterface
     public function decode(string $encodedToken): mixed
     {
         try {
-            $jwt = new JWT();
+            $jwt = new JWT(config('JWT'));
             $jwt->setSplitData(false)->setParamData('data');
             $token = $jwt->decode($encodedToken);
 
@@ -41,7 +41,7 @@ class DaycryJWTAdapter implements JWTAdapterInterface
      */
     public function encode(mixed $payload): string
     {
-        $jwt = new JWT();
+        $jwt = new JWT(config('JWT'));
         $jwt->setSplitData(false)->setParamData('data');
 
         return $jwt->encode($payload);

@@ -61,6 +61,10 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 ### [OAuth 2.0 & Social Login](09-oauth.md)
 - Google, GitHub, Facebook, Microsoft Azure
 - Generic OIDC provider
+- Profile fields & custom resolvers
+- OAuth events (`oauth-login`, `oauth-profile-fetched`)
+- Scopes granted tracking
+- OAuthTokenRepository
 - Refresh token handling
 - Unlinking providers
 
@@ -99,6 +103,9 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 | Bootstrap 5 Admin Panel | ✅ Complete |
 | Email Change Confirmation | ✅ Complete |
 | OAuth Provider Unlinking | ✅ Complete |
+| OAuth Profile Fields & Resolvers | ✅ Complete |
+| OAuth Events | ✅ Complete |
+| OAuthTokenRepository | ✅ Complete |
 | Pre-Auth Events | ✅ Complete |
 | Self-Service Password Change | ✅ Complete |
 
