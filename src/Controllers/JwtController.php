@@ -15,11 +15,11 @@ namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
-use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Interfaces\JWTAdapterInterface;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Validation\ValidationRules;
 
 /**
@@ -67,7 +67,6 @@ class JwtController extends BaseAuthController
 
         $credentials = $this->extractLoginCredentials();
 
-        /** @var Session $authenticator */
         $authenticator = $this->getSessionAuthenticator();
         $result        = $authenticator->check($credentials);
 
@@ -143,6 +142,11 @@ class JwtController extends BaseAuthController
 
             if ($identity !== null) {
                 $identityModel->revokeIdentityById((int) $identity->id);
+
+                (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, [
+                    'identity_id' => (int) $identity->id,
+                    'reason'      => 'logout',
+                ]);
             }
         }
 

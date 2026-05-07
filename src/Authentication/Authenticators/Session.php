@@ -16,12 +16,16 @@ namespace Daycry\Auth\Authentication\Authenticators;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
 use Config\Services;
+use Daycry\Auth\Authentication\Passwords\PwnedValidator;
 use Daycry\Auth\Authentication\Services\DeviceSessionRecorder;
 use Daycry\Auth\Authentication\Services\PendingActionCoordinator;
 use Daycry\Auth\Authentication\Services\RememberMe;
+use Daycry\Auth\Authentication\Services\SuspiciousLoginDetector;
 use Daycry\Auth\Authentication\Services\UserLockoutManager;
+use Daycry\Auth\Config\AuthSecurity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\AuthenticationState;
@@ -36,6 +40,8 @@ use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
+use Daycry\Auth\Services\AuditLogger;
+use Throwable;
 
 class Session extends Base implements AuthenticatorInterface
 {
@@ -64,17 +70,17 @@ class Session extends Base implements AuthenticatorInterface
     /**
      * Manages per-user account lockout after repeated failed login attempts.
      */
-    private UserLockoutManager $lockoutManager;
+    private readonly UserLockoutManager $lockoutManager;
 
     /**
      * Handles creation and termination of device session records.
      */
-    private DeviceSessionRecorder $deviceRecorder;
+    private readonly DeviceSessionRecorder $deviceRecorder;
 
     /**
      * Coordinates post-authentication actions (Email2FA, EmailActivator, Totp2FA).
      */
-    private PendingActionCoordinator $actionCoordinator;
+    private readonly PendingActionCoordinator $actionCoordinator;
 
     public function __construct(
         UserProviderInterface $provider,
@@ -220,10 +226,46 @@ class Session extends Base implements AuthenticatorInterface
             $this->provider->save($user);
         }
 
+        // Optional HIBP recheck on login: if the user's *current* password is
+        // present in a known breach corpus, force a reset on next request.
+        // Opt-in to avoid blocking login when HIBP is slow / unreachable.
+        $this->maybeRecheckPwnedOnLogin($user, $givenPassword);
+
         return new Result([
             'success'   => true,
             'extraInfo' => $user,
         ]);
+    }
+
+    /**
+     * Runs PwnedValidator against the just-verified password (when the
+     * setting is enabled). On a hit, sets force_reset on the email_password
+     * identity so the user is sent to /auth/force-reset on the next request.
+     *
+     * Failures inside the validator are caught — login MUST NOT break if HIBP
+     * is unreachable; the worst-case is "no recheck this login".
+     */
+    private function maybeRecheckPwnedOnLogin(User $user, string $givenPassword): void
+    {
+        if (! (bool) (setting('AuthSecurity.recheckPwnedOnLogin') ?? false)) {
+            return;
+        }
+
+        try {
+            $validator = new PwnedValidator(
+                config(AuthSecurity::class),
+            );
+
+            $result = $validator->check($givenPassword, $user);
+
+            if (! $result->isOK()) {
+                $user->forcePasswordReset();
+            }
+        } catch (Throwable $e) {
+            log_message('warning', 'Pwned recheck on login skipped: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -482,6 +524,48 @@ class Session extends Base implements AuthenticatorInterface
 
         // a successful login
         Events::trigger('login', $user);
+
+        // Suspicious-login detection: compare this login's IP/UA against the
+        // user's recent history. On a hit, fire `suspicious-login` event +
+        // audit log so callers can email the user, alert oncall, etc.
+        $this->maybeFireSuspiciousLogin($user);
+    }
+
+    /**
+     * Runs the {@see SuspiciousLoginDetector} when the feature is enabled.
+     * Failures are logged but never propagate.
+     */
+    private function maybeFireSuspiciousLogin(User $user): void
+    {
+        if (! (bool) (setting('AuthSecurity.suspiciousLoginAlerts') ?? false)) {
+            return;
+        }
+
+        try {
+            /** @var IncomingRequest $request */
+            $request = service('request');
+            $ip      = (string) $request->getIPAddress();
+            $ua      = (string) $request->getUserAgent();
+
+            $flags = (new SuspiciousLoginDetector())
+                ->analyse($user, $ip, $ua === '' ? null : $ua);
+
+            if ($flags === []) {
+                return;
+            }
+
+            (new AuditLogger())->record(
+                AuditLogger::EVENT_SUSPICIOUS_LOGIN,
+                (int) $user->id,
+                ['flags' => $flags, 'ip' => $ip, 'user_agent' => $ua],
+            );
+
+            Events::trigger('suspicious-login', $user, $flags, $ip, $ua);
+        } catch (Throwable $e) {
+            log_message('warning', 'SuspiciousLogin handling failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

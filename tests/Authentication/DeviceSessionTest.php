@@ -151,7 +151,7 @@ final class DeviceSessionTest extends DatabaseTestCase
         $this->assertSame('find_me', $found->session_id);
 
         $notFound = $model->findBySessionId('nonexistent');
-        $this->assertNull($notFound);
+        $this->assertNotInstanceOf(DeviceSession::class, $notFound);
     }
 
     public function testGetActiveForUser(): void
@@ -180,7 +180,7 @@ final class DeviceSessionTest extends DatabaseTestCase
         $model->terminateSession('sess_terminate');
 
         $found = $model->findBySessionId('sess_terminate');
-        $this->assertNotNull($found);
+        $this->assertInstanceOf(DeviceSession::class, $found);
         $this->assertFalse($found->isActive());
     }
 
@@ -243,7 +243,7 @@ final class DeviceSessionTest extends DatabaseTestCase
         $model->touchSession('touch_me');
 
         $found = $model->findBySessionId('touch_me');
-        $this->assertNotNull($found);
+        $this->assertInstanceOf(DeviceSession::class, $found);
         // last_active should now be more recent than $past
         $this->assertGreaterThanOrEqual($past, $found->last_active->format('Y-m-d H:i:s'));
     }
@@ -270,8 +270,8 @@ final class DeviceSessionTest extends DatabaseTestCase
 
         $model->purgeOldSessions(30);
 
-        $this->assertNull($model->findBySessionId('old_sess'));
-        $this->assertNotNull($model->findBySessionId('recent_terminated'));
+        $this->assertNotInstanceOf(DeviceSession::class, $model->findBySessionId('old_sess'));
+        $this->assertInstanceOf(DeviceSession::class, $model->findBySessionId('recent_terminated'));
     }
 
     // -----------------------------------------------------------------------

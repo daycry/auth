@@ -1,0 +1,44 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  schedule:
+    # Re-scan weekly so new advisories surface even when the branch is quiet.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (PHP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions]
+        # CodeQL has no native PHP analyzer yet, so we use 'actions' to scan
+        # the workflow files themselves for misconfigurations and supply-chain
+        # risks. When CodeQL adds PHP support, append 'php' to the matrix.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

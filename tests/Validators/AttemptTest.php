@@ -29,7 +29,7 @@ final class AttemptTest extends DatabaseTestCase
     {
         $this->expectException(FailTooManyRequestsException::class);
 
-        $this->inkectMockAttributesSecurity(['enableInvalidAttempts' => true]);
+        $this->injectMockAttributesSecurity(['enableInvalidAttempts' => true]);
 
         $attemtpModel = new AttemptModel();
         $attemtpModel->insert(['ip_address' => (Services::request())->getIPAddress(), 'attempts' => service('settings')->get('AuthSecurity.maxAttempts'), 'hour_started_at' => Time::now()]);

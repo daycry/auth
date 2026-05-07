@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Authentication;
 
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -203,7 +204,7 @@ final class Totp2FATest extends DatabaseTestCase
 
     public function testGetTotpIdentityReturnsNullWhenNotConfigured(): void
     {
-        $this->assertNull($this->user->getTotpIdentity());
+        $this->assertNotInstanceOf(UserIdentity::class, $this->user->getTotpIdentity());
     }
 
     public function testGetTotpIdentityReturnsIdentityWhenEnabled(): void
@@ -211,7 +212,7 @@ final class Totp2FATest extends DatabaseTestCase
         $this->user->enableTotp('TestApp');
 
         $identity = $this->user->getTotpIdentity();
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
         $this->assertSame(IdentityType::TOTP_SECRET->value, $identity->type);
     }
 }

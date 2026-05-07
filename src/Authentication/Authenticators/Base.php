@@ -148,7 +148,7 @@ abstract class Base
      */
     protected function forceLogin($nonce = ''): void
     {
-        $rest_auth  = \strtolower($this->method);
+        $rest_auth  = \strtolower((string) $this->method);
         $rest_realm = service('settings')->get('Auth.restRealm');
 
         // if (service('settings')->get('Auth.strictAccessTokenAndAuth') === true) {

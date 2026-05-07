@@ -152,7 +152,7 @@ class GroupsController extends BaseAdminController
         $pgModel = model(PermissionGroupModel::class);
 
         // The form sends permission IDs (from the checkbox values)
-        $newPermIds = array_filter(array_map('intval', (array) $this->request->getPost('permissions')));
+        $newPermIds = array_filter(array_map(intval(...), (array) $this->request->getPost('permissions')));
 
         $pgModel->deleteAll($group->id);
 

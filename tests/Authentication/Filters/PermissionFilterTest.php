@@ -34,7 +34,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorizedSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
         $result = $this->call('GET', 'protected-route');
 
         $result->assertRedirectTo('/login');
@@ -49,7 +49,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorizedJWT(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
         $result = $this->call('GET', 'protected-route');
 
         $result->assertStatus(401);
@@ -57,7 +57,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterSuccessSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
 
         /** @var User $user */
         $user = fake(UserModel::class);
@@ -79,7 +79,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterAuthSessionNotAuthorizedSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
 
         /** @var User $user */
         $user = fake(UserModel::class);
@@ -99,7 +99,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterSuccessJWT(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
         /** @var User $user */
         $user = fake(UserModel::class);
         fake(PermissionModel::class, ['name' => 'admin.access']);
@@ -120,7 +120,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterAuthJWTNotAuthorizedJWTJson(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
 
         /** @var User $user */
         $user = fake(UserModel::class);
@@ -141,7 +141,7 @@ final class PermissionFilterTest extends FilterTestCase
 
     public function testFilterAuthJWTNotAuthorizedJWT(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
 
         /** @var User $user */
         $user = fake(UserModel::class);

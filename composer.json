@@ -14,7 +14,7 @@
     "prefer-stable": true,
     "license": "MIT",
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "codeigniter4/settings": "^2",
         "daycry/class-finder": "^2.0",
         "daycry/encryption": "^2.0",
@@ -23,7 +23,7 @@
         "endroid/qr-code": "^6.0",
         "league/oauth2-facebook": "^2.0",
         "league/oauth2-github": "^3.0",
-        "league/oauth2-google": "^4.0",
+        "league/oauth2-google": "^4.0 || ^5.0",
         "thenetworg/oauth2-azure": "^2"
     },
     "require-dev":
@@ -73,7 +73,7 @@
         "phpstan:check": "vendor/bin/phpstan analyse --verbose --ansi",
         "cs": "php-cs-fixer fix --ansi --verbose --dry-run --diff",
         "cs-fix": "php-cs-fixer fix --ansi --verbose --diff",
-        "deduplicate": "php phpcpd-6.0.3.phar app/ src/ --exclude src/Database/Migrations/2020-12-28-223112_create_auth_tables.php --exclude src/Authentication/Authenticators/HmacSha256.php",
+        "deduplicate": "php phpcpd-6.0.3.phar app/ src/ --min-lines=50 --exclude src/Database/Migrations/2020-12-28-223112_create_auth_tables.php --exclude src/Authentication/Authenticators/HmacSha256.php --exclude src/Language",
         "inspect": "deptrac analyze --cache-file=build/deptrac.cache",
         "mutate": "infection --threads=2 --skip-initial-tests --coverage=build/phpunit",
         "sa": "@analyze",

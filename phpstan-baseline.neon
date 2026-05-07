@@ -19,42 +19,21 @@ parameters:
 			path: src/Authentication/Actions/EmailActivator.php
 
 		-
-			rawMessage: 'Call to an undefined method CodeIgniter\HTTP\Request::getGetPost().'
-			identifier: method.notFound
-			count: 1
-			path: src/Authentication/Authenticators/AccessToken.php
-
-		-
-			rawMessage: 'Call to an undefined method CodeIgniter\HTTP\Request::getVar().'
-			identifier: method.notFound
-			count: 1
-			path: src/Authentication/Authenticators/AccessToken.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method getAccessTokenByRawToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::getAccessTokenByRawToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Authentication/Authenticators/AccessToken.php
-
-		-
-			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 1
-			path: src/Authentication/Authenticators/AccessToken.php
+			count: 2
+			path: src/Authentication/Actions/Totp2FA.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
-			count: 3
+			count: 4
 			path: src/Authentication/Authenticators/AccessToken.php
 
 		-
 			rawMessage: 'Cannot call method get() on null.'
 			identifier: method.nonObject
-			count: 3
+			count: 4
 			path: src/Authentication/Authenticators/AccessToken.php
 
 		-
@@ -138,6 +117,12 @@ parameters:
 		-
 			rawMessage: Access to property $csrfProtection on an unknown class Daycry\Auth\Authentication\Authenticators\Security.
 			identifier: class.notFound
+			count: 1
+			path: src/Authentication/Authenticators/Session.php
+
+		-
+			rawMessage: Call to function config with Daycry\Auth\Config\AuthSecurity::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
 			path: src/Authentication/Authenticators/Session.php
 
@@ -280,6 +265,12 @@ parameters:
 			path: src/Authentication/Passwords.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PasswordHistoryModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Passwords/HistoryValidator.php
+
+		-
 			rawMessage: PHPDoc tag @var with type string is not subtype of type uppercase-string.
 			identifier: varTag.type
 			count: 1
@@ -302,6 +293,18 @@ parameters:
 			identifier: method.nonObject
 			count: 13
 			path: src/Authentication/Services/RememberMe.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Services/SuspiciousLoginDetector.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Authentication/Services/SuspiciousLoginDetector.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\GroupModel::class is discouraged.
@@ -328,6 +331,66 @@ parameters:
 			path: src/Collectors/Auth.php
 
 		-
+			rawMessage: 'Call to function is_object() with Daycry\Auth\Entities\AuditLog will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 6
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\AuditLogModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Match arm comparison between 'w' and 'w' is always true.
+			identifier: match.alwaysTrue
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Offset 'created_at' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Offset 'event_type' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Offset 'id' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Offset 'ip_address' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Offset 'metadata' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
+			rawMessage: Offset 'user_id' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/AuditCommand.php
+
+		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
 			count: 3
@@ -352,6 +415,174 @@ parameters:
 			path: src/Commands/DiscoverCommand.php
 
 		-
+			rawMessage: 'Call to function is_object() with Daycry\Auth\Entities\DeviceSession will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 9
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: 'Call to function is_object() with Daycry\Auth\Entities\UserIdentity will always evaluate to true.'
+			identifier: function.alreadyNarrowedType
+			count: 10
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\AuditLogModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PasswordHistoryModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\TotpBackupCodeModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'created_at' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 2
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'device_name' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'expires' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'id' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'ip_address' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'last_active' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'last_used_at' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'logged_out_at' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'name' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'revoked_at' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'secret' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 2
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'secret2' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'session_id' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'trusted_until' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'type' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'user_agent' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Offset 'uuid' on *NEVER* on left side of ?? always exists and is not nullable.
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Commands/GdprCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/SessionsCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/SessionsCommand.php
+
+		-
 			rawMessage: 'PHPDoc type array of property Daycry\Auth\Commands\SetupCommand::$arguments is not the same as PHPDoc type array<string, string> of overridden property CodeIgniter\CLI\BaseCommand::$arguments.'
 			identifier: property.phpDocType
 			count: 1
@@ -362,6 +593,24 @@ parameters:
 			identifier: property.phpDocType
 			count: 1
 			path: src/Commands/SetupCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Commands/TokensCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/TokensCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/TotpCommand.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
@@ -565,6 +814,12 @@ parameters:
 			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 3
+			path: src/Controllers/UserSecurityController.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\LoginModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
 			path: src/Controllers/UserSecurityController.php
 
 		-
@@ -835,6 +1090,12 @@ parameters:
 			path: src/Entities/User.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\TotpBackupCodeModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/User.php
+
+		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 4
@@ -959,6 +1220,12 @@ parameters:
 			identifier: method.childReturnType
 			count: 1
 			path: src/Filters/ForcePasswordResetFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\PasswordAgeFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/PasswordAgeFilter.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.
@@ -1109,15 +1376,6 @@ parameters:
 
 		-
 			rawMessage: '''
-				Call to deprecated method getAccessTokenByRawToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::getAccessTokenByRawToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Models/AccessTokenRepository.php
-
-		-
-			rawMessage: '''
 				Call to deprecated method getAllAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
 				Use AccessTokenRepository::getAllAccessTokens() instead.
 			'''
@@ -1166,6 +1424,18 @@ parameters:
 			identifier: parameter.phpDocType
 			count: 1
 			path: src/Models/LoginModel.php
+
+		-
+			rawMessage: 'Offset ''id'' on array{user_id: int, password_hash: string, created_at: string} on left side of ?? does not exist.'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Models/PasswordHistoryModel.php
+
+		-
+			rawMessage: 'Offset ''password_hash'' on array{user_id: int, password_hash: string, created_at: string} on left side of ?? always exists and is not nullable.'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Models/PasswordHistoryModel.php
 
 		-
 			rawMessage: 'Call to method hash() on an unknown class Daycry\Auth\Models\Passwords.'
@@ -1250,6 +1520,24 @@ parameters:
 			identifier: method.nonObject
 			count: 2
 			path: src/Services/AttemptHandler.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\AuditLogModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Services/AuditLogger.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\PasswordHistoryModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Services/PasswordChangeRecorder.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Services/PasswordChangeRecorder.php
 
 		-
 			rawMessage: 'Call to an undefined static method Config\Services::log().'

@@ -19,6 +19,7 @@ use Config\Services;
 use Daycry\Auth\Authentication\Services\RememberMe;
 use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserModel;
+use stdClass;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -68,7 +69,7 @@ final class RememberMeTest extends DatabaseTestCase
     {
         $result = $this->rememberMe->check();
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(stdClass::class, $result);
     }
 
     public function testGetRememberMeTokenReturnsNullWhenNoCookieSet(): void
@@ -102,7 +103,7 @@ final class RememberMeTest extends DatabaseTestCase
 
         $result = $this->rememberMe->check();
 
-        $this->assertNotNull($result);
+        $this->assertInstanceOf(stdClass::class, $result);
         $this->assertSame($selector, $result->selector);
         $this->assertSame((string) $this->user->id, (string) $result->user_id);
 
@@ -134,7 +135,7 @@ final class RememberMeTest extends DatabaseTestCase
 
         $result = $this->rememberMe->check();
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(stdClass::class, $result);
 
         // Cleanup
         service('superglobals')->unsetCookie($cookieName);
@@ -149,7 +150,7 @@ final class RememberMeTest extends DatabaseTestCase
 
         $result = $this->rememberMe->check();
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(stdClass::class, $result);
 
         service('superglobals')->unsetCookie($cookieName);
     }

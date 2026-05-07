@@ -188,7 +188,7 @@ class UserIdentityModel extends BaseModel
         return $this
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->where('secret', hash('sha256', $rawToken))
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->asObject(AccessTokenIdentity::class)
             ->first();
     }
@@ -392,7 +392,7 @@ class UserIdentityModel extends BaseModel
     {
         $this->where('user_id', $userId)
             ->where('type', $type)
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->set('revoked_at', Time::now()->format('Y-m-d H:i:s'))
             ->update();
     }
@@ -441,7 +441,7 @@ class UserIdentityModel extends BaseModel
         return $this->where('user_id', $userId)
             ->where('type', IdentityType::JWT_REFRESH->value)
             ->where('secret', hash('sha256', $rawToken))
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->where('expires >', Time::now()->format('Y-m-d H:i:s'))
             ->first();
     }

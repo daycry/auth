@@ -38,7 +38,6 @@ use Throwable;
 
 class OauthManager
 {
-    protected AuthConfig $config;
     protected AbstractProvider $provider;
     protected string $providerName;
     private ?OAuthTokenRepository $repository = null;
@@ -56,9 +55,8 @@ class OauthManager
         'github'   => Github::class,
     ];
 
-    public function __construct(AuthConfig $config)
+    public function __construct(protected AuthConfig $config)
     {
-        $this->config = $config;
     }
 
     /**
@@ -189,13 +187,23 @@ class OauthManager
     {
         $sessionState = session()->get('oauth2state');
 
-        if ($state === '' || $state === '0' || ($state !== $sessionState)) {
+        // CSRF check — reject empty state and use timing-safe comparison.
+        if (
+            $state === ''
+            || ! is_string($sessionState)
+            || $sessionState === ''
+            || ! hash_equals($sessionState, $state)
+        ) {
             session()->remove('oauth2state');
 
             throw new AuthenticationException(lang('Auth.invalidOauthState'));
         }
 
         session()->remove('oauth2state');
+
+        if ($code === '') {
+            throw new AuthenticationException(lang('Auth.invalidOauthState'));
+        }
 
         try {
             $token       = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
@@ -297,7 +305,7 @@ class OauthManager
 
         $user = null;
 
-        if ($identity) {
+        if ($identity instanceof UserIdentity) {
             /** @var UserIdentity $identity */
             $user = $identity->user();
 

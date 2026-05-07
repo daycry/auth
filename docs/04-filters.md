@@ -30,14 +30,16 @@ class Filters extends BaseConfig
         'tokens'       => \Daycry\Auth\Filters\AuthAccessTokenFilter::class,
         'jwt'          => \Daycry\Auth\Filters\AuthJWTFilter::class,
         'chain'        => \Daycry\Auth\Filters\ChainFilter::class,
-        
+
         // === AUTHORIZATION FILTERS ===
         'group'        => \Daycry\Auth\Filters\GroupFilter::class,
         'permission'   => \Daycry\Auth\Filters\PermissionFilter::class,
-        
+        'token-scope'  => \Daycry\Auth\Filters\TokenScopeFilter::class,
+
         // === CONTROL FILTERS ===
         'auth-rates'   => \Daycry\Auth\Filters\AuthRatesFilter::class,
         'force-reset'  => \Daycry\Auth\Filters\ForcePasswordResetFilter::class,
+        'password-age' => \Daycry\Auth\Filters\PasswordAgeFilter::class,
         'auth-request' => \Daycry\Auth\Filters\AuthRequestFilter::class,
     ];
 
@@ -326,6 +328,50 @@ $routes->group('admin/content', ['filter' => 'session'], function($routes) {
 });
 ```
 
+### 3. **Token Scope Filter** (`token-scope`)
+
+Validates that the **access token** used to authenticate the request grants every scope listed in the filter argument. Only meaningful after a token-based authenticator has run (`tokens`, `jwt`, or `chain`).
+
+```php
+// Single scope — token must grant `posts.read`
+$routes->get('api/posts', 'Posts::index', [
+    'filter' => 'tokens,token-scope:posts.read',
+]);
+
+// Multiple scopes — AND-ed (token must grant BOTH)
+$routes->post('api/posts', 'Posts::create', [
+    'filter' => 'tokens,token-scope:posts.read,posts.write',
+]);
+```
+
+#### How scopes are matched
+
+Scopes live on the `AccessToken` entity (the `extra` column, mapped via the `scopes` datamap). The filter calls `AccessToken::can($scope)` for each requested scope:
+
+| Stored scopes | Filter argument | Result |
+|---------------|-----------------|--------|
+| `['posts.read']` | `posts.read` | ✅ allow |
+| `['posts.read']` | `posts.write` | ❌ deny |
+| `['posts.read', 'posts.write']` | `posts.read,posts.write` | ✅ allow |
+| `['*']` (wildcard) | anything | ✅ allow |
+| `[]` | any | ❌ deny |
+
+#### Generating scoped tokens
+
+```php
+$token = $user->generateAccessToken('mobile-app', ['posts.read', 'posts.write']);
+echo $token->raw_token; // give to the client once
+```
+
+#### Failure response
+
+`token-scope` reuses `AbstractAuthFilter::buildDeniedResponse()`:
+
+- API requests (`Accept: application/json`) → `403 Forbidden` JSON.
+- Web requests → redirect to `Auth::permissionDeniedRedirect()` with a flash error.
+
+> **Tip**: prefer `token-scope` over `permission:` for API tokens — it scopes the *token*, not the user. A user with `posts.write` permission can still hold a read-only token.
+
 ## 🔗 Chain Filters
 
 ### Advanced Chain Configuration
@@ -427,7 +473,29 @@ $routes->group('secure', [
 auth()->user()->forcePasswordReset();
 ```
 
-### 3. **Auth Request Filter** (`auth-request`)
+### 3. **Password Age Filter** (`password-age`)
+
+Forces a password reset once the user's `password_changed_at` is older than `AuthSecurity::$passwordMaxAge` seconds. Apply after authentication.
+
+```php
+// app/Config/AuthSecurity.php
+public int $passwordMaxAge = 90 * DAY; // 90-day rotation
+
+// app/Config/Routes.php
+$routes->group('app', ['filter' => 'session,password-age'], function ($routes) {
+    $routes->get('dashboard', 'Dashboard::index');
+});
+```
+
+**Behaviour:**
+
+1. Runs after authentication. If the user is not logged in, the filter no-ops.
+2. If `password_changed_at` is `null` (older accounts before the migration), the filter leaves the user alone — grandfathered.
+3. If the timestamp is older than `passwordMaxAge`, the filter sets `force_reset = 1` on the user's email_password identity and redirects to `Auth::forcePasswordResetRedirect()` with `Auth.passwordExpired`.
+
+> See [Audit & Compliance — Password Rotation](13-audit-and-compliance.md#password-rotation-policy) for the full lifecycle.
+
+### 4. **Auth Request Filter** (`auth-request`)
 
 Logging and monitoring of authenticated requests.
 

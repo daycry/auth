@@ -17,7 +17,9 @@ use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Enums\TotpState;
 use Daycry\Auth\Libraries\TOTP;
+use Daycry\Auth\Models\TotpBackupCodeModel;
 use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Services\AuditLogger;
 
 /**
  * Provides TOTP (Google Authenticator-compatible) 2FA management methods.
@@ -135,6 +137,8 @@ trait HasTotp
         if ($identity instanceof UserIdentity && $identity->name === TotpState::PENDING->value) {
             $identity->name = TotpState::CONFIRMED->value;
             $model->save($identity);
+
+            (new AuditLogger())->record(AuditLogger::EVENT_TOTP_ENABLED, (int) $this->id);
         }
     }
 
@@ -143,22 +147,73 @@ trait HasTotp
      */
     public function disableTotp(): void
     {
+        $hadTotp = $this->getTotpIdentity() instanceof UserIdentity;
+
         $this->totpIdentityModel()->deleteIdentitiesByType($this, IdentityType::TOTP_SECRET->value);
+
+        // Backup codes are useless once TOTP is gone — purge them too.
+        $this->totpBackupCodeModel()->purgeForUser($this);
+
+        if ($hadTotp) {
+            (new AuditLogger())->record(AuditLogger::EVENT_TOTP_DISABLED, (int) $this->id);
+        }
+    }
+
+    /**
+     * Returns the {@see TotpBackupCodeModel} instance.
+     */
+    private function totpBackupCodeModel(): TotpBackupCodeModel
+    {
+        /** @var TotpBackupCodeModel */
+        return model(TotpBackupCodeModel::class);
+    }
+
+    /**
+     * Generates a fresh set of one-time backup codes for this user, replacing
+     * any existing ones. Returns the plain-text codes — these MUST be shown
+     * to the user immediately, as they cannot be retrieved later.
+     *
+     * @return list<string>
+     */
+    public function generateBackupCodes(int $count = 10): array
+    {
+        return $this->totpBackupCodeModel()->regenerateForUser($this, $count);
+    }
+
+    /**
+     * Counts how many unused backup codes the user has left.
+     */
+    public function backupCodesRemaining(): int
+    {
+        return $this->totpBackupCodeModel()->remainingCount($this);
+    }
+
+    /**
+     * Verifies and consumes a backup code. Returns true on success — the
+     * code is then marked as used and cannot be reused.
+     */
+    public function consumeBackupCode(string $code): bool
+    {
+        return $this->totpBackupCodeModel()->consume($this, $code);
     }
 
     /**
      * Verifies the given TOTP code against this user's stored secret.
      *
-     * @param string $code   6-digit TOTP code
-     * @param int    $window Number of adjacent time steps to accept (default: 1)
+     * @param string   $code   6-digit TOTP code
+     * @param int|null $window Number of adjacent time steps to accept.
+     *                         When null, falls back to the configured
+     *                         AuthSecurity.totpWindow setting (default: 1).
      */
-    public function verifyTotpCode(string $code, int $window = 1): bool
+    public function verifyTotpCode(string $code, ?int $window = null): bool
     {
         $secret = $this->getTotpSecret();
 
         if ($secret === null) {
             return false;
         }
+
+        $window ??= (int) (setting('AuthSecurity.totpWindow') ?? 1);
 
         return TOTP::verify($secret, $code, $window);
     }

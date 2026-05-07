@@ -75,7 +75,7 @@ class DiscoverCommand extends BaseCommand
         $controllerModel = new ControllerModel();
         $allControllers  = $controllerModel->where('api_id', $api->id)->findColumn('controller');
         if ($allControllers) {
-            $forRemove = array_diff(array_map('strval', $allControllers), $this->allClasses);
+            $forRemove = array_diff(array_map(strval(...), $allControllers), $this->allClasses);
 
             if ($forRemove !== []) {
                 $controllerModel->where('api_id', $api->id)
@@ -111,7 +111,7 @@ class DiscoverCommand extends BaseCommand
         $f       = new ReflectionClass($namespace);
         $methods = [];
 
-        $namespaceConverted = (mb_substr($namespace, 0, 1) !== '\\') ? '\\' . $namespace : $namespace;
+        $namespaceConverted = (mb_substr((string) $namespace, 0, 1) !== '\\') ? '\\' . $namespace : $namespace;
 
         foreach ($f->getMethods(ReflectionMethod::IS_PUBLIC) as $m) {
             if (! str_starts_with($m->name, '__') && $m->class === $namespace && ! in_array($m->name, service('settings')->get('Auth.excludeMethods'), true)) {
@@ -153,7 +153,7 @@ class DiscoverCommand extends BaseCommand
         }
 
         if ($allMethods) {
-            $forRemove = array_diff(array_map('strval', $allMethods), $methods);
+            $forRemove = array_diff(array_map(strval(...), $allMethods), $methods);
 
             if ($forRemove !== []) {
                 $endpointModel->where('controller_id', $controller->id)

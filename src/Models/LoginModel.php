@@ -112,6 +112,23 @@ class LoginModel extends BaseModel
     }
 
     /**
+     * Returns the recent login history for a user (newest first).
+     *
+     * Used by user-facing activity feeds — includes both successful and
+     * failed attempts so the user can spot suspicious activity targeting
+     * their account.
+     *
+     * @return list<Login>
+     */
+    public function recentForUser(User $user, int $limit = 25): array
+    {
+        return $this->where('user_id', $user->id)
+            ->orderBy('id', 'desc')
+            ->limit($limit)
+            ->find();
+    }
+
+    /**
      * Generate a fake login for testing
      */
     public function fake(Generator &$faker): Login

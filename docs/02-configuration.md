@@ -168,6 +168,13 @@ public array $passwordValidators = [
     // \Daycry\Auth\Authentication\Passwords\PwnedValidator::class,        // HaveIBeenPwned check
 ];
 
+// HaveIBeenPwned API URL and HTTP timeouts (used when PwnedValidator is enabled).
+// Short timeouts prevent registration / password-change flows from hanging when
+// the API is slow or unreachable.
+public string $pwnedPasswordsApiUrl         = 'https://api.pwnedpasswords.com/';
+public float  $pwnedPasswordsConnectTimeout = 1.0;  // seconds
+public float  $pwnedPasswordsTimeout        = 3.0;  // seconds
+
 // Hash algorithm (PASSWORD_DEFAULT, PASSWORD_BCRYPT, PASSWORD_ARGON2I, PASSWORD_ARGON2ID)
 public string $hashAlgorithm = PASSWORD_DEFAULT;
 public int    $hashCost        = 12;      // bcrypt cost (4–31)
@@ -240,6 +247,11 @@ public int $unusedAccessTokenLifetime = YEAR;
 
 // Force both API key AND session authentication (strict mode)
 public bool $strictApiAndAuth = false;
+
+// Minimum seconds between two consecutive `last_used_at` writes for the
+// same access token. Prevents one DB UPDATE per request on high-traffic
+// API tokens. Set to 0 to disable throttling (write on every request).
+public int $tokenLastUsedThrottle = 60;
 
 // Request headers for each authenticator
 public array $authenticatorHeader = [
@@ -536,6 +548,88 @@ See [OAuth 2.0 & Social Login](09-oauth.md) for full setup instructions, profile
 
 ---
 
+## Sessions
+
+> **File**: `app/Config/Auth.php`
+
+```php
+// Web session config (existing)
+public array $sessionConfig = [
+    'field'               => 'user',
+    'allowRemembering'    => true,
+    'rememberCookieName'  => 'remember',
+    'rememberLength'      => 30 * DAY,
+    'trackDeviceSessions' => true,
+];
+
+// Per-user concurrent session limit. When > 0, each new login terminates
+// the oldest active sessions until at most this many remain.
+// Requires sessionConfig.trackDeviceSessions = true.
+// 0 = unlimited (default).
+public int $maxConcurrentSessions = 0;
+```
+
+See [Device Sessions — Concurrent Limit](11-device-sessions.md#concurrent-session-limit) for behaviour and edge cases.
+
+---
+
+## Trusted Devices (2FA bypass)
+
+> **File**: `app/Config/AuthSecurity.php`
+
+```php
+// When > 0, users can tick "Trust this device" during 2FA. Successful
+// verifications mark the current device session as trusted for this many
+// seconds; subsequent logins from the same device skip the 2FA challenge
+// until the timestamp expires.
+// 0 = feature disabled (always require 2FA when configured).
+public int $trustedDeviceLifetime = 30 * DAY;
+```
+
+See [TOTP — Trust This Device](10-totp-2fa.md#trust-this-device) for the user flow.
+
+---
+
+## Compliance & Observability
+
+> **File**: `app/Config/AuthSecurity.php`
+
+These four settings are independent — enable only the ones you need. See [Audit & Compliance](13-audit-and-compliance.md) for the full reference.
+
+```php
+// Recheck the just-verified password against HIBP on every login.
+// Sets force_reset = 1 on a hit. Adds 1 outbound HTTPS call per login.
+public bool $recheckPwnedOnLogin = false;
+
+// Compare each successful login's IP / User-Agent against the user's last
+// 30 days of history. On anomalies fires the `suspicious-login` event +
+// audit entry. Wire your own listener for the email/Slack/push delivery.
+public bool $suspiciousLoginAlerts = false;
+
+// Number of recent password hashes retained per user. The HistoryValidator
+// rejects new passwords matching any retained hash.
+// 0 = feature disabled.
+public int $passwordHistorySize = 0;
+
+// Force a password reset once `password_changed_at` is older than this.
+// Apply the `password-age` filter on protected route groups to enforce.
+// 0 = passwords never expire.
+public int $passwordMaxAge = 0;
+```
+
+When `passwordHistorySize > 0`, also extend the validator chain:
+
+```php
+public array $passwordValidators = [
+    \Daycry\Auth\Authentication\Passwords\CompositionValidator::class,
+    \Daycry\Auth\Authentication\Passwords\NothingPersonalValidator::class,
+    \Daycry\Auth\Authentication\Passwords\DictionaryValidator::class,
+    \Daycry\Auth\Authentication\Passwords\HistoryValidator::class,
+];
+```
+
+---
+
 ## Common Presets
 
 ### Web Application
@@ -560,25 +654,59 @@ public string $defaultAuthenticator = 'jwt';
 public array  $authenticationChain  = ['jwt', 'access_token'];
 
 // app/Config/AuthSecurity.php
-public bool $accessTokenEnabled  = true;
-public int  $jwtRefreshLifetime  = 30 * DAY;
-public int  $recordLoginAttempt  = 2;
+public bool $accessTokenEnabled    = true;
+public int  $jwtRefreshLifetime    = 30 * DAY;
+public int  $recordLoginAttempt    = 2;
+public int  $tokenLastUsedThrottle = 60; // seconds
 ```
 
-### High-Security
+### High-Security (production)
 
 ```php
 // app/Config/Auth.php
-public array $actions = ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class];
+public array $actions                = ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class];
+public int   $maxConcurrentSessions  = 5;
 
 // app/Config/AuthSecurity.php
-public int  $minimumPasswordLength  = 12;
-public bool $enableInvalidAttempts  = true;
-public int  $maxAttempts            = 5;
-public int  $timeBlocked            = 3600;
-public int  $userMaxAttempts        = 3;
-public int  $userLockoutTime        = 7200;  // 2 hours
-public bool $permissionCacheEnabled = true;
+public int  $minimumPasswordLength   = 12;
+public bool $enableInvalidAttempts   = true;
+public int  $maxAttempts             = 5;
+public int  $timeBlocked             = 3600;
+public int  $userMaxAttempts         = 3;
+public int  $userLockoutTime         = 7200;  // 2 hours
+public bool $permissionCacheEnabled  = true;
+public int  $totpWindow              = 1;
+public int  $trustedDeviceLifetime   = 30 * DAY;
+public bool $suspiciousLoginAlerts   = true;
+```
+
+### Compliance (SOC 2 / ISO 27001)
+
+```php
+// app/Config/AuthSecurity.php
+public int  $passwordHistorySize     = 5;        // no reuse of last 5
+public int  $passwordMaxAge          = 90 * DAY; // rotation policy
+public bool $recheckPwnedOnLogin     = true;     // ongoing HIBP check
+public bool $suspiciousLoginAlerts   = true;
+public bool $enableLogs              = true;
+public int  $recordLoginAttempt      = AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL;
+
+public array $passwordValidators = [
+    \Daycry\Auth\Authentication\Passwords\CompositionValidator::class,
+    \Daycry\Auth\Authentication\Passwords\NothingPersonalValidator::class,
+    \Daycry\Auth\Authentication\Passwords\DictionaryValidator::class,
+    \Daycry\Auth\Authentication\Passwords\PwnedValidator::class,
+    \Daycry\Auth\Authentication\Passwords\HistoryValidator::class,
+];
+```
+
+Then enforce rotation on protected routes:
+
+```php
+// app/Config/Routes.php
+$routes->group('app', ['filter' => 'session,password-age'], static function ($routes) {
+    $routes->get('/dashboard', 'Dashboard::index');
+});
 ```
 
 ---

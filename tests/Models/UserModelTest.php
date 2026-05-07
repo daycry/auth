@@ -143,6 +143,7 @@ final class UserModelTest extends DatabaseTestCase
         $user->username = 'bar';
         $user->email    = 'bar@bar.com';
         $user->active   = true;
+        $this->assertInstanceOf(User::class, $user);
 
         $users->save($user);
 
@@ -167,6 +168,7 @@ final class UserModelTest extends DatabaseTestCase
         $user->username = 'bar';
         $user->email    = 'bar@bar.com';
         $user->active   = true;
+        $this->assertInstanceOf(User::class, $user);
 
         $users->update($user->id, $user);
 
@@ -226,6 +228,7 @@ final class UserModelTest extends DatabaseTestCase
         $user = $users->findByCredentials(['email' => 'foo@bar.com']);
 
         $user->email = 'bar@bar.com';
+        $this->assertInstanceOf(User::class, $user);
 
         $users->save($user);
 
@@ -244,6 +247,7 @@ final class UserModelTest extends DatabaseTestCase
         $user = $users->findByCredentials(['email' => 'foo@bar.com']);
 
         $user->email = 'bar@bar.com';
+        $this->assertInstanceOf(User::class, $user);
 
         $users->update(null, $user);
 

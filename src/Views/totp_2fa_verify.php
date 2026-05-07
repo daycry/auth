@@ -20,10 +20,19 @@
 
                 <!-- TOTP Code -->
                 <div class="mb-2">
-                    <input type="number" class="form-control" name="token" placeholder="000000"
-                        inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
-                        minlength="6" maxlength="6" required autofocus>
+                    <input type="text" class="form-control" name="token" placeholder="000000"
+                        inputmode="text" autocomplete="one-time-code"
+                        minlength="6" maxlength="20" required autofocus>
                 </div>
+
+                <?php if ((int) (setting('AuthSecurity.trustedDeviceLifetime') ?? 0) > 0) : ?>
+                    <div class="form-check small mb-3">
+                        <input class="form-check-input" type="checkbox" id="trust_device" name="trust_device" value="1">
+                        <label class="form-check-label" for="trust_device">
+                            <?= esc(lang('Auth.trustThisDevice')) ?: 'Trust this device for 30 days' ?>
+                        </label>
+                    </div>
+                <?php endif ?>
 
                 <div class="d-grid col-8 mx-auto m-3">
                     <button type="submit" class="btn btn-primary btn-block"><?= lang('Auth.confirm') ?></button>

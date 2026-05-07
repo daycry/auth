@@ -18,6 +18,7 @@ use Daycry\Auth\Authentication\Actions\EmailActivator;
 use Daycry\Auth\Authentication\Actions\Totp2FA;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Authentication\Services\PendingActionCoordinator;
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Models\UserIdentityModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
@@ -47,7 +48,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testGetActionTypesReturnsConfiguredTypes(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => EmailActivator::class,
                 'login'    => Email2FA::class,
@@ -63,7 +64,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testGetActionTypesSkipsNull(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -78,7 +79,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testGetIdentitiesForActionReturnsMatchingIdentities(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -102,7 +103,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testFindPendingActionReturnsNullWhenNoPending(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -116,7 +117,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testFindPendingActionReturnsActionAndMessage(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -141,7 +142,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testActivateActionReturnsFalseWhenNotConfigured(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => null,
@@ -155,7 +156,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testActivateActionReturnsTrueWhenActivated(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -168,13 +169,13 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
         // Verify identity was created
         $identity = $this->identityModel->getIdentityByType($this->user, Session::ID_TYPE_EMAIL_2FA);
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
     }
 
     public function testActivateActionReturnsFalseWhenSkipped(): void
     {
         // Totp2FA skips when user has no TOTP secret confirmed
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Totp2FA::class,

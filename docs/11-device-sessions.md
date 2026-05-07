@@ -9,8 +9,12 @@ Device Sessions let you track every device and browser from which a user has log
 - [Database Migration](#database-migration)
 - [Viewing Active Sessions](#viewing-active-sessions)
 - [Terminating Sessions](#terminating-sessions)
+- [Concurrent Session Limit](#concurrent-session-limit)
+- [Trusted Devices (2FA bypass)](#trusted-devices-2fa-bypass)
+- [Login Activity Feed](#login-activity-feed)
 - [UserSecurityController Integration](#usersecuritycontroller-integration)
 - [Building a Sessions Management Page](#building-a-sessions-management-page)
+- [Admin CLI](#admin-cli)
 - [Testing Device Sessions](#testing-device-sessions)
 
 ---
@@ -22,10 +26,12 @@ When a user logs in, a record is created in the `auth_device_sessions` table con
 | Field | Description |
 |-------|-------------|
 | `user_id` | The user who logged in |
-| `uuid` | A unique identifier for this session |
+| `uuid` | A unique identifier for this session (UUID v7) |
 | `ip_address` | The IP address at login time |
 | `user_agent` | The browser/device string |
 | `last_active` | Timestamp of the most recent activity |
+| `logged_out_at` | When the session was terminated (null = still active) |
+| `trusted_until` | Datetime until which this device skips 2FA (null = not trusted) |
 | `created_at` | When the session was created |
 
 When the user logs out, the session record is updated with a `logged_out_at` timestamp.
@@ -136,6 +142,87 @@ $user->terminateOtherDeviceSessions($currentSessionId);
 $user->terminateAllDeviceSessions();
 // Then redirect to login
 ```
+
+---
+
+## Concurrent Session Limit
+
+Cap how many simultaneous active sessions a single user can hold. When a new login pushes the count above the limit, the oldest sessions are terminated automatically.
+
+### Enable
+
+```php
+// app/Config/Auth.php
+
+// 0 = unlimited (default).
+// 5 = at most 5 concurrent sessions; oldest are terminated on each new login.
+public int $maxConcurrentSessions = 5;
+```
+
+Requires `sessionConfig.trackDeviceSessions = true`.
+
+### Behaviour
+
+`DeviceSessionRecorder::recordSession()` calls `DeviceSessionModel::enforceConcurrentSessionLimit()` *before* creating the new row:
+
+1. Counts active sessions for the user (`logged_out_at IS NULL`).
+2. If the count + 1 (the new session about to be created) would exceed the limit, the oldest active rows are terminated via `terminateSession()` — by `last_active` ascending — until exactly `limit - 1` remain.
+3. The new session is then inserted normally.
+
+### Use cases
+
+| Scenario | Suggested limit |
+|----------|-----------------|
+| SaaS with per-seat licensing | 1 (single device) |
+| Consumer app | 5–10 |
+| API portal / dev tools | 0 (unlimited) |
+
+### Edge cases
+
+- The session a user is currently using **can** be among the terminated ones — they will be redirected to login on their next request from that device.
+- The PHP session cookie itself remains valid until the next request (the auth filter then sees `logged_out_at != null` and rejects).
+- Forcing the user to log out from the **current** device is intentional when the limit is set to 1: it implements "single device" licensing.
+
+---
+
+## Trusted Devices (2FA bypass)
+
+The `trusted_until` column on `auth_device_sessions` powers the "Trust this device" feature in 2FA. After successful TOTP verification, the user can opt to skip 2FA on the same device for a configurable period.
+
+See [TOTP — Trust This Device](10-totp-2fa.md#trust-this-device) for the full user flow, security properties, and revocation paths.
+
+### Helper methods on the model
+
+```php
+/** @var \Daycry\Auth\Models\DeviceSessionModel $model */
+$model = model(\Daycry\Auth\Models\DeviceSessionModel::class);
+
+// Trust the session identified by $uuid for $lifetime seconds.
+$model->markTrusted($uuid, 30 * DAY);
+
+// Returns the DeviceSession if trusted_until > now, else null.
+$session = $model->findTrustedByUuid($uuid);
+
+// Clears the trust flag.
+$model->revokeTrust($uuid);
+```
+
+---
+
+## Login Activity Feed
+
+A user-facing endpoint that shows the user's recent login attempts (success + failure) — distinct from device sessions, this lists every entry from `auth_logins` so the user can spot suspicious activity targeting their account.
+
+```php
+// Wire the route once
+$routes->group('account/security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+    $routes->get('activity', 'UserSecurityController::loginActivity', ['as' => 'security-activity']);
+});
+```
+
+The default view (`Views/security/login_activity.php`) is a Bootstrap 5 table showing timestamp, success/failure, identity type, IP, and User-Agent. Override the view via `setting('Auth.views')['security_login_activity']`.
+
+The `?limit=NN` query parameter (default 25, capped at 100) controls how many recent entries are shown.
 
 ---
 
@@ -292,6 +379,23 @@ Events::on('login', static function ($user) {
     }
 });
 ```
+
+---
+
+## Admin CLI
+
+Administrators can terminate every active session for a user from the CLI — useful for support cases ("they think someone has access to their account, kick everyone off"):
+
+```bash
+php spark auth:sessions terminate -e alice@example.com
+php spark auth:sessions terminate -i 42
+```
+
+This sets `logged_out_at` on every active row in `auth_device_sessions` for the user. Their next request from any browser/device falls back to login.
+
+> The PHP session ID lives in the cookie until the user's next request. The auth filter then sees there is no matching active row and rejects.
+
+See [CLI Commands — `auth:sessions`](14-cli-commands.md#auth-sessions) for the full reference.
 
 ---
 

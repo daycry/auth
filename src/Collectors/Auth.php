@@ -53,7 +53,7 @@ class Auth extends BaseCollector
      */
     protected $title = 'Auth';
 
-    private ShieldAuth $auth;
+    private readonly ShieldAuth $auth;
 
     public function __construct()
     {
@@ -65,7 +65,7 @@ class Auth extends BaseCollector
      */
     public function getTitleDetails(): string
     {
-        return ShieldAuth::SHIELD_VERSION . ' | ' . get_class($this->auth->getAuthenticator());
+        return ShieldAuth::SHIELD_VERSION . ' | ' . $this->auth->getAuthenticator()::class;
     }
 
     /**

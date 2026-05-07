@@ -56,7 +56,7 @@ final class ExceptionHandlerTest extends DatabaseTestCase
         $request = $this->createMock(IncomingRequest::class);
         $request->method('isAJAX')->willReturn(false);
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // Create a controller mock with fail method
         $controller = new class () {
@@ -86,7 +86,7 @@ final class ExceptionHandlerTest extends DatabaseTestCase
         $request = $this->createMock(IncomingRequest::class);
         $request->method('isAJAX')->willReturn(false);
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // Create a controller mock with fail method
         $controller = new class () {
@@ -119,7 +119,7 @@ final class ExceptionHandlerTest extends DatabaseTestCase
         $request = $this->createMock(IncomingRequest::class);
         $request->method('isAJAX')->willReturn(false);
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // Create a controller mock with fail method
         $controller = new class () {
@@ -169,7 +169,7 @@ final class ExceptionHandlerTest extends DatabaseTestCase
         $request = $this->createMock(IncomingRequest::class);
         $request->method('isAJAX')->willReturn(false);
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // Expect the original exception to be re-thrown
         $this->expectException(Exception::class);
@@ -189,7 +189,7 @@ final class ExceptionHandlerTest extends DatabaseTestCase
         $request = $this->createMock(IncomingRequest::class);
         $request->method('isAJAX')->willReturn(false);
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // Controller without fail method
         $controller = new class () {
@@ -218,7 +218,7 @@ final class ExceptionHandlerTest extends DatabaseTestCase
         $request = $this->createMock(IncomingRequest::class);
         $request->method('isAJAX')->willReturn(false);
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // Create a controller mock with fail method
         $controller = new class () {

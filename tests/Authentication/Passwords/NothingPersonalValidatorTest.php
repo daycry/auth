@@ -145,7 +145,7 @@ final class NothingPersonalValidatorTest extends TestCase
 
     public function testPersonalFieldsFromConfig(): void
     {
-        $this->inkectMockAttributes(['personalFields' => ['firstname']]);
+        $this->injectMockAttributes(['personalFields' => ['firstname']]);
 
         $user = $this->createUser([
             'username'  => 'johndoe',

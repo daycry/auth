@@ -45,12 +45,13 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
     {
         $hashedPword = strtoupper(sha1($password));
         $rangeHash   = substr($hashedPword, 0, 5);
-        /** @var string $searchHash */
-        $searchHash = substr($hashedPword, 5);
+        $searchHash  = substr($hashedPword, 5);
 
         try {
             $client = Services::curlrequest([
-                'base_uri' => setting('AuthSecurity.pwnedPasswordsApiUrl'),
+                'base_uri'        => setting('AuthSecurity.pwnedPasswordsApiUrl'),
+                'connect_timeout' => (float) (setting('AuthSecurity.pwnedPasswordsConnectTimeout') ?? 1.0),
+                'timeout'         => (float) (setting('AuthSecurity.pwnedPasswordsTimeout') ?? 3.0),
             ]);
 
             $response = $client->get(
@@ -65,7 +66,7 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
         }
 
         $range    = $response->getBody();
-        $startPos = strpos($range, $searchHash);
+        $startPos = strpos((string) $range, $searchHash);
         if ($startPos === false) {
             return new Result([
                 'success' => true,
@@ -73,8 +74,8 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
         }
 
         $startPos += 36; // right after the delimiter (:)
-        $endPos = strpos($range, "\r\n", $startPos);
-        $hits   = $endPos !== false ? (int) substr($range, $startPos, $endPos - $startPos) : (int) substr($range, $startPos);
+        $endPos = strpos((string) $range, "\r\n", $startPos);
+        $hits   = $endPos !== false ? (int) substr((string) $range, $startPos, $endPos - $startPos) : (int) substr((string) $range, $startPos);
 
         $wording = $hits > 1 ? 'databases' : 'a database';
 

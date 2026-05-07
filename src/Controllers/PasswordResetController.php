@@ -22,6 +22,8 @@ use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\PasswordChangeRecorder;
 
 /**
  * Handles password reset flow via email token.
@@ -191,6 +193,10 @@ class PasswordResetController extends BaseAuthController
                 ->with('error', lang('Auth.passwordResetTokenInvalid'));
         }
 
+        // Capture the previous hash *before* we replace it — needed for
+        // password-history bookkeeping.
+        $previousHash = $user->password_hash ?? null;
+
         // Update the password
         $password = $this->request->getPost('password');
         $user->setPassword($password);
@@ -199,8 +205,12 @@ class PasswordResetController extends BaseAuthController
         $userModel = model(UserModel::class);
         $userModel->save($user);
 
+        (new PasswordChangeRecorder())->record($user, $previousHash);
+
         // Delete the reset token identity
         $identityModel->delete($identity->id);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_RESET, (int) $user->id);
 
         Events::trigger('passwordReset', $user);
 

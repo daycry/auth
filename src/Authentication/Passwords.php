@@ -27,11 +27,8 @@ use Daycry\Auth\Result;
  */
 class Passwords
 {
-    protected AuthSecurity $config;
-
-    public function __construct(AuthSecurity $config)
+    public function __construct(protected AuthSecurity $config)
     {
-        $this->config = $config;
     }
 
     /**

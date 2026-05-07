@@ -62,7 +62,7 @@ final class AttemptHandlerTest extends DatabaseTestCase
     public function testValidateAttemptsWhenDisabled(): void
     {
         // Create a mock response
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
         // When attempts are disabled, validateAttempts should not throw exceptions
         $this->handler->validateAttempts($response);

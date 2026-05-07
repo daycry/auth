@@ -38,23 +38,45 @@ Welcome to the complete documentation for **Daycry Auth**, a comprehensive authe
 
 ```{toctree}
 :maxdepth: 2
+:caption: Compliance & Operations
+
+13-audit-and-compliance
+14-cli-commands
+```
+
+```{toctree}
+:maxdepth: 2
 :caption: Testing & Reference
 
 08-testing
+12-migration
 ```
 
 ## Main Features
 
-- **Multiple Authenticators**: Session, Access Token, JWT (with refresh tokens), Magic Link
-- **TOTP Two-Factor Authentication**: Time-based OTP with Google Authenticator, Authy, etc.
-- **Device Session Tracking**: See and revoke active logins per device
-- **Password Reset Flow**: Secure token-based reset with email delivery
-- **Force Password Reset**: Flag accounts for mandatory password change
-- **Permission System**: Groups and granular permissions with optional cache
-- **Flexible Filters**: Auth, chain, group, permission, rate limiting, force-reset
+### Authentication
+- **Multiple Authenticators**: Session, Access Token (with scope enforcement), JWT (with refresh tokens), Magic Link
+- **TOTP Two-Factor Authentication** with **backup codes** and optional **"Trust this device"** bypass
+- **Device Session Tracking** with optional **concurrent-session limit**
+- **Password Reset** + **Force Password Reset** + optional **rotation policy** + **history (no reuse)**
 - **OAuth 2.0 / Social Login**: Google, GitHub, Facebook, Microsoft Azure, custom profile fields, OAuth events
-- **Per-User Account Lockout**: Independent of IP-based blocking
-- **Complete Logging**: CI4 Events + database login attempt logs
+
+### Authorization
+- **Groups & Permissions (RBAC)** with optional persistent cache
+- **API token scope enforcement** (`token-scope:` filter)
+- **Flexible Filters**: Auth, chain, group, permission, token-scope, password-age, rate limiting, force-reset
+
+### Security
+- **Per-User Account Lockout** (atomic) — independent of IP-based blocking
+- **Compromised-Password Recheck on Login** (HIBP integration, opt-in)
+- **Suspicious Login Detection** with `suspicious-login` event for email alerts
+- **Timing-safe OAuth state** validation
+
+### Compliance & Operations
+- **Granular audit log** (`auth_audit_logs`) — 22 canonical event types, filterable CLI
+- **GDPR helpers** — JSON data export + account anonymization
+- **Admin CLI**: `auth:tokens revoke`, `auth:sessions terminate`, `auth:totp reset`, `auth:audit`, `auth:gdpr export|anonymize`
+- **Complete Logging**: CI4 Events + database login attempts + audit log
 - **Highly Customizable**: Extend or replace any component
 
 ## Quick Start

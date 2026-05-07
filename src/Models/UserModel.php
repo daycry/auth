@@ -281,7 +281,6 @@ class UserModel extends BaseModel implements UserProviderInterface
             return $data;
         }
 
-        /** @var User $user */
         $user = $this->tempUser;
 
         if ($user->id === null) {

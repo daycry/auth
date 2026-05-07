@@ -27,11 +27,7 @@ use Daycry\Auth\Models\UserModel;
 
 class Auth extends BaseConfig
 {
-    /**
-     * ////////////////////////////////////////////////////////////////////
-     * DATABASE
-     * ////////////////////////////////////////////////////////////////////
-     */
+    /** DATABASE */
 
     /**
      * --------------------------------------------------------------------
@@ -77,13 +73,12 @@ class Auth extends BaseConfig
         'attempts'           => 'auth_attempts',
         'rates'              => 'auth_rates',
         'device_sessions'    => 'auth_device_sessions',
+        'audit_logs'         => 'auth_audit_logs',
+        'totp_backup_codes'  => 'auth_totp_backup_codes',
+        'password_history'   => 'auth_password_history',
     ];
 
-    /**
-     * ////////////////////////////////////////////////////////////////////
-     * AUTHENTICATION CONFIGURATION
-     * ////////////////////////////////////////////////////////////////////
-     */
+    /** AUTHENTICATION CONFIGURATION */
 
     /**
      * --------------------------------------------------------------------
@@ -167,6 +162,18 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Maximum Concurrent Sessions Per User
+     * --------------------------------------------------------------------
+     * When > 0, the oldest active device sessions are terminated on each
+     * new login so that no user has more than this many active sessions.
+     *
+     * Requires `sessionConfig.trackDeviceSessions = true`.
+     * 0 = no limit (default).
+     */
+    public int $maxConcurrentSessions = 0;
+
+    /**
+     * --------------------------------------------------------------------
      * Authentication Actions
      * --------------------------------------------------------------------
      * Specifies the class that represents an action to take after
@@ -191,11 +198,7 @@ class Auth extends BaseConfig
         'login'    => null,            // e.g. Email2FA::class or Totp2FA::class
     ];
 
-    /**
-     * ////////////////////////////////////////////////////////////////////
-     * USER & REGISTRATION
-     * ////////////////////////////////////////////////////////////////////
-     */
+    /** USER & REGISTRATION */
 
     /**
      * --------------------------------------------------------------------
@@ -291,11 +294,7 @@ class Auth extends BaseConfig
         ],
     ];
 
-    /**
-     * ////////////////////////////////////////////////////////////////////
-     * VIEWS & URLS
-     * ////////////////////////////////////////////////////////////////////
-     */
+    /** VIEWS & URLS */
 
     /**
      * --------------------------------------------------------------------
@@ -521,11 +520,7 @@ class Auth extends BaseConfig
         ],
     ];
 
-    /**
-     * ////////////////////////////////////////////////////////////////////
-     * DISCOVERY
-     * ////////////////////////////////////////////////////////////////////
-     */
+    /** DISCOVERY */
 
     /**
      * --------------------------------------------------------------------
@@ -653,23 +648,13 @@ class Auth extends BaseConfig
      */
     protected function getUrl(string $url): string
     {
-        // To accommodate all url patterns
-        $final_url = '';
-
-        switch (true) {
-            case str_starts_with($url, 'http://') || str_starts_with($url, 'https://')  : // URL begins with 'http' or 'https'. E.g. http://example.com
-                $final_url = $url;
-                break;
-
-            case route_to($url) !== false: // URL is a named-route
-                $final_url = rtrim(url_to($url), '/ ');
-                break;
-
-            default: // URL is a route (URI path)
-                $final_url = rtrim(site_url($url), '/ ');
-                break;
-        }
-
-        return $final_url;
+        return match (true) {
+            // URL begins with 'http' or 'https'. E.g. http://example.com
+            str_starts_with($url, 'http://') || str_starts_with($url, 'https://') => $url,
+            // URL is a named-route
+            route_to($url) !== false => rtrim(url_to($url), '/ '),
+            // URL is a route (URI path)
+            default => rtrim(site_url($url), '/ '),
+        };
     }
 }

@@ -99,7 +99,7 @@ class RegisterController extends BaseAuthController
 
         try {
             $users->save($user);
-        } catch (ValidationException $e) {
+        } catch (ValidationException) {
             return $this->handleError(
                 config('Auth')->registerRoute(),
                 'Registration failed',

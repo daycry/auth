@@ -16,6 +16,7 @@ namespace Daycry\Auth\Controllers;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
+use Daycry\Auth\Models\LoginModel;
 
 /**
  * UserSecurityController
@@ -152,8 +153,12 @@ class UserSecurityController extends BaseAuthController
         // Mark the secret as confirmed — from this point hasTotpEnabled() returns true.
         $user->confirmTotp();
 
+        // Generate backup codes — shown to the user once on this page.
+        $backupCodes = $user->generateBackupCodes();
+
         return $this->view(setting('Auth.views')['action_totp_setup_success'], [
             'redirectUrl' => url_to('security'),
+            'backupCodes' => $backupCodes,
         ]);
     }
 
@@ -172,5 +177,36 @@ class UserSecurityController extends BaseAuthController
         $user->disableTotp();
 
         return redirect()->route('security')->with('message', 'Two-factor authentication has been disabled.');
+    }
+
+    /**
+     * User-facing login activity feed: lists the user's recent login attempts
+     * (success + failure) so they can spot suspicious activity targeting
+     * their account.
+     *
+     * Add the route, e.g.:
+     *     $routes->get('account/security/activity',
+     *         'Daycry\Auth\Controllers\UserSecurityController::loginActivity',
+     *         ['as' => 'security-activity']);
+     */
+    public function loginActivity(): string
+    {
+        $user = auth()->user();
+
+        /** @var LoginModel $loginModel */
+        $loginModel = model(LoginModel::class);
+
+        $limit = max(1, (int) ($this->request->getGet('limit') ?? 25));
+        $limit = min($limit, 100);
+
+        $entries = $loginModel->recentForUser($user, $limit);
+
+        $views    = setting('Auth.views');
+        $viewName = $views['security_login_activity'] ?? 'Daycry\Auth\Views\security\login_activity';
+
+        return $this->view($viewName, [
+            'entries' => $entries,
+            'limit'   => $limit,
+        ]);
     }
 }

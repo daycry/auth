@@ -108,7 +108,7 @@ class MagicLinkController extends BaseAuthController
                 lang('Auth.magicLinkSubject'),
                 setting('Auth.views')['magic-link-email'],
             );
-        } catch (RuntimeException $e) {
+        } catch (RuntimeException) {
             return $this->handleError('magic-link', lang('Auth.unableSendEmailToUser', [$user->email]));
         }
 

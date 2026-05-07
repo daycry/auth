@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Models;
 
 use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Services\AuditLogger;
 
 /**
  * Repository for JWT refresh token operations.
@@ -63,10 +64,15 @@ class JwtTokenRepository
     /**
      * Soft-revokes a JWT refresh token by setting revoked_at.
      *
-     * @param int $identityId The identity record primary key
+     * @param int      $identityId The identity record primary key
+     * @param int|null $userId     User id for audit (when known by the caller)
      */
-    public function softRevokeRefreshToken(int $identityId): void
+    public function softRevokeRefreshToken(int $identityId, ?int $userId = null): void
     {
         $this->identityModel->revokeIdentityById($identityId);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, [
+            'identity_id' => $identityId,
+        ]);
     }
 }

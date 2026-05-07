@@ -6,6 +6,7 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 
 - [Session Authenticator](#session-authenticator)
 - [Per-User Account Lockout](#per-user-account-lockout)
+- [Compromised-Password Recheck on Login](#compromised-password-recheck-on-login)
 - [Access Token Authenticator](#access-token-authenticator)
 - [JWT Authenticator](#jwt-authenticator)
 - [JWT Refresh Tokens](#jwt-refresh-tokens)
@@ -120,6 +121,37 @@ model(\Daycry\Auth\Models\UserModel::class)->update($userId, [
 ]);
 ```
 
+### Concurrency safety
+
+`recordFailedAttempt()` uses an atomic SQL increment expression rather than a read-modify-write pattern, so concurrent failed-login attempts cannot race past `userMaxAttempts` before the lockout fires.
+
+---
+
+## Compromised-Password Recheck on Login
+
+Optional opt-in: after a successful password verification, re-test the live password against [HaveIBeenPwned](https://haveibeenpwned.com/) and flag the account for forced reset if it appears in a known breach corpus.
+
+```php
+// app/Config/AuthSecurity.php
+public bool $recheckPwnedOnLogin = true;
+
+// HIBP timeouts
+public float $pwnedPasswordsConnectTimeout = 1.0;
+public float $pwnedPasswordsTimeout        = 3.0;
+```
+
+### What happens on a hit
+
+1. Login proceeds and the session is created normally — the user is **not** kicked out mid-flow.
+2. The user's `email_password` identity is marked `force_reset = 1`.
+3. On their next request the `force-reset` filter (or your equivalent) bounces them through the force-password-reset flow.
+
+### What happens on HIBP failure
+
+The recheck is wrapped in `try/catch`. Timeouts, network errors, and 5xx responses are logged at `warning` level and login proceeds normally — **the recheck never blocks login**.
+
+> See [Audit & Compliance — Compromised-Password Recheck](13-audit-and-compliance.md#compromised-password-recheck-on-login) for the full reference.
+
 ---
 
 ## Access Token Authenticator
@@ -135,7 +167,12 @@ public bool $accessTokenEnabled = true;
 // Unused token lifetime
 public int $unusedAccessTokenLifetime = YEAR;
 
-// Header name
+// Throttle `last_used_at` writes — at most one DB UPDATE per token per N
+// seconds even when the same token is used for thousands of requests.
+// 0 = always write (the legacy behaviour).
+public int $tokenLastUsedThrottle = 60;
+
+// Header name (in app/Config/Auth.php)
 public array $authenticatorHeader = [
     'access_token' => 'X-API-KEY',
 ];
@@ -203,12 +240,41 @@ if ($currentToken->can('posts.write')) { ... }
 Tokens can be soft-revoked (marked with a `revoked_at` timestamp) without being deleted:
 
 ```php
+use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 
-model(UserIdentityModel::class)->revokeIdentityById($tokenId);
+$repo = new AccessTokenRepository(model(UserIdentityModel::class));
+
+// By raw token
+$repo->softRevokeAccessToken($user, $rawToken);
+
+// All tokens for a user (e.g. on password change)
+$repo->softRevokeAllAccessTokens($user);
 ```
 
-Soft-revoked tokens are excluded from all lookups automatically.
+Each soft-revocation writes an `EVENT_TOKEN_REVOKED` entry to the audit log automatically. Soft-revoked tokens are excluded from all lookups via the `revoked_at IS NULL` filter, but remain in the database for audit trail.
+
+### Scope Enforcement
+
+Personal access tokens carry a list of scopes (stored in the `extra` column, mapped via the `scopes` datamap). The `token-scope:` filter validates them on a per-route basis:
+
+```php
+$routes->get('api/posts',  'Posts::index',  ['filter' => 'tokens,token-scope:posts.read']);
+$routes->post('api/posts', 'Posts::create', ['filter' => 'tokens,token-scope:posts.read,posts.write']);
+```
+
+The `*` wildcard scope satisfies any check. See [Filters — Token Scope Filter](04-filters.md#3-token-scope-filter-token-scope) for details.
+
+### Admin CLI
+
+Bulk-revoke all tokens for a user (useful on password compromise / staff offboarding):
+
+```bash
+php spark auth:tokens revoke -e alice@example.com
+php spark auth:tokens revoke -e alice@example.com --type=access_token
+```
+
+See [CLI — `auth:tokens`](14-cli-commands.md#auth-tokens) for the full reference.
 
 ---
 

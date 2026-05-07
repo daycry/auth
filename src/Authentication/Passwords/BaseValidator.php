@@ -17,13 +17,11 @@ use Daycry\Auth\Config\AuthSecurity;
 
 class BaseValidator
 {
-    protected AuthSecurity $config;
     protected ?string $error      = null;
     protected ?string $suggestion = null;
 
-    public function __construct(AuthSecurity $config)
+    public function __construct(protected AuthSecurity $config)
     {
-        $this->config = $config;
     }
 
     /**

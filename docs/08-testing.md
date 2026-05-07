@@ -131,18 +131,20 @@ Use the built-in helpers to override config properties for a single test:
 
 ```php
 // Override Auth config (authenticators, actions, views, routes, session)
-$this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
-$this->inkectMockAttributes(['actions' => ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class]]);
+$this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
+$this->injectMockAttributes(['actions' => ['login' => \Daycry\Auth\Authentication\Actions\Totp2FA::class]]);
 
 // Override AuthSecurity config (passwords, lockout, rate-limit, TOTP, token lifetimes)
-$this->inkectMockAttributesSecurity(['userMaxAttempts' => 3]);
-$this->inkectMockAttributesSecurity(['minimumPasswordLength' => 12]);
+$this->injectMockAttributesSecurity(['userMaxAttempts' => 3]);
+$this->injectMockAttributesSecurity(['minimumPasswordLength' => 12]);
 
 // Override AuthOAuth config (provider definitions)
-$this->inkectMockAttributesOAuth(['providers' => ['google' => [...]]]);
+$this->injectMockAttributesOAuth(['providers' => ['google' => [...]]]);
 ```
 
 Each call replaces only the specified keys; unspecified keys keep their defaults.
+
+> The previous typo'd names (`inkectMockAttributes*`) still work as deprecated aliases for backward-compatibility but will be removed in v6 — migrate any custom tests to the spelled-correctly variants.
 
 ## 🛡️ Testing Authentication
 

@@ -15,6 +15,7 @@ namespace Tests\Models;
 
 use CodeIgniter\Test\DatabaseTestTrait;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -71,7 +72,7 @@ final class OAuthTokenRepositoryTest extends TestCase
 
         $identity = $this->repo->findByUserAndProvider((int) $user->id, 'github');
 
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
         $this->assertSame('social_123', $identity->secret);
     }
 
@@ -81,7 +82,7 @@ final class OAuthTokenRepositoryTest extends TestCase
 
         $identity = $this->repo->findByUserAndProvider((int) $user->id, 'github');
 
-        $this->assertNull($identity);
+        $this->assertNotInstanceOf(UserIdentity::class, $identity);
     }
 
     public function testFindByProviderAndSocialId(): void
@@ -100,7 +101,7 @@ final class OAuthTokenRepositoryTest extends TestCase
 
         $identity = $this->repo->findByProviderAndSocialId('google', 'google_456');
 
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
         $this->assertSame((string) $user->id, (string) $identity->user_id);
     }
 
@@ -139,6 +140,7 @@ final class OAuthTokenRepositoryTest extends TestCase
 
         $identity          = $this->repo->findByUserAndProvider((int) $user->id, 'github');
         $identity->secret2 = 'new_token';
+        $this->assertInstanceOf(UserIdentity::class, $identity);
 
         $this->repo->updateOAuthIdentity($identity);
 

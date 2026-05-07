@@ -28,7 +28,6 @@ class AttemptValidator
         $maxAttempts = service('settings')->get('AuthSecurity.maxAttempts');
         $timeBlocked = service('settings')->get('AuthSecurity.timeBlocked');
 
-        /** @var AttemptModel $attemptModel */
         $attemptModel = new AttemptModel();
         $attempt      = $attemptModel->where('ip_address', $request->getIPAddress())->first();
 

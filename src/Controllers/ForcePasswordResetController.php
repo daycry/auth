@@ -17,6 +17,8 @@ use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\PasswordChangeRecorder;
 
 /**
  * Handles forced password resets for logged-in users
@@ -73,6 +75,9 @@ class ForcePasswordResetController extends BaseAuthController
             );
         }
 
+        // Capture the previous hash for password-history bookkeeping.
+        $previousHash = $user->password_hash ?? null;
+
         // Update the password
         $user->setPassword($newPassword);
 
@@ -80,8 +85,14 @@ class ForcePasswordResetController extends BaseAuthController
         $userModel = model(UserModel::class);
         $userModel->save($user);
 
+        (new PasswordChangeRecorder())->record($user, $previousHash);
+
         // Clear the force reset flag
         $user->undoForcePasswordReset();
+
+        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_CHANGED, (int) $user->id, [
+            'forced' => true,
+        ]);
 
         return $this->handleSuccess(
             config('Auth')->loginRedirect(),

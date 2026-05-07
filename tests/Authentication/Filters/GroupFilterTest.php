@@ -35,7 +35,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorizedSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
         $result = $this->call('GET', 'protected-route');
 
         $result->assertRedirectTo('/login');
@@ -47,7 +47,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorizedJWT(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
         $result = $this->call('GET', 'protected-route');
 
         $result->assertStatus(401);
@@ -55,7 +55,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterNotAuthorizedStoresRedirectToEntranceUrlIntoSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
         $result = $this->call('GET', 'protected-route');
 
         $result->assertRedirectTo('/login');
@@ -66,7 +66,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterSuccessSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
         // fake(GroupModel::class, ['name' => 'admin']);
 
         /** @var User $user */
@@ -87,7 +87,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterIncorrectGroupNoPreviousSession(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'session']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'session']);
         fake(GroupModel::class, ['name' => 'beta']);
 
         /** @var User $user */
@@ -109,7 +109,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterIncorrectGroupNoPreviousJWT(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
         fake(GroupModel::class, ['name' => 'beta']);
 
         /** @var User $user */
@@ -127,7 +127,7 @@ final class GroupFilterTest extends FilterTestCase
 
     public function testFilterIncorrectGroupNoPreviousJWTJson(): void
     {
-        $this->inkectMockAttributes(['defaultAuthenticator' => 'jwt']);
+        $this->injectMockAttributes(['defaultAuthenticator' => 'jwt']);
         fake(GroupModel::class, ['name' => 'beta']);
 
         /** @var User $user */

@@ -16,6 +16,7 @@ namespace Tests\Authentication\Services;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Services\UserLockoutManager;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Result;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -41,25 +42,25 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
     public function testIsLockedOutReturnsNullWhenDisabled(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 0]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 0]);
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(Result::class, $result);
     }
 
     public function testIsLockedOutReturnsNullWhenNotLocked(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 5]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 5]);
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(Result::class, $result);
     }
 
     public function testIsLockedOutReturnsResultWhenLocked(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 5]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 5]);
 
         // Lock the user until 1 hour from now
         $lockedUntil = Time::now()->addHours(1)->format('Y-m-d H:i:s');
@@ -73,13 +74,13 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNotNull($result);
+        $this->assertInstanceOf(Result::class, $result);
         $this->assertFalse($result->isOK());
     }
 
     public function testIsLockedOutResetsExpiredLockout(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 5]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 5]);
 
         // Lock the user until 1 hour ago (expired)
         $lockedUntil = Time::now()->subHours(1)->format('Y-m-d H:i:s');
@@ -93,7 +94,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(Result::class, $result);
 
         // Verify counter was reset in DB
         $freshUser = model(UserModel::class)->find($this->user->id);
@@ -103,7 +104,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
     public function testRecordFailedAttemptIncrementsCounter(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 5]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 5]);
 
         $this->lockoutManager->recordFailedAttempt($this->user);
 
@@ -114,7 +115,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
     public function testRecordFailedAttemptLocksAtThreshold(): void
     {
-        $this->inkectMockAttributesSecurity([
+        $this->injectMockAttributesSecurity([
             'userMaxAttempts' => 3,
             'userLockoutTime' => 600,
         ]);
@@ -134,7 +135,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
     public function testRecordFailedAttemptNoOpWhenDisabled(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 0]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 0]);
 
         $this->lockoutManager->recordFailedAttempt($this->user);
 
@@ -144,7 +145,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
     public function testResetOnSuccessClearsCounter(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 5]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 5]);
 
         // Set a non-zero counter
         model(UserModel::class)->update($this->user->id, [
@@ -161,7 +162,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
     public function testResetOnSuccessNoOpWhenAlreadyZero(): void
     {
-        $this->inkectMockAttributesSecurity(['userMaxAttempts' => 5]);
+        $this->injectMockAttributesSecurity(['userMaxAttempts' => 5]);
 
         // User already has 0 failed attempts — resetOnSuccess should not call update
         $this->lockoutManager->resetOnSuccess($this->user);

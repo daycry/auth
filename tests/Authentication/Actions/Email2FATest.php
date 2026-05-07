@@ -20,6 +20,7 @@ use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -99,7 +100,7 @@ final class Email2FATest extends DatabaseTestCase
         $action = new Email2FA();
 
         // Create first identity
-        $code1 = $action->createIdentity($this->user);
+        $action->createIdentity($this->user);
 
         // Create second identity (should replace first)
         $code2 = $action->createIdentity($this->user);
@@ -150,7 +151,7 @@ final class Email2FATest extends DatabaseTestCase
         // Verify the authenticator recognizes the pending state
         $this->assertTrue($this->authenticator->isPending());
         $pendingUser = $this->authenticator->getPendingUser();
-        $this->assertNotNull($pendingUser);
+        $this->assertInstanceOf(User::class, $pendingUser);
 
         // Get the identity
         /** @var UserIdentityModel $identityModel */
@@ -166,7 +167,7 @@ final class Email2FATest extends DatabaseTestCase
 
         // Identity should be deleted after successful verification
         $deletedIdentity = $identityModel->getIdentityByType($this->user, Session::ID_TYPE_EMAIL_2FA);
-        $this->assertNull($deletedIdentity);
+        $this->assertNotInstanceOf(UserIdentity::class, $deletedIdentity);
     }
 
     public function testVerifyWithWrongTokenFails(): void
