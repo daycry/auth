@@ -2,12 +2,18 @@
 
 # Daycry Auth
 
-<!-- CI / quality -->
+<!-- Tests & coverage -->
 [![Tests](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
-[![Static Analysis](https://github.com/daycry/auth/actions/workflows/static-analysis.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/static-analysis.yml)
-[![CodeQL](https://github.com/daycry/auth/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/codeql.yml)
 [![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
 [![Documentation Status](https://readthedocs.org/projects/authentication-for-codeigniter-4/badge/?version=latest)](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/?badge=latest)
+
+<!-- Static analysis & quality gates -->
+[![PHPStan](https://github.com/daycry/auth/actions/workflows/phpstan.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpstan.yml)
+[![Code Style](https://github.com/daycry/auth/actions/workflows/code-style.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/code-style.yml)
+[![Deptrac](https://github.com/daycry/auth/actions/workflows/deptrac.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/deptrac.yml)
+[![Rector](https://github.com/daycry/auth/actions/workflows/rector.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/rector.yml)
+[![Deduplicate](https://github.com/daycry/auth/actions/workflows/deduplicate.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/deduplicate.yml)
+[![CodeQL](https://github.com/daycry/auth/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/codeql.yml)
 
 <!-- Package -->
 [![Latest Stable Version](https://poser.pugx.org/daycry/auth/v/stable)](https://packagist.org/packages/daycry/auth)
@@ -19,8 +25,6 @@
 <!-- Tooling -->
 [![PHP Version Require](https://poser.pugx.org/daycry/auth/require/php)](https://packagist.org/packages/daycry/auth)
 [![PHPStan level 5](https://img.shields.io/badge/PHPStan-level%205-2563eb.svg)](phpstan.neon.dist)
-[![Code Style: php-cs-fixer](https://img.shields.io/badge/code%20style-php--cs--fixer-1abc9c.svg)](.php-cs-fixer.dist.php)
-[![Architecture: deptrac](https://img.shields.io/badge/architecture-deptrac-7c3aed.svg)](deptrac.yaml)
 
 <!-- Community -->
 [![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://github.com/daycry/auth/stargazers)
