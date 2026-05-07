@@ -23,7 +23,7 @@
         "endroid/qr-code": "^6.0",
         "league/oauth2-facebook": "^2.0",
         "league/oauth2-github": "^3.0",
-        "league/oauth2-google": "^4.0",
+        "league/oauth2-google": "^5.0",
         "thenetworg/oauth2-azure": "^2"
     },
     "require-dev":
