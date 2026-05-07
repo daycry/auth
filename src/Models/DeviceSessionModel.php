@@ -72,7 +72,7 @@ class DeviceSessionModel extends BaseModel
     public function getActiveForUser(User $user): array
     {
         return $this->where('user_id', $user->id)
-            ->where('logged_out_at', null)
+            ->where('logged_out_at')
             ->orderBy('last_active', 'DESC')
             ->findAll();
     }
@@ -116,7 +116,6 @@ class DeviceSessionModel extends BaseModel
 
         $id = $this->insert($data, true);
 
-        /** @var DeviceSession|null $result */
         return $this->find($id);
     }
 
@@ -126,7 +125,7 @@ class DeviceSessionModel extends BaseModel
     public function touchSession(string $sessionId): void
     {
         $this->where('session_id', $sessionId)
-            ->where('logged_out_at', null)
+            ->where('logged_out_at')
             ->set('last_active', Time::now()->format('Y-m-d H:i:s'))
             ->update();
     }
@@ -137,7 +136,7 @@ class DeviceSessionModel extends BaseModel
     public function terminateSession(string $sessionId): void
     {
         $this->where('session_id', $sessionId)
-            ->where('logged_out_at', null)
+            ->where('logged_out_at')
             ->set('logged_out_at', Time::now()->format('Y-m-d H:i:s'))
             ->update();
     }
@@ -150,7 +149,7 @@ class DeviceSessionModel extends BaseModel
     public function terminateAllForUser(User $user, ?string $exceptSessionId = null): void
     {
         $builder = $this->where('user_id', $user->id)
-            ->where('logged_out_at', null);
+            ->where('logged_out_at');
 
         if ($exceptSessionId !== null && $exceptSessionId !== '') {
             $builder = $builder->where('session_id !=', $exceptSessionId);
@@ -202,7 +201,7 @@ class DeviceSessionModel extends BaseModel
         $now = Time::now()->format('Y-m-d H:i:s');
 
         $row = $this->where('uuid', $uuid)
-            ->where('logged_out_at', null)
+            ->where('logged_out_at')
             ->where('trusted_until >=', $now)
             ->first();
 
@@ -240,7 +239,7 @@ class DeviceSessionModel extends BaseModel
         }
 
         $active = $this->where('user_id', $user->id)
-            ->where('logged_out_at', null)
+            ->where('logged_out_at')
             ->orderBy('last_active', 'ASC')
             ->findAll();
 

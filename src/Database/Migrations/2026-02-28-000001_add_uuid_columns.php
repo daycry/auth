@@ -73,7 +73,7 @@ class AddUuidColumns extends Migration
         while (true) {
             $rows = $this->db->table($table)
                 ->select('id')
-                ->where('uuid', null)
+                ->where('uuid')
                 ->orderBy('id', 'ASC')
                 ->limit($chunkSize, $offset)
                 ->get()

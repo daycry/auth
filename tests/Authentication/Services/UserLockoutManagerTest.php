@@ -16,6 +16,7 @@ namespace Tests\Authentication\Services;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Services\UserLockoutManager;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Result;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -45,7 +46,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(Result::class, $result);
     }
 
     public function testIsLockedOutReturnsNullWhenNotLocked(): void
@@ -54,7 +55,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(Result::class, $result);
     }
 
     public function testIsLockedOutReturnsResultWhenLocked(): void
@@ -73,7 +74,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNotNull($result);
+        $this->assertInstanceOf(Result::class, $result);
         $this->assertFalse($result->isOK());
     }
 
@@ -93,7 +94,7 @@ final class UserLockoutManagerTest extends DatabaseTestCase
 
         $result = $this->lockoutManager->isLockedOut($this->user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(Result::class, $result);
 
         // Verify counter was reset in DB
         $freshUser = model(UserModel::class)->find($this->user->id);

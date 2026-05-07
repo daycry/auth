@@ -58,7 +58,7 @@ final class DictionaryValidatorTest extends TestCase
 
     public function testUserParameterIsOptional(): void
     {
-        $result = $this->validator->check('Xk9#mQ2$vL7!nR4@', null);
+        $result = $this->validator->check('Xk9#mQ2$vL7!nR4@');
 
         $this->assertTrue($result->isOK());
     }

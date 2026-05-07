@@ -354,8 +354,8 @@ class GdprCommand extends BaseCommand
         /** @var TotpBackupCodeModel $backup */
         $backup = model(TotpBackupCodeModel::class);
 
-        $remaining = $backup->where('user_id', $user->id)->where('used_at', null)->countAllResults();
-        $used      = $backup->where('user_id', $user->id)->where('used_at !=', null)->countAllResults();
+        $remaining = $backup->where('user_id', $user->id)->where('used_at')->countAllResults();
+        $used      = $backup->where('user_id', $user->id)->where('used_at !=')->countAllResults();
 
         return ['remaining' => $remaining, 'used' => $used];
     }

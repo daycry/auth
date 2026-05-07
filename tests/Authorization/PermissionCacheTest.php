@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Authorization;
 
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\UserModel;
@@ -51,9 +52,8 @@ final class PermissionCacheTest extends DatabaseTestCase
 
     public function testGroupsAreCorrectWithCacheEnabled(): void
     {
-        /** @var GroupModel $groupModel */
-        $groupModel = model(GroupModel::class);
-        $beta       = fake(GroupModel::class, ['name' => 'beta']);
+        model(GroupModel::class);
+        fake(GroupModel::class, ['name' => 'beta']);
 
         $this->user->addGroup('admin', 'beta');
 
@@ -64,9 +64,8 @@ final class PermissionCacheTest extends DatabaseTestCase
 
     public function testPermissionsAreCorrectWithCacheEnabled(): void
     {
-        /** @var PermissionModel $permissionModel */
-        $permissionModel = model(PermissionModel::class);
-        $perm            = fake(PermissionModel::class, ['name' => 'users.edit']);
+        model(PermissionModel::class);
+        fake(PermissionModel::class, ['name' => 'users.edit']);
 
         $this->user->addPermission('users.edit');
 
@@ -86,7 +85,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         $userModel = model(UserModel::class);
         $freshUser = $userModel->findById($this->user->id);
 
-        $this->assertNotNull($freshUser);
+        $this->assertInstanceOf(User::class, $freshUser);
         $this->assertTrue($freshUser->inGroup('admin'));
     }
 
@@ -107,7 +106,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
         $freshUser = $userModel->findById($this->user->id);
-        $this->assertNotNull($freshUser);
+        $this->assertInstanceOf(User::class, $freshUser);
         $this->assertTrue($freshUser->inGroup('admin'));
     }
 
@@ -126,7 +125,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
         $freshUser = $userModel->findById($this->user->id);
-        $this->assertNotNull($freshUser);
+        $this->assertInstanceOf(User::class, $freshUser);
         $this->assertFalse($freshUser->inGroup('admin'));
     }
 
@@ -146,7 +145,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
         $freshUser = $userModel->findById($this->user->id);
-        $this->assertNotNull($freshUser);
+        $this->assertInstanceOf(User::class, $freshUser);
         $this->assertTrue($freshUser->hasPermission('posts.create'));
     }
 
@@ -164,7 +163,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
         $freshUser = $userModel->findById($this->user->id);
-        $this->assertNotNull($freshUser);
+        $this->assertInstanceOf(User::class, $freshUser);
         $this->assertFalse($freshUser->hasPermission('posts.delete'));
     }
 

@@ -104,7 +104,7 @@ final class CompositionValidatorTest extends TestCase
     {
         $this->config->minimumPasswordLength = 8;
 
-        $result = $this->validator->check('abcdefgh', null);
+        $result = $this->validator->check('abcdefgh');
 
         $this->assertTrue($result->isOK());
     }

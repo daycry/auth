@@ -106,8 +106,8 @@ final class ValidationRulesTest extends DatabaseTestCase
         $rules = $this->rules->getPasswordConfirmRules();
 
         $this->assertArrayHasKey('rules', $rules);
-        $this->assertStringContainsString('required', $rules['rules']);
-        $this->assertStringContainsString('matches[password]', $rules['rules']);
+        $this->assertStringContainsString('required', (string) $rules['rules']);
+        $this->assertStringContainsString('matches[password]', (string) $rules['rules']);
     }
 
     public function testGetPasswordConfirmRulesHasLabel(): void

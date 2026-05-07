@@ -55,7 +55,7 @@ class AccessTokenRepository
         $result = $this->identityModel
             ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
             ->where('secret', hash('sha256', $rawToken))
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->asObject(AccessTokenIdentity::class)
             ->first();
 

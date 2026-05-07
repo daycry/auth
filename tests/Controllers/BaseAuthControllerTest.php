@@ -24,7 +24,6 @@ use Config\App;
 use Config\Services;
 use Daycry\Auth\Controllers\BaseAuthController;
 use Exception;
-use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use Tests\Support\DatabaseTestCase;
@@ -131,7 +130,6 @@ final class BaseAuthControllerTest extends DatabaseTestCase
     private MockBaseAuthController $controller;
     private IncomingRequest $request;
     private Response $response;
-    private LoggerInterface&MockObject $logger;
     private Settings $settings;
 
     protected function setUp(): void
@@ -140,21 +138,17 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
         $this->settings = Services::settings();
 
-        // Create UserAgent mock with proper configuration
-        $userAgent = $this->createMock(UserAgent::class);
-
         $this->request = new IncomingRequest(
             new App(),
             new URI('http://example.com/test'),
             'php://input',
-            $userAgent,
+            $this->createStub(UserAgent::class),
         );
 
         $this->response = new Response(new App());
-        $this->logger   = $this->createMock(LoggerInterface::class);
 
         $this->controller = new MockBaseAuthController();
-        $this->controller->initController($this->request, $this->response, $this->logger);
+        $this->controller->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
     }
 
     protected function tearDown(): void
@@ -166,7 +160,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
     public function testInitControllerSuccess(): void
     {
         $controller = new MockBaseAuthController();
-        $controller->initController($this->request, $this->response, $this->logger);
+        $controller->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
 
         $this->assertNotNull($controller->publicAuthHandler);
     }
@@ -177,7 +171,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
         $this->settings->set('AuthSecurity.maxAttempts', 0);
 
         $controller = new MockBaseAuthController();
-        $controller->initController($this->request, $this->response, $this->logger);
+        $controller->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
 
         $this->assertNotNull($controller->publicAuthHandler);
     }
@@ -205,7 +199,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
     {
         // Simular request AJAX
         $this->request->setHeader('X-Requested-With', 'XMLHttpRequest');
-        $this->controller->initController($this->request, $this->response, $this->logger);
+        $this->controller->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
 
         $exception = new Exception('Test error', 403);
         $response  = $this->controller->testHandleException($exception);
@@ -274,7 +268,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
         $this->settings->set('AuthSecurity.enableInvalidAttempts', false);
 
         $controller = new MockBaseAuthController();
-        $controller->initController($this->request, $this->response, $this->logger);
+        $controller->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
 
         $this->assertNotNull($controller->publicAuthHandler);
 
@@ -306,8 +300,8 @@ final class BaseAuthControllerTest extends DatabaseTestCase
         $controller1 = new MockBaseAuthController();
         $controller2 = new MockBaseAuthController();
 
-        $controller1->initController($this->request, $this->response, $this->logger);
-        $controller2->initController($this->request, $this->response, $this->logger);
+        $controller1->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
+        $controller2->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
 
         $this->assertNotNull($controller1->publicAuthHandler);
         $this->assertNotNull($controller2->publicAuthHandler);
@@ -319,8 +313,8 @@ final class BaseAuthControllerTest extends DatabaseTestCase
         $controller1 = new MockBaseAuthController();
         $controller2 = new MockBaseAuthController();
 
-        $controller1->initController($this->request, $this->response, $this->logger);
-        $controller2->initController($this->request, $this->response, $this->logger);
+        $controller1->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
+        $controller2->initController($this->request, $this->response, $this->createStub(LoggerInterface::class));
 
         // Modificar estado de un handler no debe afectar al otro
         if ($controller1->publicAuthHandler && method_exists($controller1->publicAuthHandler, 'setRequestAuthorized')) {

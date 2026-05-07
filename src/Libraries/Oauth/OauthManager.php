@@ -307,7 +307,7 @@ class OauthManager
 
         $user = null;
 
-        if ($identity) {
+        if ($identity instanceof UserIdentity) {
             /** @var UserIdentity $identity */
             $user = $identity->user();
 

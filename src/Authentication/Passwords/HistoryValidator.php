@@ -35,7 +35,7 @@ class HistoryValidator extends BaseValidator implements PasswordValidatorInterfa
 {
     public function check(string $password, ?User $user = null): Result
     {
-        $retain = (int) ($this->config->passwordHistorySize ?? 0);
+        $retain = $this->config->passwordHistorySize ?? 0;
 
         if ($retain <= 0 || ! $user instanceof User || $user->id === null) {
             return new Result(['success' => true]);

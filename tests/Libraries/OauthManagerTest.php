@@ -18,6 +18,7 @@ use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\Test\DatabaseTestTrait;
 use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
@@ -27,6 +28,7 @@ use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use League\OAuth2\Client\Provider\GenericResourceOwner;
 use League\OAuth2\Client\Token\AccessToken;
+use League\OAuth2\Client\Token\AccessTokenInterface;
 use Mockery;
 use Tests\Support\TestCase;
 
@@ -203,7 +205,7 @@ final class OauthManagerTest extends TestCase
 
         $this->manager->setProviderInstance($provider, 'generic');
 
-        $user = $this->manager->handleCallback('auth_code', 'valid_state');
+        $this->manager->handleCallback('auth_code', 'valid_state');
 
         // Verify extra is stored as JSON
         /** @var UserIdentityModel $identityModel */
@@ -212,7 +214,7 @@ final class OauthManagerTest extends TestCase
             ->where('secret', 'social_json_1')
             ->first();
 
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
         $extra = json_decode($identity->extra, true);
         $this->assertIsArray($extra);
         $this->assertSame('refresh_abc', $extra['refresh_token']);
@@ -259,7 +261,7 @@ final class OauthManagerTest extends TestCase
 
         $manager->setProviderInstance($provider, 'generic_with_fields');
 
-        $user = $manager->handleCallback('auth_code', 'valid_state');
+        $manager->handleCallback('auth_code', 'valid_state');
 
         // Verify profile data is stored in extra JSON
         /** @var UserIdentityModel $identityModel */
@@ -332,6 +334,7 @@ final class OauthManagerTest extends TestCase
 
         $provider = Mockery::mock(AbstractProvider::class);
         $this->manager->setProviderInstance($provider, 'generic');
+        $this->assertInstanceOf(User::class, $user);
 
         $profileData = $this->manager->getProfileData($user);
 
@@ -362,6 +365,7 @@ final class OauthManagerTest extends TestCase
 
         $provider = Mockery::mock(AbstractProvider::class);
         $this->manager->setProviderInstance($provider, 'generic');
+        $this->assertInstanceOf(User::class, $user);
 
         $profileData = $this->manager->getProfileData($user);
 
@@ -460,10 +464,11 @@ final class OauthManagerTest extends TestCase
         $provider->shouldReceive('getAccessToken')->andReturn($newToken);
 
         $this->manager->setProviderInstance($provider, 'generic');
+        $this->assertInstanceOf(User::class, $user);
 
         $result = $this->manager->refreshAccessToken($user);
 
-        $this->assertNotNull($result);
+        $this->assertInstanceOf(AccessTokenInterface::class, $result);
         $this->assertSame('new_access', $result->getToken());
 
         $identity = $identityModel->where('secret', 'social_rj')->first();
@@ -502,10 +507,11 @@ final class OauthManagerTest extends TestCase
         $provider->shouldReceive('getAccessToken')->andReturn($newToken);
 
         $this->manager->setProviderInstance($provider, 'generic');
+        $this->assertInstanceOf(User::class, $user);
 
         $result = $this->manager->refreshAccessToken($user);
 
-        $this->assertNotNull($result);
+        $this->assertInstanceOf(AccessTokenInterface::class, $result);
         $this->assertSame('new_access', $result->getToken());
     }
 
@@ -522,10 +528,11 @@ final class OauthManagerTest extends TestCase
 
         $provider = Mockery::mock(AbstractProvider::class);
         $this->manager->setProviderInstance($provider, 'generic');
+        $this->assertInstanceOf(User::class, $user);
 
         $result = $this->manager->refreshAccessToken($user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(AccessTokenInterface::class, $result);
     }
 
     public function testRefreshAccessTokenProviderFails(): void
@@ -555,10 +562,11 @@ final class OauthManagerTest extends TestCase
             ->andThrow(new IdentityProviderException('token expired', 0, []));
 
         $this->manager->setProviderInstance($provider, 'generic');
+        $this->assertInstanceOf(User::class, $user);
 
         $result = $this->manager->refreshAccessToken($user);
 
-        $this->assertNull($result);
+        $this->assertNotInstanceOf(AccessTokenInterface::class, $result);
     }
 
     public function testHandleCallbackTriggersOauthLoginEvent(): void

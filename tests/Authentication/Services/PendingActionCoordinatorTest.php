@@ -18,6 +18,7 @@ use Daycry\Auth\Authentication\Actions\EmailActivator;
 use Daycry\Auth\Authentication\Actions\Totp2FA;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Authentication\Services\PendingActionCoordinator;
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Models\UserIdentityModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
@@ -168,7 +169,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
         // Verify identity was created
         $identity = $this->identityModel->getIdentityByType($this->user, Session::ID_TYPE_EMAIL_2FA);
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
     }
 
     public function testActivateActionReturnsFalseWhenSkipped(): void

@@ -45,8 +45,7 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
     {
         $hashedPword = strtoupper(sha1($password));
         $rangeHash   = substr($hashedPword, 0, 5);
-        /** @var string $searchHash */
-        $searchHash = substr($hashedPword, 5);
+        $searchHash  = substr($hashedPword, 5);
 
         try {
             $client = Services::curlrequest([

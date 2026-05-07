@@ -90,7 +90,7 @@ class TotpBackupCodeModel extends BaseModel
         // marks it as used in the same statement (no SELECT-then-UPDATE race).
         $this->where('user_id', $user->id)
             ->where('code_hash', $hash)
-            ->where('used_at', null)
+            ->where('used_at')
             ->set('used_at', Time::now()->toDateTimeString())
             ->update();
 
@@ -103,7 +103,7 @@ class TotpBackupCodeModel extends BaseModel
     public function remainingCount(User $user): int
     {
         return $this->where('user_id', $user->id)
-            ->where('used_at', null)
+            ->where('used_at')
             ->countAllResults();
     }
 
