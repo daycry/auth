@@ -5,6 +5,11 @@ includes:
 parameters:
 	tmpDir: build/phpstan
 	level: 5
+	# Allow baseline entries that don't match on every PHP version:
+	# PHPStan infers different types across PHP minor versions (we
+	# develop on 8.3, CI runs 8.5+), so silencing entries only on the
+	# version that produced them keeps the baseline portable across both.
+	reportUnmatchedIgnoredErrors: false
 	paths:
 		- src/
 		- tests/
