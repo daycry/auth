@@ -47,7 +47,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testGetActionTypesReturnsConfiguredTypes(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => EmailActivator::class,
                 'login'    => Email2FA::class,
@@ -63,7 +63,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testGetActionTypesSkipsNull(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -78,7 +78,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testGetIdentitiesForActionReturnsMatchingIdentities(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -102,7 +102,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testFindPendingActionReturnsNullWhenNoPending(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -116,7 +116,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testFindPendingActionReturnsActionAndMessage(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -141,7 +141,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testActivateActionReturnsFalseWhenNotConfigured(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => null,
@@ -155,7 +155,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
 
     public function testActivateActionReturnsTrueWhenActivated(): void
     {
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Email2FA::class,
@@ -174,7 +174,7 @@ final class PendingActionCoordinatorTest extends DatabaseTestCase
     public function testActivateActionReturnsFalseWhenSkipped(): void
     {
         // Totp2FA skips when user has no TOTP secret confirmed
-        $this->inkectMockAttributes([
+        $this->injectMockAttributes([
             'actions' => [
                 'register' => null,
                 'login'    => Totp2FA::class,

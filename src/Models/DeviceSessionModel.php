@@ -32,6 +32,7 @@ class DeviceSessionModel extends BaseModel
         'user_agent',
         'last_active',
         'logged_out_at',
+        'trusted_until',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
@@ -168,5 +169,96 @@ class DeviceSessionModel extends BaseModel
 
         $this->where('logged_out_at <', $cutoff)
             ->delete();
+    }
+
+    /**
+     * Marks the device session identified by $uuid as trusted for
+     * $lifetimeSeconds. While `trusted_until` is in the future, 2FA
+     * challenges can be skipped on this device.
+     */
+    public function markTrusted(string $uuid, int $lifetimeSeconds): void
+    {
+        if ($uuid === '' || $lifetimeSeconds <= 0) {
+            return;
+        }
+
+        $until = Time::now()->addSeconds($lifetimeSeconds)->format('Y-m-d H:i:s');
+
+        $this->where('uuid', $uuid)
+            ->set('trusted_until', $until)
+            ->update();
+    }
+
+    /**
+     * Returns the device session identified by $uuid when it is currently
+     * trusted (logged-in, not revoked, and `trusted_until` is in the future).
+     */
+    public function findTrustedByUuid(string $uuid): ?DeviceSession
+    {
+        if ($uuid === '') {
+            return null;
+        }
+
+        $now = Time::now()->format('Y-m-d H:i:s');
+
+        $row = $this->where('uuid', $uuid)
+            ->where('logged_out_at', null)
+            ->where('trusted_until >=', $now)
+            ->first();
+
+        return $row instanceof DeviceSession ? $row : null;
+    }
+
+    /**
+     * Clears the trust flag from the given device session (e.g. when the
+     * user explicitly revokes it).
+     */
+    public function revokeTrust(string $uuid): void
+    {
+        if ($uuid === '') {
+            return;
+        }
+
+        $this->where('uuid', $uuid)
+            ->set('trusted_until', null)
+            ->update();
+    }
+
+    /**
+     * Enforces a per-user limit on concurrent active sessions.
+     *
+     * If the user already has `>= $limit` active sessions, terminates the
+     * oldest ones (by `last_active` ascending) until exactly `$limit - 1`
+     * remain — leaving room for the new session about to be created.
+     *
+     * @return int Number of sessions terminated.
+     */
+    public function enforceConcurrentSessionLimit(User $user, int $limit): int
+    {
+        if ($limit <= 0) {
+            return 0;
+        }
+
+        $active = $this->where('user_id', $user->id)
+            ->where('logged_out_at', null)
+            ->orderBy('last_active', 'ASC')
+            ->findAll();
+
+        $excess = count($active) - ($limit - 1);
+
+        if ($excess <= 0) {
+            return 0;
+        }
+
+        $terminated = 0;
+
+        foreach (array_slice($active, 0, $excess) as $session) {
+            if (! empty($session->session_id)) {
+                $this->terminateSession((string) $session->session_id);
+                $terminated++;
+            }
+        }
+
+        return $terminated;
     }
 }

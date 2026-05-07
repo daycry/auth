@@ -16,6 +16,7 @@ namespace Daycry\Auth\Models;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Services\AuditLogger;
 
 /**
  * Repository for personal access token operations.
@@ -44,10 +45,21 @@ class AccessTokenRepository
     /**
      * Finds an access token by its raw (unhashed) value.
      * Excludes revoked tokens.
+     *
+     * The query lives here (not in UserIdentityModel) because token CRUD
+     * is the repository's responsibility — the legacy method on the
+     * identity model is kept only as a deprecated thin wrapper.
      */
     public function getAccessTokenByRawToken(string $rawToken): ?AccessTokenIdentity
     {
-        return $this->identityModel->getAccessTokenByRawToken($rawToken);
+        $result = $this->identityModel
+            ->where('type', AccessToken::ID_TYPE_ACCESS_TOKEN)
+            ->where('secret', hash('sha256', $rawToken))
+            ->where('revoked_at', null)
+            ->asObject(AccessTokenIdentity::class)
+            ->first();
+
+        return $result instanceof AccessTokenIdentity ? $result : null;
     }
 
     /**
@@ -115,6 +127,11 @@ class AccessTokenRepository
 
         if ($token !== null) {
             $this->identityModel->revokeIdentityById((int) $token->id);
+
+            (new AuditLogger())->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
+                'identity_id' => (int) $token->id,
+                'token_name'  => $token->name,
+            ]);
         }
     }
 
@@ -144,5 +161,9 @@ class AccessTokenRepository
             (int) $user->id,
             AccessToken::ID_TYPE_ACCESS_TOKEN,
         );
+
+        (new AuditLogger())->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
+            'scope' => 'all_access_tokens',
+        ]);
     }
 }

@@ -77,6 +77,9 @@ class Auth extends BaseConfig
         'attempts'           => 'auth_attempts',
         'rates'              => 'auth_rates',
         'device_sessions'    => 'auth_device_sessions',
+        'audit_logs'         => 'auth_audit_logs',
+        'totp_backup_codes'  => 'auth_totp_backup_codes',
+        'password_history'   => 'auth_password_history',
     ];
 
     /**
@@ -164,6 +167,18 @@ class Auth extends BaseConfig
         'rememberLength'      => 30 * DAY,
         'trackDeviceSessions' => true,
     ];
+
+    /**
+     * --------------------------------------------------------------------
+     * Maximum Concurrent Sessions Per User
+     * --------------------------------------------------------------------
+     * When > 0, the oldest active device sessions are terminated on each
+     * new login so that no user has more than this many active sessions.
+     *
+     * Requires `sessionConfig.trackDeviceSessions = true`.
+     * 0 = no limit (default).
+     */
+    public int $maxConcurrentSessions = 0;
 
     /**
      * --------------------------------------------------------------------

@@ -50,18 +50,57 @@ class AddUuidColumns extends Migration
                 'uuid' => ['type' => 'varchar', 'constraint' => 36, 'null' => true, 'after' => 'id'],
             ]);
 
-            // Backfill existing rows with UUID v7 (DB-agnostic PHP generation)
-            $rows = $this->db->table($table)->select('id')->get()->getResultArray();
-
-            foreach ($rows as $row) {
-                $this->db->table($table)
-                    ->where('id', $row['id'])
-                    ->update(['uuid' => Uuid::v7()->toRfc4122()]);
-            }
+            // Backfill existing rows with UUID v7 (DB-agnostic PHP generation).
+            // Use updateBatch in chunks to avoid one query per row on large tables —
+            // a fresh install on a populated DB now does O(N/chunk) UPDATEs instead of O(N).
+            $this->backfillUuids($table);
 
             // Add unique index
             $this->forge->addUniqueKey('uuid');
             $this->forge->processIndexes($table);
+        }
+    }
+
+    /**
+     * Backfills the `uuid` column in chunks using updateBatch().
+     * Skips rows that already have a uuid (idempotent re-run).
+     */
+    private function backfillUuids(string $table): void
+    {
+        $chunkSize = 1000;
+        $offset    = 0;
+
+        while (true) {
+            $rows = $this->db->table($table)
+                ->select('id')
+                ->where('uuid', null)
+                ->orderBy('id', 'ASC')
+                ->limit($chunkSize, $offset)
+                ->get()
+                ->getResultArray();
+
+            if ($rows === []) {
+                break;
+            }
+
+            $batch = [];
+
+            foreach ($rows as $row) {
+                $batch[] = [
+                    'id'   => $row['id'],
+                    'uuid' => Uuid::v7()->toRfc4122(),
+                ];
+            }
+
+            // updateBatch executes a single UPDATE … CASE … per chunk,
+            // rather than one UPDATE per row.
+            $this->db->table($table)->updateBatch($batch, 'id');
+
+            // Rows are now non-null, so future iterations skip them via WHERE uuid IS NULL.
+            // No need to bump $offset — keep reading from the start of remaining nulls.
+            if (count($rows) < $chunkSize) {
+                break;
+            }
         }
     }
 

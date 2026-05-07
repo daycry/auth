@@ -69,7 +69,16 @@ abstract class TestCase extends CIUnitTestCase
         Factories::injectMock('config', 'Encryption', $encConfig);
     }
 
+    /**
+     * @deprecated Typo — use {@see injectMockAttributes()} instead. Will be
+     *             removed in v6.
+     */
     protected function inkectMockAttributes(array $attributes = []): void
+    {
+        $this->injectMockAttributes($attributes);
+    }
+
+    protected function injectMockAttributes(array $attributes = []): void
     {
         $config = config(Auth::class);
 
@@ -80,7 +89,16 @@ abstract class TestCase extends CIUnitTestCase
         Factories::injectMock('config', 'Auth', $config);
     }
 
+    /**
+     * @deprecated Typo — use {@see injectMockAttributesSecurity()} instead.
+     *             Will be removed in v6.
+     */
     protected function inkectMockAttributesSecurity(array $attributes = []): void
+    {
+        $this->injectMockAttributesSecurity($attributes);
+    }
+
+    protected function injectMockAttributesSecurity(array $attributes = []): void
     {
         $config = config(AuthSecurity::class);
 
@@ -91,7 +109,16 @@ abstract class TestCase extends CIUnitTestCase
         Factories::injectMock('config', 'AuthSecurity', $config);
     }
 
+    /**
+     * @deprecated Typo — use {@see injectMockAttributesOAuth()} instead. Will
+     *             be removed in v6.
+     */
     protected function inkectMockAttributesOAuth(array $attributes = []): void
+    {
+        $this->injectMockAttributesOAuth($attributes);
+    }
+
+    protected function injectMockAttributesOAuth(array $attributes = []): void
     {
         $config = config(AuthOAuth::class);
 

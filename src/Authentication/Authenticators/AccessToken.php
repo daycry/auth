@@ -13,12 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Authenticators;
 
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
@@ -26,6 +28,8 @@ use Daycry\Auth\Result;
 class AccessToken extends StatelessAuthenticator implements AuthenticatorInterface
 {
     public const ID_TYPE_ACCESS_TOKEN = 'access_token';
+
+    private ?AccessTokenRepository $accessTokenRepository = null;
 
     public function __construct(
         UserProviderInterface $provider,
@@ -36,6 +40,18 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
         $this->method = self::ID_TYPE_ACCESS_TOKEN;
 
         parent::__construct($provider, $request, $userIdentityModel, $loginModel);
+    }
+
+    /**
+     * Lazy-resolve the access token repository — keeps the constructor
+     * signature stable while routing token lookups through the repository
+     * pattern instead of the deprecated UserIdentityModel methods.
+     */
+    private function tokenRepository(): AccessTokenRepository
+    {
+        return $this->accessTokenRepository ??= new AccessTokenRepository(
+            $this->userIdentityModel,
+        );
     }
 
     /**
@@ -74,10 +90,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
             ]);
         }
 
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        $token = $identityModel->getAccessTokenByRawToken($credentials['token']);
+        $token = $this->tokenRepository()->getAccessTokenByRawToken($credentials['token']);
 
         if ($token === null) {
             return new Result([
@@ -101,10 +114,21 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
             ]);
         }
 
-        $token->last_used_at = Time::now()->format('Y-m-d H:i:s');
+        // Throttle `last_used_at` writes — for high-traffic API tokens this
+        // would otherwise be one UPDATE per request. Skip the write when the
+        // last recorded use is more recent than the configured threshold.
+        $throttle = (int) service('settings')->get('AuthSecurity.tokenLastUsedThrottle');
 
-        if ($token->hasChanged()) {
-            $identityModel->save($token);
+        if (
+            $throttle <= 0
+            || $token->last_used_at === null
+            || $token->last_used_at->isBefore(Time::now()->subSeconds($throttle))
+        ) {
+            $token->last_used_at = Time::now()->format('Y-m-d H:i:s');
+
+            if ($token->hasChanged()) {
+                $this->userIdentityModel->save($token);
+            }
         }
 
         // Ensure the token is set as the current token
@@ -154,10 +178,19 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
     {
         $accessTokenName = service('settings')->get('Auth.authenticatorHeader')[$this->method];
 
-        $key = $this->request->getHeaderLine($accessTokenName);
-        $key = ($key) ?: $this->request->getGetPost($accessTokenName);
-        $key = ($key) ?: $this->request->getVar($accessTokenName);
+        $request = $this->request;
+        $key     = $request->getHeaderLine($accessTokenName);
 
-        return (string) ($key ?: '');
+        // getGetPost() / getVar() only exist on IncomingRequest; the parent
+        // typehint is the abstract Request, so we narrow before calling them.
+        if ($key === '' && $request instanceof IncomingRequest) {
+            $key = (string) ($request->getGetPost($accessTokenName) ?? '');
+
+            if ($key === '') {
+                $key = (string) ($request->getVar($accessTokenName) ?? '');
+            }
+        }
+
+        return $key;
     }
 }

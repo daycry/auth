@@ -189,13 +189,23 @@ class OauthManager
     {
         $sessionState = session()->get('oauth2state');
 
-        if ($state === '' || $state === '0' || ($state !== $sessionState)) {
+        // CSRF check — reject empty state and use timing-safe comparison.
+        if (
+            $state === ''
+            || ! is_string($sessionState)
+            || $sessionState === ''
+            || ! hash_equals($sessionState, $state)
+        ) {
             session()->remove('oauth2state');
 
             throw new AuthenticationException(lang('Auth.invalidOauthState'));
         }
 
         session()->remove('oauth2state');
+
+        if ($code === '') {
+            throw new AuthenticationException(lang('Auth.invalidOauthState'));
+        }
 
         try {
             $token       = $this->provider->getAccessToken('authorization_code', ['code' => $code]);

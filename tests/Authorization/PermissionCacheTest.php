@@ -34,7 +34,7 @@ final class PermissionCacheTest extends DatabaseTestCase
         $this->setUpFakeUser();
 
         // Enable permission caching in Auth config
-        $this->inkectMockAttributesSecurity(['permissionCacheEnabled' => true, 'permissionCacheTTL' => 60]);
+        $this->injectMockAttributesSecurity(['permissionCacheEnabled' => true, 'permissionCacheTTL' => 60]);
     }
 
     protected function tearDown(): void

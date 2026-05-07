@@ -18,8 +18,10 @@ use Daycry\Auth\Filters\AuthFilter;
 use Daycry\Auth\Filters\ChainAuthFilter;
 use Daycry\Auth\Filters\ForcePasswordResetFilter;
 use Daycry\Auth\Filters\GroupFilter;
+use Daycry\Auth\Filters\PasswordAgeFilter;
 use Daycry\Auth\Filters\PermissionFilter;
 use Daycry\Auth\Filters\RatesFilter;
+use Daycry\Auth\Filters\TokenScopeFilter;
 use Daycry\Auth\Validation\PasswordValidationRules as PasswordRules;
 
 class Registrar
@@ -31,12 +33,14 @@ class Registrar
     {
         return [
             'aliases' => [
-                'auth'        => AuthFilter::class,
-                'chain'       => ChainAuthFilter::class,
-                'rates'       => RatesFilter::class,
-                'group'       => GroupFilter::class,
-                'permission'  => PermissionFilter::class,
-                'force-reset' => ForcePasswordResetFilter::class,
+                'auth'         => AuthFilter::class,
+                'chain'        => ChainAuthFilter::class,
+                'rates'        => RatesFilter::class,
+                'group'        => GroupFilter::class,
+                'permission'   => PermissionFilter::class,
+                'force-reset'  => ForcePasswordResetFilter::class,
+                'token-scope'  => TokenScopeFilter::class,
+                'password-age' => PasswordAgeFilter::class,
             ],
         ];
     }

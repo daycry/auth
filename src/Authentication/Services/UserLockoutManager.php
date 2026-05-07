@@ -13,10 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Services;
 
+use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\I18n\Time;
+use Config\Database;
+use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Result;
+use Daycry\Auth\Services\AuditLogger;
 
 /**
  * Manages per-user account lockout after repeated failed login attempts.
@@ -26,9 +30,34 @@ use Daycry\Auth\Result;
  */
 class UserLockoutManager
 {
+    private ?BaseConnection $db = null;
+    private ?string $usersTable = null;
+
     public function __construct(
         private readonly UserProviderInterface $provider,
     ) {
+    }
+
+    /**
+     * Lazy-resolve the DB connection and users table name from config.
+     */
+    private function db(): BaseConnection
+    {
+        if ($this->db === null) {
+            /** @var AuthConfig $authConfig */
+            $authConfig       = config('Auth');
+            $this->db         = Database::connect($authConfig->DBGroup);
+            $this->usersTable = $authConfig->tables['users'];
+        }
+
+        return $this->db;
+    }
+
+    private function usersTable(): string
+    {
+        $this->db();
+
+        return (string) $this->usersTable;
     }
 
     /**
@@ -64,13 +93,19 @@ class UserLockoutManager
         // Lockout has expired — reset counter automatically
         $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
 
+        (new AuditLogger())->record(AuditLogger::EVENT_USER_UNLOCKED, (int) $user->id, [
+            'reason' => 'lockout_expired',
+        ]);
+
         return null;
     }
 
     /**
      * Records a failed login attempt for the given user.
      *
-     * Increments the failure counter and locks the account when the
+     * Increments the failure counter atomically (single UPDATE with
+     * a SQL expression to avoid lost-update race conditions under
+     * concurrent failed logins) and then locks the account when the
      * configured threshold is reached.
      */
     public function recordFailedAttempt(User $user): void
@@ -81,16 +116,42 @@ class UserLockoutManager
             return;
         }
 
-        $count = ((int) ($user->failed_login_count ?? 0)) + 1;
-        $data  = ['failed_login_count' => $count];
+        $db    = $this->db();
+        $table = $this->usersTable();
 
-        if ($count >= $maxAttempts) {
-            $data['locked_until'] = Time::now()
-                ->addSeconds((int) setting('AuthSecurity.userLockoutTime'))
-                ->format('Y-m-d H:i:s');
+        // Atomic increment — `false` on the third arg disables value escaping.
+        $db->table($table)
+            ->where('id', $user->id)
+            ->set('failed_login_count', 'failed_login_count + 1', false)
+            ->update();
+
+        // Re-read the post-increment count to evaluate the threshold.
+        $row = $db->table($table)
+            ->select('failed_login_count, locked_until')
+            ->where('id', $user->id)
+            ->get()
+            ->getRow();
+
+        if ($row === null) {
+            return;
         }
 
-        $this->provider->update($user->id, $data);
+        $count = (int) ($row->failed_login_count ?? 0);
+
+        if ($count >= $maxAttempts && $row->locked_until === null) {
+            $lockedUntil = Time::now()
+                ->addSeconds((int) setting('AuthSecurity.userLockoutTime'))
+                ->format('Y-m-d H:i:s');
+
+            $db->table($table)
+                ->where('id', $user->id)
+                ->update(['locked_until' => $lockedUntil]);
+
+            (new AuditLogger())->record(AuditLogger::EVENT_USER_LOCKED, (int) $user->id, [
+                'failed_login_count' => $count,
+                'locked_until'       => $lockedUntil,
+            ]);
+        }
     }
 
     /**

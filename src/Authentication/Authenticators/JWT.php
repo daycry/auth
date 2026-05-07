@@ -96,6 +96,8 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
             $jwt           = service('settings')->get('Auth.jwtAdapter');
             $this->payload = (new $jwt())->decode($credentials['token']);
         } catch (RuntimeException $e) {
+            log_message('warning', 'JWT decode failed: {message}', ['message' => $e->getMessage()]);
+
             return new Result([
                 'success' => false,
                 'reason'  => $e->getMessage(),

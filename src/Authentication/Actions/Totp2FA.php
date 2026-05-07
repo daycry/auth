@@ -20,6 +20,9 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TOTP;
+use Daycry\Auth\Models\DeviceSessionModel;
+use Daycry\Auth\Services\AuditLogger;
+use Throwable;
 
 /**
  * Class Totp2FA
@@ -35,6 +38,11 @@ use Daycry\Auth\Libraries\TOTP;
  */
 class Totp2FA extends AbstractAction
 {
+    /**
+     * Cookie name carrying the trusted-device proof. Format: `<deviceUuid>.<hmac>`.
+     */
+    public const TRUSTED_DEVICE_COOKIE = 'auth_trusted_device';
+
     /**
      * Identity type for the pending-login marker.
      */
@@ -88,6 +96,12 @@ class Totp2FA extends AbstractAction
 
         $authenticator->completeLogin($user);
 
+        // Trust-this-device: only honoured *after* completeLogin() so a
+        // fresh device session UUID is available.
+        if ((bool) $request->getPost('trust_device')) {
+            $this->markCurrentDeviceTrusted($user);
+        }
+
         return redirect()->to(config('Auth')->loginRedirect());
     }
 
@@ -112,6 +126,13 @@ class Totp2FA extends AbstractAction
             return '';
         }
 
+        // Trust-this-device fast path: if the user is logging in from a
+        // device they previously marked as trusted (and the trust window
+        // has not expired), skip the 2FA challenge.
+        if ($this->isTrustedDeviceForUser($user)) {
+            return '';
+        }
+
         $identityModel->insert([
             'user_id' => $user->id,
             'type'    => $this->type,
@@ -125,6 +146,11 @@ class Totp2FA extends AbstractAction
 
     /**
      * Verifies the TOTP code against the user's permanent secret.
+     *
+     * If the TOTP code does not match, falls back to backup codes — this
+     * lets users authenticate when their authenticator app is unavailable
+     * (lost phone, replaced device). A consumed backup code is marked
+     * as used and cannot be reused.
      */
     private function verifyCodeForUser(User $user, string $code): bool
     {
@@ -134,6 +160,137 @@ class Totp2FA extends AbstractAction
             return false;
         }
 
-        return TOTP::verify((string) $totpSecret->secret, $code);
+        $window = (int) (setting('AuthSecurity.totpWindow') ?? 1);
+
+        if (TOTP::verify((string) $totpSecret->secret, $code, $window)) {
+            return true;
+        }
+
+        // Backup-code fallback: hex strings are visually distinct from the
+        // 6-digit TOTP, so accidental collisions are extremely unlikely.
+        return $user->consumeBackupCode($code);
+    }
+
+    /**
+     * Trusted-device check: returns true when the request carries a valid
+     * trusted-device cookie matching an active, non-expired DeviceSession
+     * row belonging to $user.
+     */
+    private function isTrustedDeviceForUser(User $user): bool
+    {
+        $lifetime = (int) (setting('AuthSecurity.trustedDeviceLifetime') ?? 0);
+
+        if ($lifetime <= 0) {
+            return false; // feature disabled
+        }
+
+        $cookieValue = $this->readTrustedCookie();
+
+        if ($cookieValue === null) {
+            return false;
+        }
+
+        try {
+            /** @var DeviceSessionModel $deviceModel */
+            $deviceModel = model(DeviceSessionModel::class);
+            $session     = $deviceModel->findTrustedByUuid($cookieValue);
+
+            return $session !== null && (int) $session->user_id === (int) $user->id;
+        } catch (Throwable $e) {
+            log_message('warning', 'Trusted-device check failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Marks the user's current device session as trusted for the configured
+     * lifetime, sets the signed cookie carrying the device UUID, and writes
+     * an audit-log entry.
+     */
+    private function markCurrentDeviceTrusted(User $user): void
+    {
+        $lifetime = (int) (setting('AuthSecurity.trustedDeviceLifetime') ?? 0);
+
+        if ($lifetime <= 0) {
+            return;
+        }
+
+        $sessionId = session_id();
+
+        if ($sessionId === '' || $sessionId === false) {
+            return;
+        }
+
+        try {
+            /** @var DeviceSessionModel $deviceModel */
+            $deviceModel = model(DeviceSessionModel::class);
+            $session     = $deviceModel->findBySessionId($sessionId);
+
+            if ($session === null || empty($session->uuid)) {
+                return;
+            }
+
+            $deviceModel->markTrusted((string) $session->uuid, $lifetime);
+
+            $this->writeTrustedCookie((string) $session->uuid, $lifetime);
+
+            (new AuditLogger())->record(AuditLogger::EVENT_TRUSTED_DEVICE_ADDED, (int) $user->id, [
+                'device_uuid'   => (string) $session->uuid,
+                'lifetime_secs' => $lifetime,
+            ]);
+        } catch (Throwable $e) {
+            log_message('warning', 'Trusted-device mark failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Reads and validates the trusted-device cookie. Returns the decrypted
+     * device UUID on success, null otherwise.
+     */
+    private function readTrustedCookie(): ?string
+    {
+        try {
+            /** @var IncomingRequest $request */
+            $request = service('request');
+            $value   = $request->getCookie(self::TRUSTED_DEVICE_COOKIE);
+
+            if (! is_string($value) || $value === '') {
+                return null;
+            }
+
+            $payload = (string) service('encrypter')->decrypt(base64_decode($value, true) ?: '');
+
+            return $payload === '' ? null : $payload;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Encrypts the device UUID with CI4's encrypter and sets the cookie.
+     */
+    private function writeTrustedCookie(string $deviceUuid, int $lifetimeSeconds): void
+    {
+        try {
+            $encrypted = base64_encode((string) service('encrypter')->encrypt($deviceUuid));
+
+            service('response')->setCookie([
+                'name'     => self::TRUSTED_DEVICE_COOKIE,
+                'value'    => $encrypted,
+                'expire'   => $lifetimeSeconds,
+                'httponly' => true,
+                'samesite' => 'Lax',
+                'secure'   => (bool) (setting('App.cookieSecure') ?? false),
+            ]);
+        } catch (Throwable $e) {
+            log_message('warning', 'Trusted-device cookie write failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }

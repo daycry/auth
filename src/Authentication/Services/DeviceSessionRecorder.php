@@ -16,12 +16,16 @@ namespace Daycry\Auth\Authentication\Services;
 use CodeIgniter\HTTP\IncomingRequest;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\DeviceSessionModel;
+use Throwable;
 
 /**
  * Handles creation and termination of device session records.
  *
  * Extracted from Session authenticator to isolate device-tracking
  * concerns from the core authentication flow.
+ *
+ * DB failures here are logged but **never** propagate — device tracking
+ * is a non-critical feature and must not break login/logout.
  */
 class DeviceSessionRecorder
 {
@@ -39,14 +43,33 @@ class DeviceSessionRecorder
             return;
         }
 
-        /** @var DeviceSessionModel $deviceSessionModel */
-        $deviceSessionModel = model(DeviceSessionModel::class);
+        try {
+            /** @var DeviceSessionModel $deviceSessionModel */
+            $deviceSessionModel = model(DeviceSessionModel::class);
 
-        /** @var IncomingRequest $incomingRequest */
-        $incomingRequest = service('request');
-        $userAgent       = (string) $incomingRequest->getUserAgent();
+            // Enforce per-user concurrent session limit (terminates oldest excess
+            // sessions before creating the new one). 0 = unlimited.
+            $limit = (int) (setting('Auth.maxConcurrentSessions') ?? 0);
 
-        $deviceSessionModel->createSession($user, $sessionId, $ipAddress, $userAgent !== '' ? $userAgent : null);
+            if ($limit > 0) {
+                $deviceSessionModel->enforceConcurrentSessionLimit($user, $limit);
+            }
+
+            /** @var IncomingRequest $incomingRequest */
+            $incomingRequest = service('request');
+            $userAgent       = (string) $incomingRequest->getUserAgent();
+
+            $deviceSessionModel->createSession(
+                $user,
+                $sessionId,
+                $ipAddress,
+                $userAgent !== '' ? $userAgent : null,
+            );
+        } catch (Throwable $e) {
+            log_message('error', 'DeviceSessionRecorder::recordSession failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -60,8 +83,14 @@ class DeviceSessionRecorder
             return;
         }
 
-        /** @var DeviceSessionModel $deviceSessionModel */
-        $deviceSessionModel = model(DeviceSessionModel::class);
-        $deviceSessionModel->terminateSession($sessionId);
+        try {
+            /** @var DeviceSessionModel $deviceSessionModel */
+            $deviceSessionModel = model(DeviceSessionModel::class);
+            $deviceSessionModel->terminateSession($sessionId);
+        } catch (Throwable $e) {
+            log_message('error', 'DeviceSessionRecorder::terminateCurrentSession failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }

@@ -222,6 +222,18 @@ class AuthSecurity extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Access Token last_used_at Throttle
+     * --------------------------------------------------------------------
+     * Minimum number of seconds between two consecutive `last_used_at`
+     * writes for the same access token. Avoids one DB write per request
+     * for high-traffic API tokens.
+     *
+     * 0 disables throttling (writes on every request).
+     */
+    public int $tokenLastUsedThrottle = 60;
+
+    /**
+     * --------------------------------------------------------------------
      * Allow Magic Link Logins
      * --------------------------------------------------------------------
      * If true, will allow the use of "magic links" sent via the email
@@ -271,10 +283,46 @@ class AuthSecurity extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * TOTP Verification Window
+     * --------------------------------------------------------------------
+     * Number of 30-second steps to accept on either side of the current
+     * timestamp when verifying a TOTP code. 1 = ±30s on each side
+     * (RFC 6238 default), allowing for minor clock drift.
+     *
+     * Higher values relax verification (worse security); lower values
+     * tighten it (worse UX under clock skew).
+     */
+    public int $totpWindow = 1;
+
+    /**
+     * --------------------------------------------------------------------
+     * Trusted Device Lifetime
+     * --------------------------------------------------------------------
+     * When > 0, users can opt in to "trust this device" during 2FA. The
+     * device's DeviceSession is marked trusted for this many seconds; on
+     * subsequent logins from the same device (matched via signed cookie
+     * + DB session UUID) the 2FA challenge is skipped.
+     *
+     * 0 = feature disabled (always require 2FA when configured).
+     */
+    public int $trustedDeviceLifetime = 30 * DAY;
+
+    /**
+     * --------------------------------------------------------------------
      * Permission & Group Cache
      * --------------------------------------------------------------------
      * When enabled, user groups and permissions are stored in the CI4
      * cache service to avoid repeated DB queries on every request.
+     *
+     * **STRONGLY RECOMMENDED in production.** With caching disabled every
+     * `$user->can()`, `inGroup()`, `hasPermission()` call hits the DB
+     * (groups + permissions + group permissions). The cache is invalidated
+     * automatically when assignments change.
+     *
+     * Disabled by default to keep BC with installs that have not configured
+     * a cache backend. Override in `app/Config/AuthSecurity.php`:
+     *
+     *     public bool $permissionCacheEnabled = true;
      *
      * - permissionCacheEnabled  Enable/disable caching (default: false)
      * - permissionCacheTTL      Seconds before the cache expires (default: 300)
@@ -299,4 +347,70 @@ class AuthSecurity extends BaseConfig
      * Base URI for the Have I Been Pwned passwords range API.
      */
     public string $pwnedPasswordsApiUrl = 'https://api.pwnedpasswords.com/';
+
+    /**
+     * --------------------------------------------------------------------
+     * Pwned Passwords Timeouts
+     * --------------------------------------------------------------------
+     * Timeouts (in seconds) for the HTTP call to the HaveIBeenPwned
+     * Passwords range API. Keep these short to avoid blocking
+     * registration / password-change flows when the API is slow.
+     */
+    public float $pwnedPasswordsConnectTimeout = 1.0;
+
+    public float $pwnedPasswordsTimeout = 3.0;
+
+    /**
+     * --------------------------------------------------------------------
+     * Recheck Pwned Password On Login
+     * --------------------------------------------------------------------
+     * When true, after a successful password verification on login the
+     * password is rechecked against the HIBP range API. If the password
+     * appears in a known breach corpus, `force_reset` is set on the user's
+     * email_password identity so the next request redirects to the force
+     * password reset flow.
+     *
+     * Disabled by default: extra HTTP call per login adds latency and a
+     * dependency on an external service. Enable in production only when
+     * the timeouts above are tuned and HIBP is reachable.
+     */
+    public bool $recheckPwnedOnLogin = false;
+
+    /**
+     * --------------------------------------------------------------------
+     * Password History (prevent reuse)
+     * --------------------------------------------------------------------
+     * Number of recent password hashes retained per user. The
+     * {@see \Daycry\Auth\Authentication\Passwords\HistoryValidator} rejects
+     * any new password matching one of the last N hashes.
+     *
+     * 0 = feature disabled (no history kept, no reuse check).
+     */
+    public int $passwordHistorySize = 0;
+
+    /**
+     * --------------------------------------------------------------------
+     * Password Maximum Age (rotation policy)
+     * --------------------------------------------------------------------
+     * When > 0, the {@see \Daycry\Auth\Filters\PasswordAgeFilter} forces a
+     * password reset once a user's `password_changed_at` is older than this
+     * many seconds.
+     *
+     * 0 = passwords never expire.
+     */
+    public int $passwordMaxAge = 0;
+
+    /**
+     * --------------------------------------------------------------------
+     * Suspicious Login Alerts
+     * --------------------------------------------------------------------
+     * When true, every successful login runs the
+     * {@see \Daycry\Auth\Authentication\Services\SuspiciousLoginDetector}
+     * and fires `suspicious-login` event + audit log entry whenever the
+     * IP or User-Agent does not match the user's recent history.
+     *
+     * Wire an `Events::on('suspicious-login', ...)` handler in your app to
+     * email the user / alert oncall on a flag.
+     */
+    public bool $suspiciousLoginAlerts = false;
 }

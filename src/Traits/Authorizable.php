@@ -23,6 +23,7 @@ use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\PermissionGroupModel;
 use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\PermissionUserModel;
+use Daycry\Auth\Services\AuditLogger;
 
 trait Authorizable
 {
@@ -76,6 +77,7 @@ trait Authorizable
         $this->populateGroups();
 
         $groupCount = count($this->groupCache);
+        $added      = [];
 
         foreach ($groups as $group) {
             $group = strtolower($group);
@@ -93,11 +95,18 @@ trait Authorizable
             }
 
             $this->groupCache[] = $group;
+            $added[]            = $group;
         }
 
         // Only save the results if there's anything new.
         if (count($this->groupCache) > $groupCount) {
             $this->saveGroups();
+
+            (new AuditLogger())->record(
+                AuditLogger::EVENT_GROUP_ASSIGNED,
+                (int) $this->id,
+                ['groups' => $added],
+            );
         }
 
         return $this;
@@ -115,12 +124,23 @@ trait Authorizable
         foreach ($groups as &$group) {
             $group = strtolower($group);
         }
+        unset($group);
+
+        $removed = array_values(array_intersect($this->groupCache, $groups));
 
         // Remove from local cache
         $this->groupCache = array_diff($this->groupCache, $groups);
 
         // Update the database.
         $this->saveGroups();
+
+        if ($removed !== []) {
+            (new AuditLogger())->record(
+                AuditLogger::EVENT_GROUP_REVOKED,
+                (int) $this->id,
+                ['groups' => $removed],
+            );
+        }
 
         return $this;
     }
@@ -183,6 +203,7 @@ trait Authorizable
         $this->populatePermissions();
 
         $permissionCount = count($this->permissionsCache);
+        $added           = [];
 
         foreach ($permissions as $permission) {
             $permission = strtolower($permission);
@@ -200,11 +221,18 @@ trait Authorizable
             }
 
             $this->permissionsCache[] = $permission;
+            $added[]                  = $permission;
         }
 
         // Only save the results if there's anything new.
         if (count($this->permissionsCache) > $permissionCount) {
             $this->savePermissions();
+
+            (new AuditLogger())->record(
+                AuditLogger::EVENT_PERMISSION_GRANTED,
+                (int) $this->id,
+                ['permissions' => $added],
+            );
         }
 
         return $this;
@@ -222,12 +250,23 @@ trait Authorizable
         foreach ($permissions as &$permission) {
             $permission = strtolower($permission);
         }
+        unset($permission);
+
+        $removed = array_values(array_intersect($this->permissionsCache, $permissions));
 
         // Remove from local cache
         $this->permissionsCache = array_diff($this->permissionsCache, $permissions);
 
         // Update the database.
         $this->savePermissions();
+
+        if ($removed !== []) {
+            (new AuditLogger())->record(
+                AuditLogger::EVENT_PERMISSION_REVOKED,
+                (int) $this->id,
+                ['permissions' => $removed],
+            );
+        }
 
         return $this;
     }
