@@ -32,7 +32,7 @@ deptrac:
       collectors:
         - type: directory
           value: src/Entities/.*
-          
+
   ruleset:
     Controller:
       - Service
@@ -47,10 +47,14 @@ deptrac:
       - Library
       - Config
       - Entity
+    # Token / OAuth repositories and the audit-hooked
+    # AccessTokenRepository / JwtTokenRepository legitimately depend on
+    # AuditLogger (Service) to record revocations.
     Model:
       - Interface
       - Entity
       - Config
+      - Service
     Library:
       - Model
       - Entity
@@ -58,11 +62,15 @@ deptrac:
       - Interface
     Interface:
       - Entity
+    # Entities reach Services indirectly through the cross-cutting traits
+    # (HasTotp, Authorizable, etc.) that record audit-log entries on
+    # behaviour changes. Allowed by design.
     Entity:
       - Config
       - Model
       - Interface
       - Library
+      - Service
     Config:
       - Interface
       - Model
