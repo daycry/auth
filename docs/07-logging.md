@@ -13,11 +13,13 @@ Daycry Auth provides two independent logging systems that complement each other:
 - [Available Events](#available-events)
 - [Listening to Events](#listening-to-events)
 - [Pre-Authentication Events](#pre-authentication-events)
+- [Suspicious Login Event](#suspicious-login-event)
 - [Database Logging](#database-logging)
 - [Login Attempt Logging](#login-attempt-logging)
 - [Failed Attempt Blocking](#failed-attempt-blocking)
 - [Per-User Account Lockout](#per-user-account-lockout)
 - [Rate Limiting](#rate-limiting)
+- [Audit Log (auth_audit_logs)](#audit-log-auth_audit_logs)
 - [Monitoring & Querying Logs](#monitoring--querying-logs)
 
 ---
@@ -75,6 +77,7 @@ Events::on('registered', static function (object $user): void {
 | `magicLogin` | After magic link login | `User $user` |
 | `oauth-login` | After successful OAuth login | `User $user`, `string $providerName` |
 | `oauth-profile-fetched` | After profile fields resolved from OAuth provider | `User $user`, `string $providerName`, `array $profileData` |
+| `suspicious-login` | After a successful login flagged as anomalous (when `AuthSecurity::$suspiciousLoginAlerts = true`) | `User $user`, `list<string> $flags`, `string $ipAddress`, `string $userAgent` |
 
 ---
 
@@ -176,6 +179,51 @@ Events::on('pre-register', static function (array $data): void {
     }
 });
 ```
+
+---
+
+## Suspicious Login Event
+
+When `AuthSecurity::$suspiciousLoginAlerts = true`, every successful login runs `SuspiciousLoginDetector` and fires the `suspicious-login` event whenever the IP / User-Agent does not match the user's recent history.
+
+### Listener — email the user
+
+```php
+use CodeIgniter\Events\Events;
+use CodeIgniter\I18n\Time;
+use Daycry\Auth\Entities\User;
+
+Events::on('suspicious-login', static function (User $user, array $flags, string $ip, string $ua): void {
+    helper('email');
+
+    $email = emailer()
+        ->setFrom(setting('Email.fromEmail'), (string) setting('Email.fromName'))
+        ->setTo($user->email)
+        ->setSubject(lang('Auth.suspiciousLoginSubject'))
+        ->setMessage(view('Daycry\\Auth\\Views\\Email\\suspicious_login_alert', [
+            'user'      => $user,
+            'flags'     => $flags,
+            'ipAddress' => $ip,
+            'userAgent' => $ua,
+            'date'      => Time::now()->toDateTimeString(),
+        ]));
+
+    $email->send(false);
+});
+```
+
+### Possible flag values
+
+| Flag | Meaning |
+|------|---------|
+| `new_ip` | The IP has not appeared in this user's successful logins for the last 30 days. |
+| `new_device` | The User-Agent has not been seen on any device session for this user. |
+
+The flags list is forward-compatible — additional signals (geo-IP mismatch, ASN reputation, time-of-day anomaly) can be added without breaking existing listeners.
+
+> Every flagged login also writes an `EVENT_SUSPICIOUS_LOGIN` row to the audit log — see [Audit Log](#audit-log-auth_audit_logs) below.
+
+See [Audit & Compliance — Suspicious Login Detection](13-audit-and-compliance.md#suspicious-login-detection) for the full reference.
 
 ---
 
@@ -353,6 +401,68 @@ public array $aliases = [
     'auth-rates' => \Daycry\Auth\Filters\AuthRatesFilter::class,
 ];
 ```
+
+---
+
+## Audit Log (auth_audit_logs)
+
+A second log table — `auth_audit_logs` — captures **account-level** events that need long-term traceability, distinct from request-level activity (`auth_logs`) and login attempts (`auth_logins`):
+
+| Table | Granularity | Use |
+|-------|-------------|-----|
+| `auth_logs` | Per request | Request-level activity log (controller, URI, response code) |
+| `auth_logins` | Per login attempt | Successful + failed login attempts |
+| `auth_audit_logs` | Per account event | Sensitive account changes (2FA, password, role, lockout) |
+
+### Built-in events
+
+The `\Daycry\Auth\Services\AuditLogger` service records 22 canonical event types — see the [Audit & Compliance reference](13-audit-and-compliance.md#built-in-events) for the full list. Highlights:
+
+- TOTP enable/disable, admin reset
+- Password change, password reset
+- User lockout / unlock
+- Group / permission grant / revoke
+- Token / refresh-token revoke
+- Trusted device added
+- Suspicious login
+- User anonymization (GDPR)
+
+### Recording your own events
+
+```php
+use Daycry\Auth\Services\AuditLogger;
+
+(new AuditLogger())->record(
+    AuditLogger::EVENT_PASSWORD_CHANGED,
+    userId: $user->id,
+    metadata: ['source' => 'profile_form'],
+);
+```
+
+### Querying
+
+```bash
+# CLI
+php spark auth:audit --user=alice@example.com --since=30d
+php spark auth:audit --type=login.suspicious --limit=200
+```
+
+```php
+// Code
+use Daycry\Auth\Models\AuditLogModel;
+
+$audit = model(AuditLogModel::class);
+$entries = $audit->recentForUser($userId, 50);
+
+foreach ($entries as $entry) {
+    echo $entry->event_type . ' at ' . $entry->created_at . "\n";
+    var_dump($entry->getMetadata());
+}
+```
+
+> Failures inside `AuditLogger::record()` are caught and logged at `warning` — audit failure must never break the user-facing flow.
+
+See [Audit & Compliance](13-audit-and-compliance.md) for the full feature documentation.
 
 ---
 

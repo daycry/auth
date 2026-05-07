@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### 2FA UX
+- **Backup codes for TOTP** — `auth_totp_backup_codes` table + `TotpBackupCodeModel` + `HasTotp::generateBackupCodes()` / `consumeBackupCode()` / `backupCodesRemaining()`. Codes generated on TOTP confirmation, shown once on the success page, used as fallback in `Totp2FA::verifyCodeForUser()` when the TOTP code itself does not match. Stored as SHA-256 hashes; one-time-use enforced atomically.
+- **"Trust this device" 2FA bypass** — new `trusted_until` column on `auth_device_sessions`. After successful TOTP verification with the checkbox ticked, the device is marked trusted for `AuthSecurity::$trustedDeviceLifetime` (default 30 days) and a signed cookie is issued; subsequent logins from the same device skip the 2FA challenge. Setting `trustedDeviceLifetime = 0` disables the feature entirely.
+
+#### Security tooling
+- **API token scope enforcement** — new `token-scope:scope1,scope2` filter alias backed by `TokenScopeFilter`. Validates `auth()->user()->currentAccessToken()->can($scope)` for every requested scope. Tokens with the `*` wildcard satisfy any check.
+- **Suspicious login detection** — new `SuspiciousLoginDetector` service (`isNewIp()`, `isNewDevice()`, `analyse()`) compares each successful login's IP / User-Agent against the user's last 30 days of history. When `AuthSecurity::$suspiciousLoginAlerts = true`, fires the new `suspicious-login` event and writes an audit-log entry. New `Views/Email/suspicious_login_alert.php` template ships with the package; wire your own `Events::on('suspicious-login', ...)` listener to deliver it.
+- **Compromised-password recheck on login** — opt-in (`AuthSecurity::$recheckPwnedOnLogin = true`). After a successful password verification, runs `PwnedValidator` against the live password and sets `force_reset` on the email_password identity if the password is in the HIBP breach corpus. Failures inside the recheck are logged and swallowed — login never blocks on HIBP availability.
+
+#### Compliance
+- **Granular audit log** — new `auth_audit_logs` table + `AuditLogModel` + `AuditLogger` service. Hooks recorded for: TOTP enable/disable, password reset/change, user lock/unlock, group/permission grant/revoke, token / refresh-token revoke, trusted-device add, suspicious login, admin TOTP reset, user anonymization. Lookups indexed by `(user_id, created_at)` and `(event_type, created_at)`.
+- **Password history (NIST 800-63B SP §5.1.1.2)** — new `auth_password_history` table + `PasswordHistoryModel` + `HistoryValidator`. When `AuthSecurity::$passwordHistorySize > 0`, a new password is rejected if it matches any of the user's last N hashes; older entries are pruned automatically.
+- **Periodic password rotation** — new `password_changed_at` column on `users`, new `password-age` filter alias backed by `PasswordAgeFilter`. When `AuthSecurity::$passwordMaxAge > 0` and the timestamp is older than that, the request is redirected to the force-reset flow.
+- **GDPR export + anonymization** — new `auth:gdpr export -e <email> [-o <path>]` and `auth:gdpr anonymize -e <email>` commands. Export emits a JSON document with the user row, identities (with secrets redacted), device sessions, login history, audit log entries, and password-history / backup-code metadata. Anonymize replaces personal fields with placeholders, deletes identities/tokens/device sessions/password history/backup codes, and writes a final audit-log entry.
+
+#### Quality-of-life
+- **Per-user concurrent session limit** — new `Auth::$maxConcurrentSessions` (default 0 = unlimited). When > 0, the oldest active sessions are terminated on each new login so that no user has more than this many simultaneous sessions. Implemented via `DeviceSessionModel::enforceConcurrentSessionLimit()`.
+- **User-facing login activity feed** — new `UserSecurityController::loginActivity()` + `Views/security/login_activity.php`. Lists the user's recent login attempts (success + failure) with timestamp, IP, and User-Agent so they can spot suspicious activity targeting their account.
+- **CLI admin tools** — four new commands:
+  - `auth:tokens revoke -e <email> [--type=access_token|jwt_refresh|all]`
+  - `auth:sessions terminate -e <email>`
+  - `auth:totp reset -e <email>`
+  - `auth:audit [--since=24h] [--user=<email>] [--type=<event>]`
+
+### Security
+
+- **Atomic per-user lockout counter** — `UserLockoutManager::recordFailedAttempt()` now uses a SQL increment expression (`failed_login_count = failed_login_count + 1`) and re-reads the post-increment value before deciding whether to lock the account. The previous read-modify-write pattern could lose concurrent failed-attempt updates, allowing more attempts than `userMaxAttempts` before lockout under load.
+- **Timing-safe OAuth state comparison** — `OauthManager::handleCallback()` now compares the callback `state` against the session-stored value via `hash_equals()` instead of `!==`. Empty states and missing session values are also rejected explicitly. The check is followed by an empty-`code` guard.
+
+### Performance
+
+- **`last_used_at` write throttling for access tokens** — new `AuthSecurity::$tokenLastUsedThrottle` setting (default 60 seconds) prevents an UPDATE on every authenticated API request. Set to `0` to restore the previous always-write behaviour.
+- **Composite index on `auth_identities(user_id, type, revoked_at)`** — new migration `2026-05-07-000001_add_identities_user_type_revoked_index` covers the common per-user identity-listing query shape. The existing `UNIQUE(type, secret)` continues to handle direct token lookups.
+- **Faster UUID backfill** — `2026-02-28-000001_add_uuid_columns` now backfills via `updateBatch()` in chunks of 1 000, replacing the previous one-UPDATE-per-row loop. Idempotent on re-run (skips rows that already have a `uuid`).
+
+### Changed
+
+- **`AccessToken` authenticator now routes lookups through `AccessTokenRepository`** — uses a lazy-initialised repository getter instead of calling the deprecated `UserIdentityModel::getAccessTokenByRawToken()`. The repository owns the canonical query.
+- **PwnedValidator HTTP timeouts** — new `AuthSecurity::$pwnedPasswordsConnectTimeout` (default 1.0s) and `$pwnedPasswordsTimeout` (default 3.0s) settings prevent registration / password-change flows from blocking when the HaveIBeenPwned API is slow.
+- **TOTP verification window is configurable** — new `AuthSecurity::$totpWindow` (default 1 = ±30s, RFC 6238 default) replaces the hardcoded value. `User::verifyTotpCode($code)` resolves it from settings; pass an explicit `$window` to override.
+- **`tests/_support/TestCase.php`** — added correctly-spelled `injectMockAttributes()`, `injectMockAttributesSecurity()`, `injectMockAttributesOAuth()`. The previous typo variants (`inkect*`) remain as deprecated aliases until v6.
+- **DB failures in `DeviceSessionRecorder` are logged but no longer propagate** — device session tracking is non-critical and must not break login/logout.
+- **JWT decode failures now log a `warning`-level message** — previously the exception was caught silently and only the error message was returned in the `Result`.
+
+### Documentation
+
+- `docs/02-configuration.md` — documents `tokenLastUsedThrottle`, `pwnedPasswordsTimeout`, `pwnedPasswordsConnectTimeout`.
+- `docs/10-totp-2fa.md` — documents `totpWindow`.
+- `docs/08-testing.md` — examples updated to the correctly-spelled `injectMockAttributes*` helpers.
+- `Config/AuthSecurity.php` — clearer guidance on enabling `permissionCacheEnabled` in production.
+
 ## [5.0.0] - 2026-03-20
 
 ### Added

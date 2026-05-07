@@ -9,8 +9,11 @@ Time-based One-Time Passwords (TOTP) add a powerful second layer of security to 
 - [User Enrollment](#user-enrollment)
 - [Login Flow](#login-flow)
 - [HasTotp Trait Reference](#hastotp-trait-reference)
+- [Backup Codes](#backup-codes)
+- [Trust This Device](#trust-this-device)
 - [UserSecurityController Integration](#usersecuritycontroller-integration)
 - [Disabling TOTP](#disabling-totp)
+- [Admin TOTP Reset](#admin-totp-reset)
 - [Testing TOTP](#testing-totp)
 - [Security Notes](#security-notes)
 
@@ -67,6 +70,12 @@ In `app/Config/AuthSecurity.php`, set the app name shown in the authenticator ap
 
 ```php
 public string $totpIssuer = 'My App';
+
+// Number of 30-second steps to accept on either side of the current
+// timestamp when verifying codes. 1 = ±30s window (RFC 6238 default,
+// recommended). Increase only to tolerate severe clock drift; lowering
+// to 0 means clients must be perfectly in sync.
+public int $totpWindow = 1;
 ```
 
 ### 3. Configure the Encryption Key
@@ -209,11 +218,24 @@ $user->getTotpSecret(): ?string
 // === Verification ===
 
 // Checks a 6-digit code against the user's stored secret.
-$user->verifyTotpCode(string $code): bool
+// $window defaults to AuthSecurity::$totpWindow when null.
+$user->verifyTotpCode(string $code, ?int $window = null): bool
+
+// === Backup codes ===
+
+// Replaces the user's backup codes with a fresh set and returns the
+// plain-text codes (only shown once — display them to the user immediately).
+$user->generateBackupCodes(int $count = 10): array
+
+// Counts unused backup codes remaining for the user.
+$user->backupCodesRemaining(): int
+
+// Verifies + atomically consumes a single backup code.
+$user->consumeBackupCode(string $code): bool
 
 // === Removal ===
 
-// Removes the TOTP secret identity entirely (both pending and confirmed).
+// Removes the TOTP secret identity AND purges any remaining backup codes.
 $user->disableTotp(): void
 ```
 
@@ -231,6 +253,123 @@ public function securityIndex(): string
     ]);
 }
 ```
+
+---
+
+## Backup Codes
+
+Backup codes let a user authenticate when their authenticator app is unavailable (lost phone, replaced device). They are **one-time use** — once consumed, the code cannot be reused.
+
+### When they are generated
+
+`UserSecurityController::totpSetupConfirm()` calls `$user->generateBackupCodes()` automatically right after the user confirms their first TOTP code. The plain-text codes are passed once to the success view (`Views/totp_setup_success.php`) — store them, screenshot them, or print them. **They cannot be retrieved later**.
+
+### How they work during login
+
+`Totp2FA::verifyCodeForUser()` first attempts to verify the input as a TOTP code. If that fails, it tries to consume a backup code:
+
+```
+User submits "abc123def4"
+        ↓
+TOTP::verify(...) → false (not a 6-digit code)
+        ↓
+$user->consumeBackupCode('abc123def4')
+        ↓
+hash('sha256', 'abc123def4') matches an unused row → success
+        ↓
+Row marked used_at = NOW() → cannot be used again
+```
+
+The 10 codes are 10-character lowercase hex strings — visually distinct from the 6-digit TOTP, so accidental collisions are essentially impossible.
+
+### Storage
+
+| Column | Description |
+|--------|-------------|
+| `id`, `user_id` | Standard. |
+| `code_hash` | SHA-256 of the lowercase plain code. The plaintext never enters the database. |
+| `used_at` | Datetime of consumption. Null = unused. |
+| `created_at` | Generation timestamp. |
+
+Indexes: `(user_id, used_at)` for fast unused-code lookups; `UNIQUE(user_id, code_hash)` to prevent duplicates.
+
+### Programmatic regeneration
+
+If a user thinks their backup codes are compromised:
+
+```php
+$newCodes = $user->generateBackupCodes(10);
+return view('account/new_backup_codes', ['codes' => $newCodes]);
+```
+
+`generateBackupCodes()` always replaces the entire set — old codes (used or not) are deleted before the new ones are inserted.
+
+### Lifecycle with TOTP
+
+| Action | Effect on backup codes |
+|--------|------------------------|
+| `enableTotp()` | No effect (codes only generated on `confirmTotp()`). |
+| `confirmTotp()` (first time) | Caller (typically `UserSecurityController`) generates the initial set. |
+| `disableTotp()` | All codes are purged automatically. |
+| `auth:totp reset` (admin) | All codes are purged automatically. |
+
+---
+
+## Trust This Device
+
+Lets the user opt out of repeating 2FA on devices they own. Combines with [Device Sessions](11-device-sessions.md) — the trust flag is stored on the `auth_device_sessions` row, not in a stand-alone cookie payload.
+
+### Enable
+
+```php
+// app/Config/AuthSecurity.php
+
+// 30 days is a reasonable default. 0 = feature disabled (always require 2FA).
+public int $trustedDeviceLifetime = 30 * DAY;
+```
+
+### User flow
+
+1. User logs in with email + password.
+2. `Totp2FA::createIdentity()` checks for an `auth_trusted_device` cookie. If the cookie maps to an active `device_sessions` row whose `trusted_until` is in the future and whose `user_id` matches, the 2FA challenge is **skipped entirely**.
+3. Otherwise the standard 2FA form is shown — with a **"Trust this device for 30 days"** checkbox if `trustedDeviceLifetime > 0`.
+4. After successful verification, if the checkbox was ticked:
+   - `device_sessions.trusted_until = now + lifetime` for the current session.
+   - The `auth_trusted_device` cookie is set with the device UUID encrypted via `service('encrypter')` (HttpOnly, SameSite=Lax, secure when `App.cookieSecure = true`).
+   - An `EVENT_TRUSTED_DEVICE_ADDED` audit entry is recorded.
+
+### Revoking trust
+
+Trust is automatically revoked when:
+
+- `trusted_until` passes (no longer accepted at login).
+- The user revokes the device session (`UserSecurityController::revokeSession`) — `logged_out_at` is set, the row no longer matches the trusted-device check.
+- The user logs out manually.
+- The cookie is deleted by the browser.
+
+To revoke trust programmatically (e.g. when the user changes their password):
+
+```php
+/** @var \Daycry\Auth\Models\DeviceSessionModel $devices */
+$devices = model(\Daycry\Auth\Models\DeviceSessionModel::class);
+
+foreach ($devices->getAllForUser($user) as $session) {
+    $devices->revokeTrust((string) $session->uuid);
+}
+```
+
+### Security properties
+
+- The cookie carries the device UUID encrypted with the application key. An attacker who steals the cookie alone still needs:
+  - The corresponding active `device_sessions` row (joined to the same `user_id`).
+  - `trusted_until` to be in the future.
+- Stealing only the cookie or only the DB row is not enough.
+- Revoking the device session immediately invalidates the trust regardless of cookie validity.
+
+### When NOT to use
+
+- Shared computers / kiosks → keep `trustedDeviceLifetime = 0`.
+- Strict regulatory environments (PCI-DSS Level 1, HIPAA in some interpretations) → review whether bypassing 2FA per device is acceptable.
 
 ---
 
@@ -252,6 +391,23 @@ $routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\C
 ```
 
 The views are configured in `app/Config/Auth.php` under the `$views` array (see [Override the Default TOTP Views](#override-the-default-totp-views) above).
+
+---
+
+## Admin TOTP Reset
+
+When a user has lost both their authenticator and all backup codes, an administrator can reset TOTP from the CLI:
+
+```bash
+php spark auth:totp reset -e alice@example.com
+```
+
+This:
+
+1. Calls `$user->disableTotp()` — removes the TOTP secret + every backup code.
+2. Writes an `EVENT_TOTP_ADMIN_RESET` audit entry with `metadata.initiator = cli`.
+
+The user re-enrolls TOTP from scratch the next time they visit `/security/totp/setup`. See [CLI Commands — `auth:totp`](14-cli-commands.md#auth-totp) for full options.
 
 ---
 

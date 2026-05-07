@@ -412,6 +412,9 @@ $routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\C
 
     // OAuth
     $routes->post('oauth/unlink/(:segment)', 'UserSecurityController::unlinkOauth/$1', ['as' => 'oauth-unlink']);
+
+    // Login activity feed (recent attempts)
+    $routes->get('activity', 'UserSecurityController::loginActivity', ['as' => 'security-activity']);
 });
 ```
 
@@ -439,6 +442,33 @@ Called when the user clicks the confirmation link in their email. Validates the 
 ### unlinkOauth()
 
 Removes an OAuth provider link from the user's account. Fails gracefully if the user would have no remaining login method.
+
+### loginActivity()
+
+Returns a Bootstrap-styled view (`Views/security/login_activity.php`) listing the user's recent login attempts (success + failure). Reads from `auth_logins` via `LoginModel::recentForUser()`.
+
+**Query string parameters:**
+
+| Param | Default | Max | Description |
+|-------|---------|-----|-------------|
+| `limit` | `25` | `100` | Number of entries to display. |
+
+**Override the view** via `setting('Auth.views')['security_login_activity']`:
+
+```php
+// app/Config/Auth.php
+public array $views = [
+    // ...
+    'security_login_activity' => 'App\Views\security\my_activity_feed',
+];
+```
+
+The default view exposes these variables:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `$entries` | `list<\Daycry\Auth\Entities\Login>` | Login rows newest-first. |
+| `$limit` | `int` | The applied limit. |
 
 ```html
 <!-- In a security settings view -->
