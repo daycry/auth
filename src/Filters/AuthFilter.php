@@ -43,7 +43,6 @@ class AuthFilter implements FilterInterface
 
         $alias = $this->determineAuthenticator($arguments, $endpoint);
 
-        /** @var AuthenticatorInterface $authenticator */
         $authenticator = auth($alias)->getAuthenticator();
 
         /** @var Auth $config */

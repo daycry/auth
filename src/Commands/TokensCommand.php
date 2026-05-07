@@ -108,7 +108,6 @@ class TokensCommand extends BaseCommand
 
         try {
             if ($type === 'all' || $type === 'access_token') {
-                /** @var AccessTokenRepository $repo */
                 $repo = new AccessTokenRepository(model(UserIdentityModel::class));
                 $repo->softRevokeAllAccessTokens($user);
                 CLI::write('Revoked all access tokens for user ' . $user->id, 'green');

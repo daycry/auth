@@ -252,7 +252,6 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         try {
-            /** @var PwnedValidator $validator */
             $validator = new PwnedValidator(
                 config(AuthSecurity::class),
             );

@@ -15,7 +15,6 @@ namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
-use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Interfaces\JWTAdapterInterface;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -68,7 +67,6 @@ class JwtController extends BaseAuthController
 
         $credentials = $this->extractLoginCredentials();
 
-        /** @var Session $authenticator */
         $authenticator = $this->getSessionAuthenticator();
         $result        = $authenticator->check($credentials);
 
