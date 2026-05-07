@@ -199,7 +199,7 @@ class NothingPersonalValidator extends BaseValidator implements PasswordValidato
     protected function strip_explode(string $str): array
     {
         $stripped = preg_replace('/[\W_]+/', ' ', $str);
-        $parts    = explode(' ', trim($stripped));
+        $parts    = explode(' ', trim((string) $stripped));
 
         // If it's not already there put the untouched input at the top of the array
         if (! in_array($str, $parts, true)) {

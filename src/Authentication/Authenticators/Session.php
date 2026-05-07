@@ -70,17 +70,17 @@ class Session extends Base implements AuthenticatorInterface
     /**
      * Manages per-user account lockout after repeated failed login attempts.
      */
-    private UserLockoutManager $lockoutManager;
+    private readonly UserLockoutManager $lockoutManager;
 
     /**
      * Handles creation and termination of device session records.
      */
-    private DeviceSessionRecorder $deviceRecorder;
+    private readonly DeviceSessionRecorder $deviceRecorder;
 
     /**
      * Coordinates post-authentication actions (Email2FA, EmailActivator, Totp2FA).
      */
-    private PendingActionCoordinator $actionCoordinator;
+    private readonly PendingActionCoordinator $actionCoordinator;
 
     public function __construct(
         UserProviderInterface $provider,

@@ -478,7 +478,7 @@ abstract class AbstractTranslationTestCase extends TestCase
         $dirs = directory_map(getcwd() . '/Language', 1);
 
         foreach ($dirs as $dir) {
-            $dir        = trim($dir, '\\/');
+            $dir        = trim((string) $dir, '\\/');
             $sets[$dir] = [$dir];
         }
 

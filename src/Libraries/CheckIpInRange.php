@@ -53,9 +53,9 @@ class CheckIpInRange
      */
     public static function ipv4_in_range($ip, $range)
     {
-        if (str_contains($range, '/')) {
+        if (str_contains((string) $range, '/')) {
             // $range is in IP/NETMASK format
-            [$range, $netmask] = explode('/', $range, 2);
+            [$range, $netmask] = explode('/', (string) $range, 2);
             if (str_contains($netmask, '.')) {
                 // $netmask is a 255.255.0.0 format
                 $netmask     = str_replace('*', '0', $netmask);
@@ -85,15 +85,15 @@ class CheckIpInRange
             return ($ip_dec & $netmask_dec) === ($range_dec & $netmask_dec);
         }
         // range might be 255.255.*.* or 1.2.3.0-1.2.3.255
-        if (str_contains($range, '*')) { // a.b.*.* format
+        if (str_contains((string) $range, '*')) { // a.b.*.* format
             // Just convert to A-B format by setting * to 0 for A and 255 for B
             $lower = str_replace('*', '0', $range);
             $upper = str_replace('*', '255', $range);
             $range = "{$lower}-{$upper}";
         }
 
-        if (str_contains($range, '-')) { // A-B format
-            [$lower, $upper] = explode('-', $range, 2);
+        if (str_contains((string) $range, '-')) { // A-B format
+            [$lower, $upper] = explode('-', (string) $range, 2);
             $lower_dec       = (float) sprintf('%u', ip2long($lower));
             $upper_dec       = (float) sprintf('%u', ip2long($upper));
             $ip_dec          = (float) sprintf('%u', ip2long($ip));
@@ -117,7 +117,7 @@ class CheckIpInRange
      */
     public static function ipv6_in_range($ip, $range_ip)
     {
-        $pieces     = explode('/', $range_ip, 2);
+        $pieces     = explode('/', (string) $range_ip, 2);
         $left_piece = $pieces[0];
 
         // Extract out the main IP pieces
@@ -170,11 +170,11 @@ class CheckIpInRange
      */
     private static function ip2long6($ip)
     {
-        if (substr_count($ip, '::') !== 0) {
-            $ip = str_replace('::', str_repeat(':0000', 8 - substr_count($ip, ':')) . ':', $ip);
+        if (substr_count((string) $ip, '::') !== 0) {
+            $ip = str_replace('::', str_repeat(':0000', 8 - substr_count((string) $ip, ':')) . ':', $ip);
         }
 
-        $ip   = explode(':', $ip);
+        $ip   = explode(':', (string) $ip);
         $r_ip = '';
 
         foreach ($ip as $v) {
@@ -192,7 +192,7 @@ class CheckIpInRange
     // Get the ipv6 full format and return it as a decimal value.
     public static function get_ipv6_full($ip)
     {
-        $pieces     = explode('/', $ip, 2);
+        $pieces     = explode('/', (string) $ip, 2);
         $left_piece = $pieces[0];
 
         // Extract out the main IP pieces

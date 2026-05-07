@@ -23,7 +23,7 @@ use Daycry\Auth\Config\Auth;
  */
 class CreatePasswordHistoryTable extends Migration
 {
-    private string $table;
+    private readonly string $table;
 
     public function __construct(?Forge $forge = null)
     {

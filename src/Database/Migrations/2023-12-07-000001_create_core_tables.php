@@ -20,7 +20,7 @@ use CodeIgniter\Database\RawSql;
 class CreateCoreTables extends Migration
 {
     private array $tables;
-    private array $attributes;
+    private readonly array $attributes;
 
     public function __construct(?Forge $forge = null)
     {

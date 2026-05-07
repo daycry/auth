@@ -38,7 +38,6 @@ use Throwable;
 
 class OauthManager
 {
-    protected AuthConfig $config;
     protected AbstractProvider $provider;
     protected string $providerName;
     private ?OAuthTokenRepository $repository = null;
@@ -56,9 +55,8 @@ class OauthManager
         'github'   => Github::class,
     ];
 
-    public function __construct(AuthConfig $config)
+    public function __construct(protected AuthConfig $config)
     {
-        $this->config = $config;
     }
 
     /**

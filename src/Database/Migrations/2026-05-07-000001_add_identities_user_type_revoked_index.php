@@ -31,7 +31,7 @@ use Throwable;
  */
 class AddIdentitiesUserTypeRevokedIndex extends Migration
 {
-    private string $table;
+    private readonly string $table;
 
     public function __construct(?Forge $forge = null)
     {
@@ -59,7 +59,7 @@ class AddIdentitiesUserTypeRevokedIndex extends Migration
 
         try {
             $this->forge->dropKey($this->table, $indexName);
-        } catch (Throwable $e) {
+        } catch (Throwable) {
             // Index may not exist if up() was never run — safe to ignore.
         }
     }

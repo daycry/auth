@@ -64,7 +64,7 @@ class ChainAuthFilter implements FilterInterface
 
                     return;
                 }
-            } catch (Exception $e) {
+            } catch (Exception) {
                 continue;
             }
         }

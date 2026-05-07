@@ -18,7 +18,6 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
-use CodeIgniter\HTTP\Response;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
@@ -83,10 +82,8 @@ class EmailActivator extends AbstractAction
 
     /**
      * This method is unused.
-     *
-     * @return Response|string
      */
-    public function handle(IncomingRequest $request)
+    public function handle(IncomingRequest $request): never
     {
         throw new PageNotFoundException();
     }

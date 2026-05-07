@@ -66,7 +66,7 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
         }
 
         $range    = $response->getBody();
-        $startPos = strpos($range, $searchHash);
+        $startPos = strpos((string) $range, $searchHash);
         if ($startPos === false) {
             return new Result([
                 'success' => true,
@@ -74,8 +74,8 @@ class PwnedValidator extends BaseValidator implements PasswordValidatorInterface
         }
 
         $startPos += 36; // right after the delimiter (:)
-        $endPos = strpos($range, "\r\n", $startPos);
-        $hits   = $endPos !== false ? (int) substr($range, $startPos, $endPos - $startPos) : (int) substr($range, $startPos);
+        $endPos = strpos((string) $range, "\r\n", $startPos);
+        $hits   = $endPos !== false ? (int) substr((string) $range, $startPos, $endPos - $startPos) : (int) substr((string) $range, $startPos);
 
         $wording = $hits > 1 ? 'databases' : 'a database';
 

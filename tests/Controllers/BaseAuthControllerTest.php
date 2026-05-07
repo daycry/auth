@@ -70,7 +70,7 @@ class MockBaseAuthController extends BaseAuthController
         return new class () {
             public function encrypt($data)
             {
-                return 'encrypted_' . base64_encode($data);
+                return 'encrypted_' . base64_encode((string) $data);
             }
         };
     }
@@ -190,7 +190,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
         $this->assertSame(200, $response->getStatusCode());
 
-        $body = json_decode($response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
         $this->assertSame('success', $body['status']);
         $this->assertSame('test', $body['method']);
     }
@@ -206,7 +206,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
         $this->assertSame(403, $response->getStatusCode());
 
-        $body = json_decode($response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
         $this->assertFalse($body['status']);
         $this->assertSame('Test error', $body['error']);
         $this->assertArrayHasKey('token', $body);
@@ -219,7 +219,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
         $this->assertSame(400, $response->getStatusCode());
 
-        $body = json_decode($response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
         $this->assertSame('Test error', $body['message']);
     }
 
@@ -238,7 +238,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
         $this->assertSame(200, $response->getStatusCode());
 
-        $body = json_decode($response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
         $this->assertArrayHasKey('encrypted', $body);
         $this->assertNotSame($data, $body['encrypted']);
     }
@@ -249,7 +249,7 @@ final class BaseAuthControllerTest extends DatabaseTestCase
 
         $this->assertSame(200, $response->getStatusCode());
 
-        $body = json_decode($response->getBody(), true);
+        $body = json_decode((string) $response->getBody(), true);
         $this->assertArrayHasKey('token', $body);
         $this->assertArrayHasKey('name', $body['token']);
         $this->assertArrayHasKey('hash', $body['token']);

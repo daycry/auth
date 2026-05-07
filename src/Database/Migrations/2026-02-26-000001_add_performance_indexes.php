@@ -38,7 +38,7 @@ class AddPerformanceIndexes extends Migration
      *
      * @var array<string, list<list<string>|string>>
      */
-    private array $indexMap;
+    private readonly array $indexMap;
 
     public function __construct(?Forge $forge = null)
     {
@@ -99,7 +99,7 @@ class AddPerformanceIndexes extends Migration
 
                 try {
                     $this->forge->dropKey($table, $indexName);
-                } catch (Throwable $e) {
+                } catch (Throwable) {
                     // Index may not exist if up() was never run — safe to ignore.
                 }
             }
