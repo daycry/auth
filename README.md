@@ -2,14 +2,30 @@
 
 # Daycry Auth
 
+<!-- CI / quality -->
 [![Tests](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
 [![Static Analysis](https://github.com/daycry/auth/actions/workflows/static-analysis.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/static-analysis.yml)
+[![CodeQL](https://github.com/daycry/auth/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/codeql.yml)
 [![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
 [![Documentation Status](https://readthedocs.org/projects/authentication-for-codeigniter-4/badge/?version=latest)](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/?badge=latest)
-[![Downloads](https://poser.pugx.org/daycry/auth/downloads)](https://packagist.org/packages/daycry/auth)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/daycry/auth)](https://packagist.org/packages/daycry/auth)
-[![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://packagist.org/packages/daycry/auth)
-[![GitHub license](https://img.shields.io/github/license/daycry/auth)](https://github.com/daycry/auth/blob/main/LICENSE)
+
+<!-- Package -->
+[![Latest Stable Version](https://poser.pugx.org/daycry/auth/v/stable)](https://packagist.org/packages/daycry/auth)
+[![Latest Unstable Version](https://poser.pugx.org/daycry/auth/v/unstable)](https://packagist.org/packages/daycry/auth)
+[![Total Downloads](https://poser.pugx.org/daycry/auth/downloads)](https://packagist.org/packages/daycry/auth)
+[![Monthly Downloads](https://poser.pugx.org/daycry/auth/d/monthly)](https://packagist.org/packages/daycry/auth)
+[![License](https://poser.pugx.org/daycry/auth/license)](https://github.com/daycry/auth/blob/main/LICENSE)
+
+<!-- Tooling -->
+[![PHP Version Require](https://poser.pugx.org/daycry/auth/require/php)](https://packagist.org/packages/daycry/auth)
+[![PHPStan level 5](https://img.shields.io/badge/PHPStan-level%205-2563eb.svg)](phpstan.neon.dist)
+[![Code Style: php-cs-fixer](https://img.shields.io/badge/code%20style-php--cs--fixer-1abc9c.svg)](.php-cs-fixer.dist.php)
+[![Architecture: deptrac](https://img.shields.io/badge/architecture-deptrac-7c3aed.svg)](deptrac.yaml)
+
+<!-- Community -->
+[![GitHub stars](https://img.shields.io/github/stars/daycry/auth)](https://github.com/daycry/auth/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/daycry/auth)](https://github.com/daycry/auth/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/daycry/auth)](https://github.com/daycry/auth/issues)
 
 A comprehensive authentication and authorization library for **CodeIgniter 4**, designed to be flexible, secure, and easy to extend.
 

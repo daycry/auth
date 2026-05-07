@@ -1,0 +1,50 @@
+version: 2
+updates:
+  # Composer dependencies — keeps PHPStan, PHP-CS-Fixer, Rector, etc. on
+  # current minor versions so CI never lags behind upstream rule changes.
+  - package-ecosystem: composer
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - composer
+    commit-message:
+      prefix: "deps"
+    groups:
+      # Bundle related dev tools together so the cs / phpstan / rector triad
+      # never end up split across three different PRs.
+      static-analysis:
+        patterns:
+          - "phpstan/*"
+          - "friendsofphp/php-cs-fixer"
+          - "codeigniter/coding-standard"
+          - "nexusphp/cs-config"
+          - "rector/rector"
+          - "deptrac/*"
+      symfony:
+        patterns:
+          - "symfony/*"
+      league:
+        patterns:
+          - "league/*"
+
+  # GitHub Actions — pin SHA upgrades for shivammathur/setup-php,
+  # actions/checkout, actions/cache, etc.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "ci"
