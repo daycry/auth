@@ -92,8 +92,10 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/vendor/phpstan/phpstan-strict-rules/rules.neon',
     ]);
 
-    // Set the target version for refactoring
-    $rectorConfig->phpVersion(PhpVersion::PHP_74);
+    // Set the target version for refactoring. Tracks the project's
+    // composer.json minimum (^8.2) so Rector never proposes syntax that
+    // would break installs on the lowest supported runtime.
+    $rectorConfig->phpVersion(PhpVersion::PHP_82);
 
     // Auto-import fully qualified class names
     $rectorConfig->importNames();

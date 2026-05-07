@@ -14,7 +14,7 @@
     "prefer-stable": true,
     "license": "MIT",
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "codeigniter4/settings": "^2",
         "daycry/class-finder": "^2.0",
         "daycry/encryption": "^2.0",

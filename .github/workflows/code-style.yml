@@ -17,11 +17,11 @@ jobs:
 
       # PHP-CS-Fixer recommends running on the project's *minimum*
       # supported PHP version so emitted fixes stay compatible. composer.json
-      # declares "php": "^8.1", so 8.1 is the right one here.
+      # declares "php": "^8.2", so 8.2 is the right one here.
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.2'
           tools: composer
           coverage: none
 
@@ -33,8 +33,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ steps.composercache.outputs.dir }}
-          key: ${{ runner.os }}-php-8.1-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-php-8.1-composer-
+          key: ${{ runner.os }}-php-8.2-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-php-8.2-composer-
 
       - name: Install dependencies
         run: composer install --no-progress --no-interaction --prefer-dist
