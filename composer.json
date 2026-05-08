@@ -18,7 +18,7 @@
         "codeigniter4/settings": "^2",
         "daycry/class-finder": "^2.0",
         "daycry/encryption": "^2.0",
-        "daycry/jobs": "^1",
+        "daycry/jobs": "^2.0",
         "daycry/jwt": "^2.0",
         "endroid/qr-code": "^6.0",
         "league/oauth2-facebook": "^2.0",
