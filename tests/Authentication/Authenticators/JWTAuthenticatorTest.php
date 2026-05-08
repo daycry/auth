@@ -290,12 +290,11 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $this->user = fake(UserModel::class, ['id' => 1, 'username' => 'John Smith']);
 
         // Generate a token that expired in the past
-        $jwtConfig            = config('JWT');
+        $jwtConfig            = config(\Daycry\JWT\Config\JWT::class);
         $jwtConfig->expiresAt = '-1 hour';
 
-        $jwt = new \Daycry\JWT\JWT($jwtConfig);
-        $jwt->setSplitData(false)->setParamData('data');
-        $expiredToken = $jwt->encode($this->user->id);
+        // v3 defaults already match split=false / paramData='data'.
+        $expiredToken = (new \Daycry\JWT\JWT($jwtConfig))->encode($this->user->id);
 
         $result = $this->auth->check(['token' => $expiredToken]);
 
@@ -307,12 +306,11 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $this->user = fake(UserModel::class, ['id' => 1, 'username' => 'John Smith']);
 
         // Generate a token that expired in the past
-        $jwtConfig            = config('JWT');
+        $jwtConfig            = config(\Daycry\JWT\Config\JWT::class);
         $jwtConfig->expiresAt = '-1 hour';
 
-        $jwt = new \Daycry\JWT\JWT($jwtConfig);
-        $jwt->setSplitData(false)->setParamData('data');
-        $expiredToken = $jwt->encode($this->user->id);
+        // v3 defaults already match split=false / paramData='data'.
+        $expiredToken = (new \Daycry\JWT\JWT($jwtConfig))->encode($this->user->id);
 
         $result = $this->auth->attempt(['token' => $expiredToken]);
 

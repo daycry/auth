@@ -19,7 +19,7 @@
         "daycry/class-finder": "^2.0",
         "daycry/encryption": "^2.0",
         "daycry/jobs": "^2.0",
-        "daycry/jwt": "^2.0",
+        "daycry/jwt": "^3.0",
         "endroid/qr-code": "^6.0",
         "league/oauth2-facebook": "^2.0",
         "league/oauth2-github": "^3.0",

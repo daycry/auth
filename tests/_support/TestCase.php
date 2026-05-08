@@ -23,6 +23,7 @@ use Config\Services;
 use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Config\AuthOAuth;
 use Daycry\Auth\Config\AuthSecurity;
+use Daycry\JWT\Config\JWT as JWTConfig;
 
 /**
  * @internal
@@ -67,6 +68,16 @@ abstract class TestCase extends CIUnitTestCase
         $encConfig      = config('Encryption');
         $encConfig->key = hex2bin('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
         Factories::injectMock('config', 'Encryption', $encConfig);
+
+        // daycry/jwt v3 ships without a default signer/issuer/audience to
+        // force explicit setup in production. Provide a deterministic test
+        // config so the JWT authenticator and adapter tests just work.
+        $jwtConfig             = config(JWTConfig::class);
+        $jwtConfig->signer     = base64_encode(str_repeat('jwt-test-secret-', 4));
+        $jwtConfig->issuer     = 'daycry/auth tests';
+        $jwtConfig->audience   = 'daycry/auth tests';
+        $jwtConfig->identifier = 'daycry/auth tests';
+        Factories::injectMock('config', 'JWT', $jwtConfig);
     }
 
     /**
