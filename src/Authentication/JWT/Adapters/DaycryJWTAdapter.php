@@ -16,7 +16,7 @@ namespace Daycry\Auth\Authentication\JWT\Adapters;
 use Daycry\Auth\Exceptions\InvalidJWTException;
 use Daycry\Auth\Interfaces\JWTAdapterInterface;
 use Daycry\JWT\JWT;
-use Lcobucci\JWT\Exception as LcobucciException;
+use Throwable;
 
 class DaycryJWTAdapter implements JWTAdapterInterface
 {
@@ -26,12 +26,10 @@ class DaycryJWTAdapter implements JWTAdapterInterface
     public function decode(string $encodedToken): mixed
     {
         try {
-            $jwt = new JWT(config('JWT'));
-            $jwt->setSplitData(false)->setParamData('data');
-            $token = $jwt->decode($encodedToken);
-
-            return $token->get($jwt->getParamData());
-        } catch (LcobucciException $e) {
+            // daycry/jwt v3 defaults to split=false / paramData='data', and
+            // getPayload() round-trips JSON for compact tokens (cty=json).
+            return JWT::for(config('JWT'))->getPayload($encodedToken);
+        } catch (Throwable $e) {
             throw InvalidJWTException::forInvalidToken($e);
         }
     }
@@ -41,9 +39,6 @@ class DaycryJWTAdapter implements JWTAdapterInterface
      */
     public function encode(mixed $payload): string
     {
-        $jwt = new JWT(config('JWT'));
-        $jwt->setSplitData(false)->setParamData('data');
-
-        return $jwt->encode($payload);
+        return JWT::for(config('JWT'))->encode($payload);
     }
 }

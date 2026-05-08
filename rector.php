@@ -46,6 +46,7 @@ use Rector\Php55\Rector\String_\StringClassNameToClassConstantRector;
 use Rector\Php73\Rector\FuncCall\StringifyStrNeedlesRector;
 use Rector\PHPUnit\AnnotationsToAttributes\Rector\Class_\AnnotationWithValueToAttributeRector;
 use Rector\PHPUnit\CodeQuality\Rector\Class_\YieldDataProviderRector;
+use Rector\PHPUnit\PHPUnit100\Rector\Class_\ParentTestClassConstructorRector;
 use Rector\PHPUnit\Set\PHPUnitSetList;
 use Rector\Privatization\Rector\Property\PrivatizeFinalClassPropertyRector;
 use Rector\Set\ValueObject\LevelSetList;
@@ -106,6 +107,11 @@ return static function (RectorConfig $rectorConfig): void {
 
         StringifyStrNeedlesRector::class,
         YieldDataProviderRector::class,
+
+        // PHPUnit 11+ marks TestCase::__construct() as @final, so the
+        // legacy "always re-declare a parent constructor" rule fights with
+        // PHPStan's `method.parentMethodFinalByPhpDoc` check.
+        ParentTestClassConstructorRector::class,
 
         // Note: requires php 8
         RemoveUnusedPromotedPropertyRector::class,

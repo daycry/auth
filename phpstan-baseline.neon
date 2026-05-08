@@ -1567,12 +1567,6 @@ parameters:
 			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
 
 		-
-			rawMessage: Cannot access property $expiresAt on null.
-			identifier: property.nonObject
-			count: 2
-			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
-
-		-
 			rawMessage: 'Cannot call method get() on null.'
 			identifier: method.nonObject
 			count: 2
@@ -1582,12 +1576,6 @@ parameters:
 			rawMessage: 'PHPDoc tag @param references unknown parameter: $clock'
 			identifier: parameter.notFound
 			count: 1
-			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
-
-		-
-			rawMessage: 'Parameter #1 $name of function config expects a valid class string, ''JWT'' given.'
-			identifier: codeigniter.configArgumentType
-			count: 2
 			path: tests/Authentication/Authenticators/JWTAuthenticatorTest.php
 
 		-
@@ -2226,5 +2214,5 @@ parameters:
 		-
 			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
 			identifier: staticMethod.internal
-			count: 6
+			count: 7
 			path: tests/_support/TestCase.php
