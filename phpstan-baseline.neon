@@ -271,12 +271,6 @@ parameters:
 			path: src/Authentication/Passwords/HistoryValidator.php
 
 		-
-			rawMessage: PHPDoc tag @var with type string is not subtype of type uppercase-string.
-			identifier: varTag.type
-			count: 1
-			path: src/Authentication/Passwords/PwnedValidator.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 2
@@ -1180,6 +1174,18 @@ parameters:
 			path: src/Filters/AuthFilter.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Filters/BasicAuthFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\BasicAuthFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/BasicAuthFilter.php
+
+		-
 			rawMessage: Call to function config with Daycry\Auth\Config\Auth::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
@@ -1226,6 +1232,12 @@ parameters:
 			identifier: method.childReturnType
 			count: 1
 			path: src/Filters/PasswordAgeFilter.php
+
+		-
+			rawMessage: 'Return type (void) of method Daycry\Auth\Filters\PasswordConfirmFilter::after() should be compatible with return type (CodeIgniter\HTTP\ResponseInterface|null) of method CodeIgniter\Filters\FilterInterface::after()'
+			identifier: method.childReturnType
+			count: 1
+			path: src/Filters/PasswordConfirmFilter.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.
@@ -1394,12 +1406,6 @@ parameters:
 			identifier: method.nonObject
 			count: 3
 			path: src/Models/BaseModel.php
-
-		-
-			rawMessage: Variable $result in PHPDoc tag @var does not exist.
-			identifier: varTag.variableNotFound
-			count: 1
-			path: src/Models/DeviceSessionModel.php
 
 		-
 			rawMessage: '''
@@ -1688,6 +1694,24 @@ parameters:
 			identifier: argument.type
 			count: 2
 			path: tests/Authentication/Filters/AuthJWTFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: ''Basic %%%%%%%%not…''} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Filters/BasicAuthFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: ''Bearer not-basic''} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Filters/BasicAuthFilterTest.php
+
+		-
+			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
+			identifier: argument.type
+			count: 5
+			path: tests/Authentication/Filters/BasicAuthFilterTest.php
 
 		-
 			rawMessage: 'Return type of method Tests\Authentication\Filters\ForcePasswordResetTest::actingAs() has typehint with internal class Tests\Authentication\Filters\ForcePasswordResetTest.'

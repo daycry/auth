@@ -16,6 +16,7 @@ namespace Daycry\Auth\Config;
 use CodeIgniter\Config\BaseService;
 use Daycry\Auth\Auth;
 use Daycry\Auth\Authentication\Passwords;
+use Daycry\Auth\Authorization\Gate;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Libraries\Logger;
 
@@ -49,6 +50,18 @@ class Services extends BaseService
         $config = config('AuthSecurity');
 
         return new Passwords($config);
+    }
+
+    /**
+     * The authorization gate. Resolves closure rules + class-based policies.
+     */
+    public static function gate(bool $getShared = true): Gate
+    {
+        if ($getShared) {
+            return self::getSharedInstance('gate');
+        }
+
+        return new Gate();
     }
 
     /**

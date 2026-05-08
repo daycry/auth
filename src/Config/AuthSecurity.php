@@ -393,4 +393,18 @@ class AuthSecurity extends BaseConfig
      * email the user / alert oncall on a flag.
      */
     public bool $suspiciousLoginAlerts = false;
+
+    /**
+     * --------------------------------------------------------------------
+     * Password Confirmation Lifetime ("sudo mode")
+     * --------------------------------------------------------------------
+     * When the `password-confirm` filter is applied to a route, the user
+     * must have confirmed their password within this many seconds for the
+     * request to proceed. After the window expires, they are bounced to
+     * /auth/confirm-password.
+     *
+     * 0 = always require a fresh confirmation (every protected request).
+     * 3 hours = matches Laravel Fortify's default.
+     */
+    public int $passwordConfirmationLifetime = 3 * HOUR;
 }

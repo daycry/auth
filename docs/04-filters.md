@@ -29,6 +29,7 @@ class Filters extends BaseConfig
         'session'      => \Daycry\Auth\Filters\AuthSessionFilter::class,
         'tokens'       => \Daycry\Auth\Filters\AuthAccessTokenFilter::class,
         'jwt'          => \Daycry\Auth\Filters\AuthJWTFilter::class,
+        'basic-auth'   => \Daycry\Auth\Filters\BasicAuthFilter::class,
         'chain'        => \Daycry\Auth\Filters\ChainFilter::class,
 
         // === AUTHORIZATION FILTERS ===
@@ -164,7 +165,56 @@ fetch('/api/jwt/profile', {
 });
 ```
 
-### 4. **Chain Filter** (`chain`)
+### 4. **Basic Auth Filter** (`basic-auth`)
+
+HTTP Basic authentication (RFC 7617). Reads `Authorization: Basic base64(user:pass)`, verifies the credentials against the user provider, and on success logs the user in via the `session` authenticator. Designed for **machine-to-machine endpoints** (cron jobs, health checks, webhooks, internal tooling) where managing tokens or sessions is overkill.
+
+#### Configuration
+
+```php
+// app/Config/Auth.php — realm shown by browsers / cached by clients.
+public string $basicAuthRealm = 'My App API';
+```
+
+#### Routes
+
+```php
+// Persist the auth into the session for the rest of the request lifecycle.
+$routes->group('cron', ['filter' => 'basic-auth'], function ($routes) {
+    $routes->get('purge-old-tokens', 'Maintenance::purgeOldTokens');
+});
+
+// Stateless: re-verify credentials on every request, do not write to session.
+$routes->group('api/internal', ['filter' => 'basic-auth:once'], function ($routes) {
+    $routes->get('health', 'Health::index');
+});
+```
+
+#### Behaviour
+
+| Scenario | Response |
+|----------|----------|
+| Missing `Authorization` header | `401 Unauthorized` + `WWW-Authenticate: Basic realm="..."` |
+| Wrong scheme (e.g. `Bearer`) | `401` + challenge header |
+| Malformed base64 / no colon | `401` + challenge header |
+| Unknown user / wrong password | `401` + challenge header (no info leak) |
+| Valid credentials | Logs the user in, request proceeds |
+
+The identifier is matched as **email** when it parses as a valid email address (`filter_var(..., FILTER_VALIDATE_EMAIL)`), otherwise as **username**.
+
+#### Use cases
+
+- Cron / scheduled jobs that hit an internal endpoint:
+  ```bash
+  curl -u maintenance@example.com:secret https://app.example/cron/purge-old-tokens
+  ```
+- Health checks from monitoring systems (Prometheus blackbox, Pingdom).
+- Webhooks from third-party services that only support Basic auth.
+- Local CLI tooling against a deployed API.
+
+> **Don't use Basic auth on user-facing endpoints.** Browsers prompt for credentials with native (ugly) modals and there is no logout flow. For interactive auth use the `session` filter; for APIs use `tokens` / `jwt`.
+
+### 5. **Chain Filter** (`chain`)
 
 Tries multiple authentication methods in order.
 
@@ -495,7 +545,52 @@ $routes->group('app', ['filter' => 'session,password-age'], function ($routes) {
 
 > See [Audit & Compliance — Password Rotation](13-audit-and-compliance.md#password-rotation-policy) for the full lifecycle.
 
-### 4. **Auth Request Filter** (`auth-request`)
+### 4. **Password Confirm Filter** (`password-confirm`)
+
+Forces the user to re-enter their password before performing sensitive actions ("sudo mode"). Inspired by Laravel Fortify's `password.confirm` middleware. Use it on routes that change critical state — disabling 2FA, generating API tokens, unlinking OAuth providers, deleting the account.
+
+```php
+// app/Config/AuthSecurity.php
+public int $passwordConfirmationLifetime = 3 * HOUR; // 0 = always re-confirm
+```
+
+#### Routes
+
+```php
+// 1. Wire the confirmation form once (must be reachable WITHOUT
+//    password-confirm to break the chicken-and-egg loop):
+$routes->group('auth', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+    $routes->get('confirm-password',  'UserSecurityController::confirmPasswordView',   ['as' => 'password-confirm-show']);
+    $routes->post('confirm-password', 'UserSecurityController::confirmPasswordAction', ['as' => 'password-confirm']);
+});
+
+// 2. Apply the filter on routes that need fresh confirmation:
+$routes->group('account/security', ['filter' => 'session,password-confirm'], static function ($routes) {
+    $routes->post('totp/disable',       'Account::disableTotp');
+    $routes->post('email/change',       'Account::changeEmail');
+    $routes->post('tokens/generate',    'Account::generateApiToken');
+    $routes->delete('account',          'Account::deleteAccount');
+});
+```
+
+#### Behaviour
+
+1. The filter no-ops for anonymous requests — pair it with `session`/`auth` which handle the login redirect.
+2. Reads `password_confirmed_at` from the session.
+3. If the timestamp is missing or older than `passwordConfirmationLifetime`, stashes the current URL and redirects to `password-confirm-show`.
+4. After the user submits the form successfully, `UserSecurityController::confirmPasswordAction` stamps a fresh timestamp, writes an `EVENT_PASSWORD_CONFIRMED` audit entry, and redirects back to the originally intended URL.
+
+#### Settings reference
+
+| Setting | Effect |
+|---------|--------|
+| `passwordConfirmationLifetime = 0` | Every protected request requires a fresh confirmation. |
+| `passwordConfirmationLifetime = HOUR` | One confirmation valid for 1 h. |
+| `passwordConfirmationLifetime = 3 * HOUR` (default) | Matches Laravel Fortify. |
+
+> The view rendered by `confirmPasswordView()` is `Daycry\Auth\Views\confirm_password.php`. Override via `setting('Auth.views')['confirm_password']`.
+
+### 5. **Auth Request Filter** (`auth-request`)
 
 Logging and monitoring of authenticated requests.
 

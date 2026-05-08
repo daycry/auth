@@ -43,6 +43,7 @@ class AuditLogger
     public const EVENT_TOTP_ADMIN_RESET       = 'totp.admin_reset';
     public const EVENT_PASSWORD_CHANGED       = 'password.changed';
     public const EVENT_PASSWORD_RESET         = 'password.reset';
+    public const EVENT_PASSWORD_CONFIRMED     = 'password.confirmed';
     public const EVENT_EMAIL_CHANGE_REQUEST   = 'email.change_request';
     public const EVENT_EMAIL_CHANGED          = 'email.changed';
     public const EVENT_USER_LOCKED            = 'user.locked';

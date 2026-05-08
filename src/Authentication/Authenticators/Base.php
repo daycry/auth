@@ -142,29 +142,24 @@ abstract class Base
     }
 
     /**
-     * Force logging in by setting the WWW-Authenticate header
+     * Force logging in by setting the WWW-Authenticate header.
      *
-     * @param string $nonce A server-specified data string which should be uniquely generated each time
+     * Only the `Basic` challenge is emitted. HTTP Digest Auth is not supported
+     * by design — see `docs/03-authentication.md` § "Why HTTP Digest Auth is
+     * not supported" for the rationale (incompatible with bcrypt password
+     * storage, deprecated by RFC 7616, no security gain over Basic + TLS).
+     *
+     * @param string $nonce Reserved for future use. Currently ignored — kept
+     *                      in the signature so downstream subclasses that
+     *                      override this method do not break.
      */
     protected function forceLogin($nonce = ''): void
     {
-        $rest_auth  = \strtolower((string) $this->method);
-        $rest_realm = service('settings')->get('Auth.restRealm');
-
-        // if (service('settings')->get('Auth.strictAccessTokenAndAuth') === true) {
         if (Services::request()->getUserAgent()->isBrowser()) {
             // @codeCoverageIgnoreStart
-            if (strtolower($rest_auth) === 'basic') {
-                // See http://tools.ietf.org/html/rfc2617#page-5
-                header('WWW-Authenticate: Basic realm="' . $rest_realm . '"');
-            } elseif (strtolower($rest_auth) === 'digest') {
-                // See http://tools.ietf.org/html/rfc2617#page-18
-                header(
-                    'WWW-Authenticate: Digest realm="' . $rest_realm
-                    . '", qop="auth", nonce="' . $nonce
-                    . '", opaque="' . md5($rest_realm) . '"',
-                );
-            }
+            $rest_realm = service('settings')->get('Auth.restRealm');
+            // See http://tools.ietf.org/html/rfc7617#section-2
+            header('WWW-Authenticate: Basic realm="' . $rest_realm . '"');
             // @codeCoverageIgnoreEnd
         }
 
