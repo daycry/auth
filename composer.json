@@ -33,8 +33,9 @@
         "codeigniter4/framework": "^4",
         "deptrac/deptrac": "^4",
         "mockery/mockery": "^1.0",
-        "phpunit/phpcov": "^9.0.2",
-        "phpstan/phpstan-strict-rules": "^2"
+        "phpstan/phpstan-strict-rules": "^2",
+        "phpunit/phpcov": "^10.0",
+        "phpunit/phpunit": "^11.5.50"
     },
     "autoload":
     {
