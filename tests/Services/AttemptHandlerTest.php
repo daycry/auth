@@ -15,11 +15,11 @@ namespace Tests\Services;
 
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\HTTP\UserAgent;
-use CodeIgniter\Test\DatabaseTestTrait;
+use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\Attempt;
 use Daycry\Auth\Models\AttemptModel;
 use Daycry\Auth\Services\AttemptHandler;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\Support\DatabaseTestCase;
 
 /**
@@ -27,157 +27,110 @@ use Tests\Support\DatabaseTestCase;
  */
 final class AttemptHandlerTest extends DatabaseTestCase
 {
-    use DatabaseTestTrait;
-
-    private AttemptHandler $handler;
-    private AttemptModel $attemptModel;
-
-    protected function setUp(): void
+    private function makeRequest(string $ip = '203.0.113.7'): IncomingRequest
     {
-        parent::setUp();
-
-        $this->handler      = new AttemptHandler();
-        $this->attemptModel = new AttemptModel();
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-    }
-
-    public function testIsEnabled(): void
-    {
-        // Test that isEnabled method works
-        $result = $this->handler->isEnabled();
-        $this->assertIsBool($result);
-    }
-
-    public function testGetInstance(): void
-    {
-        // Test static getInstance method
-        $instance = AttemptHandler::getInstance();
-        $this->assertInstanceOf(AttemptHandler::class, $instance);
-    }
-
-    public function testValidateAttemptsWhenDisabled(): void
-    {
-        // Create a mock response
-        $response = $this->createStub(ResponseInterface::class);
-
-        // When attempts are disabled, validateAttempts should not throw exceptions
-        $this->handler->validateAttempts($response);
-
-        // If we reach here without exceptions, the test passes
-        $this->assertTrue(true);
-    }
-
-    public function testHandleInvalidAttemptWhenDisabled(): void
-    {
-        $userAgent = $this->createMock(UserAgent::class);
-        $userAgent->method('__toString')->willReturn('Test Browser');
-
+        /** @var IncomingRequest&MockObject $request */
         $request = $this->createMock(IncomingRequest::class);
-        $request->method('getIPAddress')->willReturn('127.0.0.1');
-        $request->method('getUserAgent')->willReturn($userAgent);
+        $request->method('getIPAddress')->willReturn($ip);
 
-        // When attempts are disabled, handleInvalidAttempt should not create records
-        $initialCount = $this->attemptModel->countAll();
-
-        $this->handler->handleInvalidAttempt($request);
-
-        $finalCount = $this->attemptModel->countAll();
-
-        // Count should remain the same if attempts are disabled
-        $this->assertSame($initialCount, $finalCount);
+        return $request;
     }
 
-    public function testHandleInvalidAttemptCreatesNewRecord(): void
+    private function enableAttempts(int $maxAttempts = 5): void
     {
-        // Enable attempts for this test by mocking the settings
-        $userAgent = $this->createMock(UserAgent::class);
-        $userAgent->method('__toString')->willReturn('Test Browser');
-
-        $request = $this->createMock(IncomingRequest::class);
-        $request->method('getIPAddress')->willReturn('192.168.1.100');
-        $request->method('getUserAgent')->willReturn($userAgent);
-
-        // Count attempts before
-        $this->attemptModel->where('ip_address', '192.168.1.100')->countAllResults();
-
-        // Handle invalid attempt
-        $this->handler->handleInvalidAttempt($request);
-
-        // For this test to work properly, we'd need to mock the settings service
-        // For now, we just verify the method can be called without errors
-        $this->assertTrue(true);
+        $this->injectMockAttributesSecurity([
+            'enableInvalidAttempts' => true,
+            'maxAttempts'           => $maxAttempts,
+        ]);
     }
 
-    public function testHandleInvalidAttemptIncrementsExisting(): void
+    public function testIsEnabledReflectsSecuritySetting(): void
     {
-        // Create an existing attempt record
-        $attemptData = [
-            'ip_address'   => '192.168.1.200',
-            'attempts'     => 1,
-            'hour_started' => time(),
-        ];
+        $this->enableAttempts();
 
-        $this->attemptModel->save($attemptData);
-
-        $userAgent = $this->createMock(UserAgent::class);
-        $userAgent->method('__toString')->willReturn('Test Browser');
-
-        $request = $this->createMock(IncomingRequest::class);
-        $request->method('getIPAddress')->willReturn('192.168.1.200');
-        $request->method('getUserAgent')->willReturn($userAgent);
-
-        // Handle invalid attempt
-        $this->handler->handleInvalidAttempt($request);
-
-        // For this test to work properly, we'd need to mock the settings service
-        // For now, we just verify the method can be called without errors
-        $this->assertTrue(true);
-    }
-
-    public function testConstructorInitializesProperties(): void
-    {
-        // Test that constructor properly initializes the handler
         $handler = new AttemptHandler();
-
-        // Test that the handler can be used
-        $this->assertInstanceOf(AttemptHandler::class, $handler);
-
-        // Test isEnabled method exists and returns boolean
-        $this->assertIsBool($handler->isEnabled());
+        $this->assertTrue($handler->isEnabled());
     }
 
-    public function testPrivateMethodsExistThroughPublicInterface(): void
+    public function testIsDisabledByDefault(): void
     {
-        // Test that we can call public methods that use private methods
-        $userAgent = $this->createMock(UserAgent::class);
-        $userAgent->method('__toString')->willReturn('Test Browser');
-
-        $request = $this->createMock(IncomingRequest::class);
-        $request->method('getIPAddress')->willReturn('127.0.0.1');
-        $request->method('getUserAgent')->willReturn($userAgent);
-
-        // This tests that private methods createNewAttempt and incrementAttempt
-        // are accessible through the public handleInvalidAttempt method
-        $this->handler->handleInvalidAttempt($request);
-
-        // If no exception is thrown, the private methods exist and work
-        $this->assertTrue(true);
+        $handler = new AttemptHandler();
+        $this->assertFalse($handler->isEnabled());
     }
 
-    public function testMultipleHandlersAreIndependent(): void
+    public function testValidateAttemptsIsNoOpWhenDisabled(): void
     {
-        $handler1 = new AttemptHandler();
-        $handler2 = AttemptHandler::getInstance();
+        $handler = new AttemptHandler();
+        $handler->validateAttempts($this->createStub(ResponseInterface::class));
+        $this->expectNotToPerformAssertions();
+    }
 
-        // Test that both handlers work independently
-        $this->assertInstanceOf(AttemptHandler::class, $handler1);
-        $this->assertInstanceOf(AttemptHandler::class, $handler2);
+    public function testHandleInvalidAttemptIsNoOpWhenDisabled(): void
+    {
+        $handler = new AttemptHandler();
+        $handler->handleInvalidAttempt($this->makeRequest());
 
-        // They should have the same enabled state
-        $this->assertSame($handler1->isEnabled(), $handler2->isEnabled());
+        $this->assertSame(0, model(AttemptModel::class)->countAll());
+    }
+
+    public function testHandleInvalidAttemptCreatesRowOnFirstFailure(): void
+    {
+        $this->enableAttempts();
+
+        $handler = new AttemptHandler();
+        $handler->handleInvalidAttempt($this->makeRequest('203.0.113.7'));
+
+        $rows = model(AttemptModel::class)->where('ip_address', '203.0.113.7')->findAll();
+        $this->assertCount(1, $rows);
+        $this->assertSame(1, (int) $rows[0]->attempts);
+    }
+
+    public function testHandleInvalidAttemptIncrementsExistingRow(): void
+    {
+        $this->enableAttempts();
+
+        // Seed an existing attempt row directly so the handler hits the
+        // increment branch (which requires the row's `attempts` column to be
+        // below the configured max).
+        model(AttemptModel::class)->insert([
+            'ip_address'      => '203.0.113.8',
+            'attempts'        => 1,
+            'hour_started_at' => Time::now()->toDateTimeString(),
+        ]);
+
+        $handler = new AttemptHandler();
+        $handler->handleInvalidAttempt($this->makeRequest('203.0.113.8'));
+        $handler->handleInvalidAttempt($this->makeRequest('203.0.113.8'));
+
+        $row = model(AttemptModel::class)->where('ip_address', '203.0.113.8')->first();
+        $this->assertInstanceOf(Attempt::class, $row);
+        $this->assertSame(3, (int) $row->attempts, 'each call after the first should increment');
+    }
+
+    public function testHandleInvalidAttemptStopsIncrementingAtMax(): void
+    {
+        $this->enableAttempts(2);
+
+        // Seed an existing attempt row already at the cap.
+        model(AttemptModel::class)->insert([
+            'ip_address'      => '203.0.113.9',
+            'attempts'        => 2,
+            'hour_started_at' => Time::now()->toDateTimeString(),
+        ]);
+
+        $handler = new AttemptHandler();
+        $handler->handleInvalidAttempt($this->makeRequest('203.0.113.9')); // already at max → no-op
+
+        $row = model(AttemptModel::class)->where('ip_address', '203.0.113.9')->first();
+        $this->assertSame(2, (int) $row->attempts);
+    }
+
+    public function testGetInstanceReturnsFreshInstance(): void
+    {
+        $a = AttemptHandler::getInstance();
+        $b = AttemptHandler::getInstance();
+
+        $this->assertInstanceOf(AttemptHandler::class, $a);
+        $this->assertNotSame($a, $b, 'getInstance() returns a new instance each time');
     }
 }

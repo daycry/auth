@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Commands;
 
-use CodeIgniter\CLI\CLI;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Entities\User;
@@ -63,12 +62,12 @@ class GdprCommand extends BaseCommand
 
     public function run(array $params): int
     {
-        $action = array_shift($params) ?? '';
-        $email  = (string) (CLI::getOption('e') ?? '');
-        $id     = (string) (CLI::getOption('i') ?? '');
+        $action = $params[0] ?? '';
+        $email  = (string) ($params['e'] ?? '');
+        $id     = (string) ($params['i'] ?? '');
 
         if ($email === '' && $id === '') {
-            CLI::error('Specify -e <email> or -i <id>.');
+            $this->error('Specify -e <email> or -i <id>.');
 
             return 1;
         }
@@ -80,13 +79,13 @@ class GdprCommand extends BaseCommand
             : $userModel->findByCredentials(['email' => $email]);
 
         if (! $user instanceof User) {
-            CLI::error('User not found.');
+            $this->error('User not found.');
 
             return 1;
         }
 
         return match ($action) {
-            'export'    => $this->exportAction($user),
+            'export'    => $this->exportAction($user, (string) ($params['o'] ?? '')),
             'anonymize' => $this->anonymizeAction($user, $userModel),
             default     => $this->unsupported(),
         };
@@ -94,12 +93,12 @@ class GdprCommand extends BaseCommand
 
     private function unsupported(): int
     {
-        CLI::error('Unsupported action. Supported: export, anonymize.');
+        $this->error('Unsupported action. Supported: export, anonymize.');
 
         return 1;
     }
 
-    private function exportAction(User $user): int
+    private function exportAction(User $user, string $outputPath = ''): int
     {
         try {
             $payload = [
@@ -130,23 +129,21 @@ class GdprCommand extends BaseCommand
             );
 
             if ($json === false) {
-                CLI::error('JSON encoding failed.');
+                $this->error('JSON encoding failed.');
 
                 return 1;
             }
 
-            $output = (string) (CLI::getOption('o') ?? '');
-
-            if ($output !== '') {
-                file_put_contents($output, $json);
-                CLI::write('Wrote export to ' . $output, 'green');
+            if ($outputPath !== '') {
+                file_put_contents($outputPath, $json);
+                $this->write('Wrote export to ' . $outputPath, 'green');
             } else {
-                CLI::write($json);
+                $this->write($json);
             }
 
             return 0;
         } catch (Throwable $e) {
-            CLI::error('Export failed: ' . $e->getMessage());
+            $this->error('Export failed: ' . $e->getMessage());
 
             return 1;
         }
@@ -154,8 +151,8 @@ class GdprCommand extends BaseCommand
 
     private function anonymizeAction(User $user, UserModel $userModel): int
     {
-        if (CLI::prompt('This will permanently anonymize user ' . $user->id . '. Continue?', ['y', 'n']) !== 'y') {
-            CLI::write('Aborted.', 'yellow');
+        if ($this->prompt('This will permanently anonymize user ' . $user->id . '. Continue?', ['y', 'n']) !== 'y') {
+            $this->write('Aborted.', 'yellow');
 
             return 0;
         }
@@ -199,11 +196,11 @@ class GdprCommand extends BaseCommand
                 ['initiator' => 'cli'],
             );
 
-            CLI::write('User ' . $userId . ' anonymised. Identities and tokens removed.', 'green');
+            $this->write('User ' . $userId . ' anonymised. Identities and tokens removed.', 'green');
 
             return 0;
         } catch (Throwable $e) {
-            CLI::error('Anonymization failed: ' . $e->getMessage());
+            $this->error('Anonymization failed: ' . $e->getMessage());
 
             return 1;
         }

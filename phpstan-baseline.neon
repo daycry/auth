@@ -991,63 +991,6 @@ parameters:
 			path: src/Entities/PermissionUser.php
 
 		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Models\UserIdentityModel::getAllAccessTokens().'
-			identifier: method.notFound
-			count: 1
-			path: src/Entities/User.php
-
-		-
-			rawMessage: 'Call to an undefined method Daycry\Auth\Models\UserIdentityModel::revokeAllAccessTokens().'
-			identifier: method.notFound
-			count: 1
-			path: src/Entities/User.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method generateAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::generateAccessToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Entities/User.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method getAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::getAccessToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Entities/User.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method getAccessTokenById() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::getAccessTokenById() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Entities/User.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method revokeAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::deleteAccessToken() or softRevokeAccessToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Entities/User.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method revokeAccessTokenBySecret() of class Daycry\Auth\Models\UserIdentityModel:
-				Use AccessTokenRepository::deleteAccessTokenBySecret() or softRevokeAccessTokenBySecret() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Entities/User.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
@@ -1690,30 +1633,6 @@ parameters:
 			path: tests/Authentication/Filters/AuthJWTFilterTest.php
 
 		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
-			identifier: argument.type
-			count: 2
-			path: tests/Authentication/Filters/AuthJWTFilterTest.php
-
-		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: ''Basic %%%%%%%%not…''} given.'
-			identifier: argument.type
-			count: 1
-			path: tests/Authentication/Filters/BasicAuthFilterTest.php
-
-		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: ''Bearer not-basic''} given.'
-			identifier: argument.type
-			count: 1
-			path: tests/Authentication/Filters/BasicAuthFilterTest.php
-
-		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
-			identifier: argument.type
-			count: 5
-			path: tests/Authentication/Filters/BasicAuthFilterTest.php
-
-		-
 			rawMessage: 'Return type of method Tests\Authentication\Filters\ForcePasswordResetTest::actingAs() has typehint with internal class Tests\Authentication\Filters\ForcePasswordResetTest.'
 			identifier: return.internalClass
 			count: 2
@@ -1738,18 +1657,6 @@ parameters:
 			path: tests/Authentication/Filters/GroupFilterTest.php
 
 		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Accept: ''application/json'', Authorization: non-falsy-string} given.'
-			identifier: argument.type
-			count: 1
-			path: tests/Authentication/Filters/GroupFilterTest.php
-
-		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
-			identifier: argument.type
-			count: 1
-			path: tests/Authentication/Filters/GroupFilterTest.php
-
-		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
 			count: 3
@@ -1759,18 +1666,6 @@ parameters:
 			rawMessage: 'Cannot call method get() on null.'
 			identifier: method.nonObject
 			count: 3
-			path: tests/Authentication/Filters/PermissionFilterTest.php
-
-		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Accept: ''application/json'', Authorization: non-falsy-string} given.'
-			identifier: argument.type
-			count: 1
-			path: tests/Authentication/Filters/PermissionFilterTest.php
-
-		-
-			rawMessage: 'Parameter #1 $headers of method Tests\Support\FilterTestCase::withHeaders() expects array<string, CodeIgniter\HTTP\Header|list<CodeIgniter\HTTP\Header>>, array{Authorization: non-falsy-string} given.'
-			identifier: argument.type
-			count: 2
 			path: tests/Authentication/Filters/PermissionFilterTest.php
 
 		-
@@ -1819,6 +1714,42 @@ parameters:
 			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
 			identifier: staticMethod.internal
 			count: 1
+			path: tests/Commands/AuditCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/AuditCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/GdprCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/GdprCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/SessionsCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/SessionsCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
 			path: tests/Commands/SetupTest.php
 
 		-
@@ -1826,6 +1757,39 @@ parameters:
 			identifier: staticMethod.internal
 			count: 1
 			path: tests/Commands/SetupTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method createJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::createRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: tests/Commands/TokensCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/TokensCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/TokensCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/TotpCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/TotpCommandTest.php
 
 		-
 			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
@@ -2053,27 +2017,78 @@ parameters:
 			path: tests/Libraries/OauthManagerTest.php
 
 		-
+			rawMessage: '''
+				Call to deprecated method deleteAccessToken() of class Daycry\Auth\Models\AccessTokenRepository:
+				Use softRevokeAccessToken() for soft-revocation via revoked_at.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: tests/Models/AccessTokenRepositoryTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method deleteAccessTokenBySecret() of class Daycry\Auth\Models\AccessTokenRepository:
+				Use softRevokeAccessTokenBySecret() for soft-revocation via revoked_at.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: tests/Models/AccessTokenRepositoryTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method deleteAllAccessTokens() of class Daycry\Auth\Models\AccessTokenRepository:
+				Use softRevokeAllAccessTokens() for soft-revocation via revoked_at.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: tests/Models/AccessTokenRepositoryTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method createJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::createRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 2
+			path: tests/Models/UserIdentityModelTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method generateAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::generateAccessToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 1
+			path: tests/Models/UserIdentityModelTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getAccessTokenByRawToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use AccessTokenRepository::getAccessTokenByRawToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 2
+			path: tests/Models/UserIdentityModelTest.php
+
+		-
+			rawMessage: '''
+				Call to deprecated method getJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
+				Use JwtTokenRepository::getRefreshToken() instead.
+			'''
+			identifier: method.deprecated
+			count: 3
+			path: tests/Models/UserIdentityModelTest.php
+
+		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Models\AttemptModel::countAll().'
 			identifier: method.notFound
-			count: 2
+			count: 1
 			path: tests/Services/AttemptHandlerTest.php
 
 		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Services\\AttemptHandler'' and Daycry\Auth\Services\AttemptHandler will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
-			count: 4
-			path: tests/Services/AttemptHandlerTest.php
-
-		-
-			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertIsBool() with bool will always evaluate to true.'
-			identifier: method.alreadyNarrowedType
-			count: 2
-			path: tests/Services/AttemptHandlerTest.php
-
-		-
-			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertTrue() with true will always evaluate to true.'
-			identifier: method.alreadyNarrowedType
-			count: 4
+			count: 1
 			path: tests/Services/AttemptHandlerTest.php
 
 		-
