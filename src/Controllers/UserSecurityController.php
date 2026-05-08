@@ -14,9 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
+use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Services\AuditLogger;
 
 /**
  * UserSecurityController
@@ -208,5 +211,65 @@ class UserSecurityController extends BaseAuthController
             'entries' => $entries,
             'limit'   => $limit,
         ]);
+    }
+
+    /**
+     * Renders the password confirmation form.
+     *
+     * Wire as:
+     *     $routes->get('auth/confirm-password',
+     *         'Daycry\Auth\Controllers\UserSecurityController::confirmPasswordView',
+     *         ['filter' => 'session', 'as' => 'password-confirm-show']);
+     */
+    public function confirmPasswordView(): ResponseInterface
+    {
+        $views    = setting('Auth.views');
+        $viewName = $views['confirm_password'] ?? 'Daycry\Auth\Views\confirm_password';
+
+        $content = $this->view($viewName);
+
+        return $this->response->setBody($content);
+    }
+
+    /**
+     * Verifies the submitted password against the logged-in user, stamps
+     * `password_confirmed_at` in the session, then redirects to the URL
+     * the user was originally trying to reach (or to a fallback).
+     *
+     * Wire as:
+     *     $routes->post('auth/confirm-password',
+     *         'Daycry\Auth\Controllers\UserSecurityController::confirmPasswordAction',
+     *         ['filter' => 'session', 'as' => 'password-confirm']);
+     */
+    public function confirmPasswordAction(): RedirectResponse
+    {
+        $user     = auth()->user();
+        $password = (string) $this->request->getPost('password');
+
+        if ($user === null || $password === '') {
+            return redirect()->route('password-confirm-show')
+                ->with('error', lang('Auth.invalidPassword'));
+        }
+
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+
+        if (! $passwords->verify($password, $user->getPasswordHash())) {
+            return redirect()->route('password-confirm-show')
+                ->with('error', lang('Auth.invalidPassword'));
+        }
+
+        session()->set('password_confirmed_at', time());
+
+        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_CONFIRMED, (int) $user->id);
+
+        $intended = (string) (session()->getTempdata('passwordConfirmIntendedUrl') ?? '');
+        session()->removeTempdata('passwordConfirmIntendedUrl');
+
+        if ($intended === '') {
+            $intended = config('Auth')->loginRedirect();
+        }
+
+        return redirect()->to($intended);
     }
 }

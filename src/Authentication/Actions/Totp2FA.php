@@ -17,7 +17,6 @@ use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
@@ -154,15 +153,15 @@ class Totp2FA extends AbstractAction
      */
     private function verifyCodeForUser(User $user, string $code): bool
     {
-        $totpSecret = $this->getIdentityModel()->getIdentityByType($user, IdentityType::TOTP_SECRET->value);
+        $secret = $user->getTotpSecret();
 
-        if (! $totpSecret instanceof UserIdentity) {
+        if ($secret === null) {
             return false;
         }
 
         $window = (int) (setting('AuthSecurity.totpWindow') ?? 1);
 
-        if (TOTP::verify((string) $totpSecret->secret, $code, $window)) {
+        if (TOTP::verify($secret, $code, $window)) {
             return true;
         }
 

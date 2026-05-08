@@ -13,6 +13,7 @@ Both are stored in the database and can be assigned freely to any user.
 - [Groups](#groups)
 - [Permissions](#permissions)
 - [Permission Inheritance](#permission-inheritance)
+- [Gates & Policies](#gates--policies)
 - [Authorization in Controllers](#authorization-in-controllers)
 - [Authorization in Views](#authorization-in-views)
 - [Route Filters](#route-filters)
@@ -223,6 +224,152 @@ $user->addPermission('*');
 $user->can('posts.delete'); // true
 $user->can('users.view');   // true
 ```
+
+---
+
+## Gates & Policies
+
+The RBAC system above answers questions like *"does this user have permission `posts.update`?"* — **a property of the user only**. For *"is this user allowed to update **this specific post**?"* — a question that depends on the resource — daycry/auth ships a Gate / Policy layer inspired by Laravel's `Gate` facade. Use both: RBAC for static role checks, Gates for context-dependent rules.
+
+### Closure-based abilities
+
+Register a closure to define an ability inline. The first parameter is the authenticated user (or `null` for guests); any further arguments are the resource(s) being checked:
+
+```php
+// app/Config/Events.php (or any bootstrap point)
+use Daycry\Auth\Authorization\Gate;
+use Daycry\Auth\Entities\User;
+
+service('gate')->define('post.update', static function (?User $user, Post $post): bool {
+    return $user !== null && $user->id === $post->author_id;
+});
+```
+
+Then call from anywhere:
+
+```php
+if (service('gate')->allows('post.update', $post)) {
+    // ...
+}
+
+// Negation:
+service('gate')->denies('post.update', $post);
+
+// Fail-fast — throws AuthorizationException on a deny:
+service('gate')->authorize('post.update', $post);
+```
+
+The User entity exposes the same checks as `canDo()` / `cantDo()`:
+
+```php
+$user->canDo('post.update', $post);  // bool
+$user->cantDo('post.delete', $post); // bool
+```
+
+> `canDo()` and `cantDo()` are deliberately distinct from `can()` / `cant()` so the existing RBAC method `can('posts.update')` (string-only permission identifier) keeps its signature.
+
+### Class-based policies
+
+For resources with multiple actions, group the rules into a `Policy` subclass:
+
+```php
+namespace App\Policies;
+
+use App\Models\Post;
+use Daycry\Auth\Authorization\Policy;
+use Daycry\Auth\Authorization\PolicyResponse;
+use Daycry\Auth\Entities\User;
+
+class PostPolicy extends Policy
+{
+    public function update(?User $user, Post $post): bool
+    {
+        return $user !== null && $user->id === $post->author_id;
+    }
+
+    public function delete(?User $user, Post $post): PolicyResponse
+    {
+        if ($user === null) {
+            return PolicyResponse::deny('You must be logged in.');
+        }
+
+        return $user->id === $post->author_id
+            ? PolicyResponse::allow()
+            : PolicyResponse::deny('Only the author can delete this post.');
+    }
+
+    /**
+     * Optional pre-flight hook. Return true / false / a PolicyResponse to
+     * short-circuit the action method. Return null to fall through.
+     */
+    public function before(?User $user, string $ability, array $arguments): bool|PolicyResponse|null
+    {
+        if ($user !== null && $user->inGroup('admin')) {
+            return true; // admins bypass every action on this resource
+        }
+
+        return null;
+    }
+}
+```
+
+#### Auto-discovery
+
+By default, the Gate looks up `App\Policies\{ResourceShortName}Policy` for any resource passed to a check. So `service('gate')->allows('update', $post)` automatically resolves `App\Models\Post` → `App\Policies\PostPolicy::update()`. Override the namespace in `app/Config/Auth.php`:
+
+```php
+public string $policyNamespace = 'App\\Authorization\\Policies\\';
+public bool $gateAutoDiscover  = true; // false to require explicit registration
+```
+
+#### Explicit registration
+
+If your resources don't follow the convention, map them by hand:
+
+```php
+service('gate')->policy(\App\Models\Post::class, \App\Policies\PostPolicy::class);
+```
+
+#### Action name convention
+
+Ability names ending in `.action` (e.g. `post.update`) dispatch to the action method (`update`). Bare names (e.g. `update`) also work. This lets you namespace abilities for clarity in routes / configs while keeping policy method names short.
+
+### `gate:` route filter
+
+For abilities that depend **only on the authenticated user** (not on a resource instance) — typical for "section-level" gates such as accessing a dashboard or a billing area — apply the `gate:` filter directly:
+
+```php
+$routes->get('admin', 'Admin::index', ['filter' => 'gate:admin.access']);
+
+// Multiple abilities (AND):
+$routes->get('billing/cancel', 'Billing::cancel', [
+    'filter' => 'gate:billing.access,billing.cancel',
+]);
+```
+
+Failure responses follow the same shape as `permission:` — JSON 403 for API requests, redirect to `Auth::permissionDeniedRedirect()` for web.
+
+For abilities that **need a resource argument** (a `Post`, an `Order`...), use the Gate API directly inside the controller method — the filter cannot reach the resource yet:
+
+```php
+public function update(int $id)
+{
+    $post = $this->postModel->find($id);
+    service('gate')->authorize('post.update', $post);  // throws on deny
+
+    // ...persist update...
+}
+```
+
+### When to use what
+
+| You want to check | Use |
+|-------------------|-----|
+| Does this user have permission `users.edit`? | RBAC — `$user->can('users.edit')` |
+| Does this user belong to the admin group? | RBAC — `$user->inGroup('admin')` |
+| Can this user update *this specific post*? | Gate — `$user->canDo('post.update', $post)` |
+| Block a route based on the user alone | `permission:` or `group:` filter |
+| Block a route based on a resource | `gate:` filter for ability-only checks; controller `Gate::authorize()` for resource-aware checks |
 
 ---
 

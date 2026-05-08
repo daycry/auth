@@ -174,6 +174,30 @@ class Auth extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * HTTP Basic Auth Realm
+     * --------------------------------------------------------------------
+     * Realm string sent in the `WWW-Authenticate: Basic realm="..."` header
+     * when the `basic-auth` filter rejects a request. Browsers display this
+     * value to the user; clients use it as a credential-cache key.
+     */
+    public string $basicAuthRealm = 'Restricted';
+
+    /**
+     * --------------------------------------------------------------------
+     * Gates & Policies
+     * --------------------------------------------------------------------
+     * When `gateAutoDiscover` is true, the Gate resolves a missing
+     * ability by looking up `{policyNamespace}{ResourceShortName}Policy`
+     * — so `App\Models\Post` automatically maps to
+     * `App\Policies\PostPolicy`. Set to false to require explicit
+     * `Gate::policy()` registrations.
+     */
+    public bool $gateAutoDiscover = true;
+
+    public string $policyNamespace = 'App\\Policies\\';
+
+    /**
+     * --------------------------------------------------------------------
      * Authentication Actions
      * --------------------------------------------------------------------
      * Specifies the class that represents an action to take after

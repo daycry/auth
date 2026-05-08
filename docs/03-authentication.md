@@ -17,6 +17,7 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 - [Pre-Authentication Events](#pre-authentication-events)
 - [Switching Between Authenticators](#switching-between-authenticators)
 - [Custom Authenticators](#custom-authenticators)
+- [Why HTTP Digest Auth is not supported](#why-http-digest-auth-is-not-supported)
 
 ---
 
@@ -670,6 +671,60 @@ public array $authenticators = [
     'apikey' => \App\Authentication\Authenticators\ApiKeyAuthenticator::class,
 ];
 ```
+
+---
+
+## Why HTTP Digest Auth is not supported
+
+`daycry/auth` implements **Basic Auth** ([`BasicAuthFilter`](../src/Filters/BasicAuthFilter.php)) but **not HTTP Digest Auth** (RFC 2617 / RFC 7616). This is a deliberate architectural decision, not an oversight. The reasons:
+
+### 1. Incompatible with bcrypt / argon2
+
+Digest requires the server to compute `HA1 = MD5(username:realm:password)` on every challenge. That requires the server to know the password (or a value derived from it).
+
+This package stores passwords with **bcrypt** (or argon2), a one-way hash. Once hashed, the original password is unrecoverable, so HA1 cannot be computed at validation time.
+
+Supporting Digest would force one of:
+
+- **Storing HA1 alongside the bcrypt hash** in a new column. HA1 is `MD5` without salt — effectively plaintext-equivalent for offline attacks. A database leak would expose Digest-authenticatable credentials, even though the bcrypt hash protects the real password.
+- **Tying HA1 to the configured `realm`**. Changing `Auth.restRealm` later would invalidate every stored HA1, forcing all users to re-enter their plaintext password.
+- **Breaking backward compatibility**: existing users could not use Digest until they logged in with their plaintext password again so the server could compute their HA1.
+
+### 2. Effectively deprecated
+
+[RFC 7616](https://www.rfc-editor.org/rfc/rfc7616) (2015) explicitly marks MD5-Digest as inadequate for production and adds SHA-256, but the ecosystem has not migrated. Modern HTTP clients, browsers and API consumers do not request Digest by default.
+
+### 3. No security gain over Basic + TLS
+
+- **With TLS**: the `Authorization: Basic ...` header is encrypted in transit, so Basic is safe. Digest adds nothing.
+- **Without TLS**: neither scheme is safe. Digest is still vulnerable to downgrade attacks, does not protect the request body, and leaks the username in the clear.
+
+If you are running this library in production you already need TLS — and once you have TLS, Basic + Bearer/JWT covers the same ground without the architectural cost.
+
+### 4. Modern alternatives are already in the package
+
+| Need | Use |
+|---|---|
+| Server-to-server API auth | [Access Token (Bearer)](#access-token-authenticator) or [JWT](#jwt-authenticator) |
+| Web login with sessions | [Session](#session-authenticator) |
+| Social login | [OAuth 2.0](09-oauth.md) |
+| Passwordless | [Magic Link](#magic-link-authentication) |
+| HTTP-level basic auth | [`BasicAuthFilter`](../src/Filters/BasicAuthFilter.php) over TLS |
+
+### If your use case really requires Digest
+
+Rare cases (legacy embedded clients, specific compliance requirements, etc.):
+
+1. **Prefer changing the client.** Migrate to Bearer / JWT / Basic+TLS if you can.
+2. **If you cannot**, build a separate package on top of `daycry/auth`:
+   - Migration: new table `users_digest_ha1 (user_id, realm, ha1, created_at)`.
+   - Endpoint: `POST /digest/enable` that accepts the user's plaintext password, computes HA1 server-side, and stores it. Per-user opt-in only.
+   - Filter: a custom `DigestAuthFilter` that resolves credentials via that table, with a server-side nonce store (e.g. `Services::cache()`, TTL ~5 min) and replay protection via the `nc` (nonce-count) parameter.
+   - Authenticator: extend [`Base`](../src/Authentication/Authenticators/Base.php) with a `check()` that compares the request `response` field against `MD5(HA1:nonce:nc:cnonce:qop:HA2)`.
+   - Support **at minimum** `qop=auth` and SHA-256 in addition to MD5.
+   - Document the database leakage risk (HA1 is not a strong hash).
+
+The decision **not to merge this into `daycry/auth` core** is intentional — keeping HA1 out of the canonical user table is a security boundary worth preserving.
 
 ---
 

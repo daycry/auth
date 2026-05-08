@@ -373,6 +373,32 @@ trait Authorizable
     }
 
     /**
+     * Checks an ability registered with the Gate (closure or policy).
+     *
+     * Sister method to {@see can()} — `can()` handles RBAC permission
+     * strings ("users.create"), `canDo()` handles abilities backed by
+     * a closure or a Policy class and may receive resource arguments:
+     *
+     *     $user->canDo('post.update', $post)
+     *
+     * @param mixed ...$arguments Forwarded to the resolved rule.
+     */
+    public function canDo(string $ability, ...$arguments): bool
+    {
+        return service('gate')->forUser($this)->allows($ability, ...$arguments);
+    }
+
+    /**
+     * Negation of {@see canDo()}.
+     *
+     * @param mixed ...$arguments
+     */
+    public function cantDo(string $ability, ...$arguments): bool
+    {
+        return ! $this->canDo($ability, ...$arguments);
+    }
+
+    /**
      * Checks to see if the user is a member of one
      * of the groups passed in.
      */

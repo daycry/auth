@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Laravel-parity authentication & authorization
+- **Gates & Policies** — class- and closure-based authorization layer inspired by Laravel's `Gate` facade:
+  - `Daycry\Auth\Authorization\Gate` (`define()`, `policy()`, `allows()`, `denies()`, `authorize()`, `forUser()`, `has()`).
+  - Abstract `Daycry\Auth\Authorization\Policy` with optional `before()` short-circuit hook.
+  - `Daycry\Auth\Authorization\PolicyResponse` wrapping allow/deny + an optional message; `authorize()` chain-throws.
+  - Auto-discovery via `Auth::$gateAutoDiscover` + `Auth::$policyNamespace` (default `App\\Policies\\`) — `App\Models\Post` resolves to `App\Policies\PostPolicy`.
+  - `User::canDo()` / `User::cantDo()` on the `Authorizable` trait — sister methods to `can()` / `cant()` that route through the Gate (resource-aware) instead of through RBAC permissions (string-only). Existing `can()` signature untouched.
+  - New `gate:ability1,ability2` filter alias backed by `GateFilter` for ability-only checks on routes.
+  - `Daycry\Auth\Authorization\AuthorizationException` (separate from the existing `Exceptions\AuthorizationException` used by RBAC) carries the `PolicyResponse` for callers that need the deny message.
+- **Password Confirmation workflow ("sudo mode")** — re-prompt the user for their password before sensitive actions:
+  - New `password-confirm` filter alias backed by `PasswordConfirmFilter`.
+  - New `UserSecurityController::confirmPasswordView()` + `confirmPasswordAction()` endpoints + `Views/confirm_password.php` form.
+  - Setting `AuthSecurity::$passwordConfirmationLifetime` (default `3 * HOUR`; `0` = always require fresh confirmation; matches Laravel Fortify's default).
+  - `EVENT_PASSWORD_CONFIRMED` added to `AuditLogger`.
+- **HTTP Basic auth filter** — new `basic-auth` alias backed by `BasicAuthFilter` (RFC 7617). Reads `Authorization: Basic base64(user:pass)`, accepts email **or** username as identifier, persists into the session by default. Use `basic-auth:once` for stateless auth (no session write). Realm configurable via `Auth::$basicAuthRealm`. Designed for cron / health checks / internal tooling; **not** for user-facing routes.
+
 #### 2FA UX
 - **Backup codes for TOTP** — `auth_totp_backup_codes` table + `TotpBackupCodeModel` + `HasTotp::generateBackupCodes()` / `consumeBackupCode()` / `backupCodesRemaining()`. Codes generated on TOTP confirmation, shown once on the success page, used as fallback in `Totp2FA::verifyCodeForUser()` when the TOTP code itself does not match. Stored as SHA-256 hashes; one-time-use enforced atomically.
 - **"Trust this device" 2FA bypass** — new `trusted_until` column on `auth_device_sessions`. After successful TOTP verification with the checkbox ticked, the device is marked trusted for `AuthSecurity::$trustedDeviceLifetime` (default 30 days) and a signed cookie is issued; subsequent logins from the same device skip the 2FA challenge. Setting `trustedDeviceLifetime = 0` disables the feature entirely.

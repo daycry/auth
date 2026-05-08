@@ -76,20 +76,20 @@ class TokensCommand extends BaseCommand
 
     public function run(array $params): int
     {
-        $action = array_shift($params) ?? '';
+        $action = $params[0] ?? '';
 
         if ($action !== 'revoke') {
-            CLI::error('Unsupported action. Supported: revoke.');
+            $this->error('Unsupported action. Supported: revoke.');
 
             return 1;
         }
 
-        $email = (string) (CLI::getOption('e') ?? '');
-        $id    = (string) (CLI::getOption('i') ?? '');
-        $type  = (string) (CLI::getOption('type') ?? 'all');
+        $email = (string) ($params['e'] ?? '');
+        $id    = (string) ($params['i'] ?? '');
+        $type  = (string) ($params['type'] ?? 'all');
 
         if ($email === '' && $id === '') {
-            CLI::error('Specify -e <email> or -i <id>.');
+            $this->error('Specify -e <email> or -i <id>.');
 
             return 1;
         }
@@ -101,7 +101,7 @@ class TokensCommand extends BaseCommand
             : $userModel->findByCredentials(['email' => $email]);
 
         if ($user === null) {
-            CLI::error('User not found.');
+            $this->error('User not found.');
 
             return 1;
         }
@@ -110,7 +110,7 @@ class TokensCommand extends BaseCommand
             if ($type === 'all' || $type === 'access_token') {
                 $repo = new AccessTokenRepository(model(UserIdentityModel::class));
                 $repo->softRevokeAllAccessTokens($user);
-                CLI::write('Revoked all access tokens for user ' . $user->id, 'green');
+                $this->write('Revoked all access tokens for user ' . $user->id, 'green');
             }
 
             if ($type === 'all' || $type === 'jwt_refresh') {
@@ -120,17 +120,17 @@ class TokensCommand extends BaseCommand
                     (int) $user->id,
                     IdentityType::JWT_REFRESH->value,
                 );
-                CLI::write('Revoked all JWT refresh tokens for user ' . $user->id, 'green');
+                $this->write('Revoked all JWT refresh tokens for user ' . $user->id, 'green');
             }
 
             // Sanity check on the type argument
             if (! in_array($type, ['all', 'access_token', 'jwt_refresh'], true)) {
-                CLI::error('Unknown --type. Use: access_token | jwt_refresh | all.');
+                $this->error('Unknown --type. Use: access_token | jwt_refresh | all.');
 
                 return 1;
             }
         } catch (Throwable $e) {
-            CLI::error('Token revocation failed: ' . $e->getMessage());
+            $this->error('Token revocation failed: ' . $e->getMessage());
 
             return 1;
         }
