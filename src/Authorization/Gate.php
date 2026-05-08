@@ -227,11 +227,13 @@ class Gate
      */
     private function autoDiscoverPolicy(string $resourceCls): ?string
     {
-        if (! (bool) (config('Auth')->gateAutoDiscover ?? true)) {
+        $config = config('Auth');
+
+        if (! (bool) $config->gateAutoDiscover) {
             return null;
         }
 
-        $namespace = (string) (config('Auth')->policyNamespace ?? 'App\\Policies\\');
+        $namespace = (string) $config->policyNamespace;
         $shortName = substr($resourceCls, strrpos($resourceCls, '\\') + 1);
         $candidate = $namespace . $shortName . 'Policy';
 

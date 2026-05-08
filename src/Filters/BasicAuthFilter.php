@@ -138,7 +138,7 @@ class BasicAuthFilter implements FilterInterface
      */
     private function challenge(): ResponseInterface
     {
-        $realm = (string) (config('Auth')->basicAuthRealm ?? 'Restricted');
+        $realm = (string) config('Auth')->basicAuthRealm;
 
         // RFC 7617 §2 — realm must be quoted; escape any embedded quotes.
         $realm = str_replace('"', '\\"', $realm);
