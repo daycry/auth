@@ -48,15 +48,15 @@ class AuditCommand extends BaseCommand
 
     public function run(array $params): int
     {
-        $since = (string) (CLI::getOption('since') ?? '7d');
-        $email = (string) (CLI::getOption('user') ?? '');
-        $type  = (string) (CLI::getOption('type') ?? '');
-        $limit = max(1, min(500, (int) (CLI::getOption('limit') ?? 100)));
+        $since = (string) ($params['since'] ?? '7d');
+        $email = (string) ($params['user'] ?? '');
+        $type  = (string) ($params['type'] ?? '');
+        $limit = max(1, min(500, (int) ($params['limit'] ?? 100)));
 
         try {
             $cutoff = $this->parseSince($since);
         } catch (Throwable $e) {
-            CLI::error('Invalid --since value: ' . $e->getMessage());
+            $this->error('Invalid --since value: ' . $e->getMessage());
 
             return 1;
         }
@@ -80,7 +80,7 @@ class AuditCommand extends BaseCommand
                 $user      = $userModel->findByCredentials(['email' => $email]);
 
                 if ($user === null) {
-                    CLI::error('User not found: ' . $email);
+                    $this->error('User not found: ' . $email);
 
                     return 1;
                 }
@@ -90,13 +90,13 @@ class AuditCommand extends BaseCommand
 
             $rows = $builder->find();
         } catch (Throwable $e) {
-            CLI::error('Audit query failed: ' . $e->getMessage());
+            $this->error('Audit query failed: ' . $e->getMessage());
 
             return 1;
         }
 
         if ($rows === []) {
-            CLI::write('No audit entries match the filters.', 'yellow');
+            $this->write('No audit entries match the filters.', 'yellow');
 
             return 0;
         }

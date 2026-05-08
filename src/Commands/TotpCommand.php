@@ -41,19 +41,19 @@ class TotpCommand extends BaseCommand
 
     public function run(array $params): int
     {
-        $action = array_shift($params) ?? '';
+        $action = $params[0] ?? '';
 
         if ($action !== 'reset') {
-            CLI::error('Unsupported action. Supported: reset.');
+            $this->error('Unsupported action. Supported: reset.');
 
             return 1;
         }
 
-        $email = (string) (CLI::getOption('e') ?? '');
-        $id    = (string) (CLI::getOption('i') ?? '');
+        $email = (string) ($params['e'] ?? '');
+        $id    = (string) ($params['i'] ?? '');
 
         if ($email === '' && $id === '') {
-            CLI::error('Specify -e <email> or -i <id>.');
+            $this->error('Specify -e <email> or -i <id>.');
 
             return 1;
         }
@@ -65,7 +65,7 @@ class TotpCommand extends BaseCommand
             : $userModel->findByCredentials(['email' => $email]);
 
         if ($user === null) {
-            CLI::error('User not found.');
+            $this->error('User not found.');
 
             return 1;
         }
@@ -79,11 +79,11 @@ class TotpCommand extends BaseCommand
                 ['initiator' => 'cli'],
             );
 
-            CLI::write('TOTP reset for user ' . $user->id . '. Backup codes were also purged.', 'green');
+            $this->write('TOTP reset for user ' . $user->id . '. Backup codes were also purged.', 'green');
 
             return 0;
         } catch (Throwable $e) {
-            CLI::error('TOTP reset failed: ' . $e->getMessage());
+            $this->error('TOTP reset failed: ' . $e->getMessage());
 
             return 1;
         }

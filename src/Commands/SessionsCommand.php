@@ -43,19 +43,19 @@ class SessionsCommand extends BaseCommand
 
     public function run(array $params): int
     {
-        $action = array_shift($params) ?? '';
+        $action = $params[0] ?? '';
 
         if ($action !== 'terminate') {
-            CLI::error('Unsupported action. Supported: terminate.');
+            $this->error('Unsupported action. Supported: terminate.');
 
             return 1;
         }
 
-        $email = (string) (CLI::getOption('e') ?? '');
-        $id    = (string) (CLI::getOption('i') ?? '');
+        $email = (string) ($params['e'] ?? '');
+        $id    = (string) ($params['i'] ?? '');
 
         if ($email === '' && $id === '') {
-            CLI::error('Specify -e <email> or -i <id>.');
+            $this->error('Specify -e <email> or -i <id>.');
 
             return 1;
         }
@@ -67,7 +67,7 @@ class SessionsCommand extends BaseCommand
             : $userModel->findByCredentials(['email' => $email]);
 
         if ($user === null) {
-            CLI::error('User not found.');
+            $this->error('User not found.');
 
             return 1;
         }
@@ -77,11 +77,11 @@ class SessionsCommand extends BaseCommand
             $deviceModel = model(DeviceSessionModel::class);
             $deviceModel->terminateAllForUser($user);
 
-            CLI::write('Terminated all device sessions for user ' . $user->id, 'green');
+            $this->write('Terminated all device sessions for user ' . $user->id, 'green');
 
             return 0;
         } catch (Throwable $e) {
-            CLI::error('Session termination failed: ' . $e->getMessage());
+            $this->error('Session termination failed: ' . $e->getMessage());
 
             return 1;
         }

@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Traits;
 
 use Daycry\Auth\Entities\AccessToken;
+use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 
 /**
@@ -32,12 +33,15 @@ trait HasAccessTokens
     private ?AccessToken $currentAccessToken = null;
 
     /**
-     * Returns the UserIdentityModel instance (shared service from the CI4 container).
+     * Returns the AccessTokenRepository (the focused CRUD layer that wraps
+     * UserIdentityModel for personal-access-token operations).
      */
-    private function userIdentityModel(): UserIdentityModel
+    private function accessTokenRepository(): AccessTokenRepository
     {
-        /** @var UserIdentityModel */
-        return model(UserIdentityModel::class);
+        /** @var UserIdentityModel $identityModel */
+        $identityModel = model(UserIdentityModel::class);
+
+        return new AccessTokenRepository($identityModel);
     }
 
     /**
@@ -48,31 +52,31 @@ trait HasAccessTokens
      */
     public function generateAccessToken(string $name, array $scopes = ['*']): AccessToken
     {
-        return $this->userIdentityModel()->generateAccessToken($this, $name, $scopes);
+        return $this->accessTokenRepository()->generateAccessToken($this, $name, $scopes);
     }
 
     /**
-     * Delete any access tokens for the given raw token.
+     * Soft-revokes an access token by raw value.
      */
     public function revokeAccessToken(string $rawToken): void
     {
-        $this->userIdentityModel()->revokeAccessToken($this, $rawToken);
+        $this->accessTokenRepository()->softRevokeAccessToken($this, $rawToken);
     }
 
     /**
-     * Delete any access tokens for the given secret token.
+     * Soft-revokes an access token by hashed secret.
      */
     public function revokeAccessTokenBySecret(string $secretToken): void
     {
-        $this->userIdentityModel()->revokeAccessTokenBySecret($this, $secretToken);
+        $this->accessTokenRepository()->softRevokeAccessTokenBySecret($this, $secretToken);
     }
 
     /**
-     * Revokes all access tokens for this user.
+     * Soft-revokes every access token for this user.
      */
     public function revokeAllAccessTokens(): void
     {
-        $this->userIdentityModel()->revokeAllAccessTokens($this);
+        $this->accessTokenRepository()->softRevokeAllAccessTokens($this);
     }
 
     /**
@@ -82,7 +86,7 @@ trait HasAccessTokens
      */
     public function accessTokens(): array
     {
-        return $this->userIdentityModel()->getAllAccessTokens($this);
+        return $this->accessTokenRepository()->getAllAccessTokens($this);
     }
 
     /**
@@ -95,7 +99,7 @@ trait HasAccessTokens
             return null;
         }
 
-        return $this->userIdentityModel()->getAccessToken($this, $rawToken);
+        return $this->accessTokenRepository()->getAccessToken($this, $rawToken);
     }
 
     /**
@@ -103,7 +107,7 @@ trait HasAccessTokens
      */
     public function getAccessTokenById(int $id): ?AccessToken
     {
-        return $this->userIdentityModel()->getAccessTokenById($id, $this);
+        return $this->accessTokenRepository()->getAccessTokenById($id, $this);
     }
 
     /**

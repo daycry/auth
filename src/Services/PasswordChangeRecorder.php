@@ -71,9 +71,13 @@ class PasswordChangeRecorder
             /** @var UserModel $userModel */
             $userModel = model(UserModel::class);
 
-            $userModel->where('id', $userId)
-                ->set('password_changed_at', Time::now()->toDateTimeString())
-                ->update();
+            // Use the underlying query builder so the write bypasses
+            // `$allowedFields` (the column is intentionally not on that
+            // list to keep `password_changed_at` invisible to mass
+            // assignment via $user->fill() etc.).
+            $userModel->builder()
+                ->where('id', $userId)
+                ->update(['password_changed_at' => Time::now()->toDateTimeString()]);
         } catch (Throwable) {
             // Column may not exist yet (migration not run) — silent skip.
         }
