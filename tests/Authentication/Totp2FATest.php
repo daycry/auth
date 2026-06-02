@@ -95,6 +95,20 @@ final class Totp2FATest extends DatabaseTestCase
         $this->assertFalse(TOTP::verify($secret, '000000', 0));
     }
 
+    public function testVerifyAndGetTimestepReturnsMatchedStepOrNull(): void
+    {
+        $secret = TOTP::generateSecret();
+        $now    = 1_700_000_000;
+        $code   = TOTP::getCode($secret, $now);
+
+        // The matching time-step is returned (enables single-use enforcement).
+        $this->assertSame((int) floor($now / 30), TOTP::verifyAndGetTimestep($secret, $code, 1, $now));
+
+        // A code 10 steps away is outside the +/-1 window → no match.
+        $far = TOTP::getCode($secret, $now + 300);
+        $this->assertNull(TOTP::verifyAndGetTimestep($secret, $far, 1, $now));
+    }
+
     public function testVerifyIsCaseSensitiveOnSecret(): void
     {
         $secret = TOTP::generateSecret();

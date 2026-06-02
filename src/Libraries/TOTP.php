@@ -72,6 +72,21 @@ class TOTP
      */
     public static function verify(string $secret, string $code, int $window = 1, ?int $timestamp = null): bool
     {
+        return self::verifyAndGetTimestep($secret, $code, $window, $timestamp) !== null;
+    }
+
+    /**
+     * Verifies a TOTP code and returns the time-step counter that matched, or
+     * null when no code within the window matches. Callers can persist the
+     * returned counter to enforce single-use (anti-replay) of TOTP codes.
+     *
+     * @param string   $secret    Base32-encoded TOTP secret
+     * @param string   $code      6-digit code to verify
+     * @param int      $window    Number of adjacent time steps to accept
+     * @param int|null $timestamp Unix timestamp (useful for testing)
+     */
+    public static function verifyAndGetTimestep(string $secret, string $code, int $window = 1, ?int $timestamp = null): ?int
+    {
         $timestamp ??= time();
         $timeStep = (int) floor($timestamp / self::PERIOD);
 
@@ -79,11 +94,11 @@ class TOTP
             $expected = self::computeCode($secret, $timeStep + $i);
 
             if (hash_equals($expected, $code)) {
-                return true;
+                return $timeStep + $i;
             }
         }
 
-        return false;
+        return null;
     }
 
     /**
