@@ -15,7 +15,6 @@ namespace Daycry\Auth\Traits;
 
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
-use Config\Database;
 use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
@@ -336,36 +335,52 @@ trait Authorizable
 
             $permission = strtolower($permission);
 
-            if (in_array('*', $this->permissionsCache, true)) {
+            // Check the user's directly-assigned permissions.
+            if ($this->permissionMatches($permission, $this->permissionsCache)) {
                 return true;
             }
 
-            // Check user's permissions
-            if (in_array($permission, $this->permissionsCache, true)) {
-                return true;
-            }
-
-            if (count($this->groupCache) === 0) {
-                return false;
-            }
-
+            // Check the permissions inherited from each of the user's groups.
             foreach ($this->groupCache as $groupName) {
                 $groupPermNames = $this->groupPermissionsCache[$groupName] ?? [];
 
-                if (in_array('*', $groupPermNames, true)) {
+                if ($this->permissionMatches($permission, $groupPermNames)) {
                     return true;
                 }
+            }
+        }
 
-                // Check exact match
-                if (in_array($permission, $groupPermNames, true)) {
-                    return true;
-                }
+        return false;
+    }
 
-                // Check wildcard match (e.g. 'users.*' covers 'users.edit')
-                $check = substr($permission, 0, strpos($permission, '.')) . '.*';
-                if (in_array($check, $groupPermNames, true)) {
-                    return true;
-                }
+    /**
+     * Determines whether a single permission is granted by a set of granted
+     * permission names. Matching is uniform across user-level and group-level
+     * permissions and honours three forms:
+     *
+     *  - the global wildcard `*`;
+     *  - an exact match (`users.edit`);
+     *  - a scope wildcard (`users.*` covers `users.edit`).
+     *
+     * @param string        $permission   already-lowercased `scope.action` permission
+     * @param array<string> $grantedNames the granted permission names to check against
+     */
+    private function permissionMatches(string $permission, array $grantedNames): bool
+    {
+        if (in_array('*', $grantedNames, true)) {
+            return true;
+        }
+
+        if (in_array($permission, $grantedNames, true)) {
+            return true;
+        }
+
+        // Scope wildcard, e.g. `users.*` covers `users.edit`.
+        if (str_contains($permission, '.')) {
+            $scopeWildcard = substr($permission, 0, strpos($permission, '.')) . '.*';
+
+            if (in_array($scopeWildcard, $grantedNames, true)) {
+                return true;
             }
         }
 
@@ -733,36 +748,8 @@ trait Authorizable
      */
     private function saveGroupsOrPermissions(string $type, $model, array $cache, array $existing): void
     {
-        $db  = Database::connect();
-        $new = array_diff($cache, $existing);
-
-        $db->transStart();
-
-        // Delete any not in the cache
-        if ($cache !== []) {
-            $model->deleteNotIn($this->id, $cache);
-        }
-        // Nothing in the cache? Then make sure
-        // we delete all from this user
-        else {
-            $model->deleteAll($this->id);
-        }
-
-        // Insert new ones
-        if ($new !== []) {
-            $inserts = [];
-
-            foreach ($new as $item) {
-                $inserts[] = [
-                    'user_id'    => $this->id,
-                    $type        => $item,
-                    'created_at' => Time::now()->format('Y-m-d H:i:s'),
-                ];
-            }
-
-            $model->insertBatch($inserts);
-        }
-
-        $db->transComplete();
+        // Persistence (and its transaction) lives in the repository, so the
+        // entity itself no longer opens DB transactions.
+        service('groupPermissionRepository')->saveUserPivot($this->id, $type, $model, $cache, $existing);
     }
 }

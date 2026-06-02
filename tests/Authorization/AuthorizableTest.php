@@ -301,6 +301,40 @@ final class AuthorizableTest extends DatabaseTestCase
     }
 
     /**
+     * can() is documented as OR semantics ("one or more of the permissions").
+     * A user with no groups must still have the *remaining* permissions in the
+     * variadic list evaluated when the first one does not match — the matching
+     * direct permission is not in the first position here.
+     */
+    public function testCanWithMultiplePermissionsForUserWithoutGroups(): void
+    {
+        fake(PermissionModel::class, ['name' => 'users.edit']);
+        fake(PermissionModel::class, ['name' => 'users.delete']);
+
+        // User belongs to NO groups and holds only the second permission directly.
+        $this->user->addPermission('users.delete');
+
+        $this->assertSame([], $this->user->getGroups());
+        $this->assertTrue($this->user->can('users.edit', 'users.delete'));
+    }
+
+    /**
+     * A directly-assigned scope wildcard ("posts.*") must grant scoped actions
+     * ("posts.create"), exactly like the documented example in
+     * docs/06-authorization.md and exactly like group-level wildcards.
+     */
+    public function testCanWithDirectWildcardPermission(): void
+    {
+        fake(PermissionModel::class, ['name' => 'posts.*']);
+
+        $this->user->addPermission('posts.*');
+
+        $this->assertTrue($this->user->can('posts.create'));
+        $this->assertTrue($this->user->can('posts.edit'));
+        $this->assertFalse($this->user->can('users.create'));
+    }
+
+    /**
      * @see https://github.com/codeigniter4/shield/pull/238
      */
     public function testCreatedAtIfDefaultLocaleSetFaWithAddGroup(): void
