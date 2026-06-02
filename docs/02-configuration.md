@@ -129,6 +129,22 @@ public array $sessionConfig = [
 ];
 ```
 
+### Remember-Me Token Purging
+
+> **File**: `app/Config/AuthSecurity.php`
+
+```php
+// Probability (1–100) that EXPIRED remember-me tokens are purged inline on
+// login. 0 = never purge on the request path (the default).
+public int $rememberMePurgeChance = 0;
+```
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `$rememberMePurgeChance` | `0` | Percent chance an interactive login also runs an inline purge of expired tokens. `0` disables inline purging entirely |
+
+**Why the default is now `0`.** Token expiry is enforced at *validation* time (`RememberMe::checkRememberMeToken()`), so an expired remember-me cookie can never authenticate regardless of whether the row has been purged. Inline purging is therefore table maintenance only — not a security control — and paying a full-table scan on a fraction of interactive logins is no longer worthwhile. Schedule the [`php spark auth:purge`](#scheduled-maintenance-authpurge) command instead.
+
 ---
 
 ## User Settings
@@ -222,6 +238,8 @@ public int $userLockoutTime = 3600; // 1 hour
 
 When the lockout expires, the counter resets automatically on the next login attempt. See [Logging & Monitoring](07-logging.md#per-user-account-lockout) for details and admin unlock instructions.
 
+> **Now also guards TOTP / backup-code verification.** The same per-user lockout (`UserLockoutManager`) is applied to two-factor verification: a wrong TOTP / backup code calls `recordFailedAttempt()`, an account already over `$userMaxAttempts` is blocked by `isLockedOut()`, and a correct code calls `resetOnSuccess()`. This closes the brute-force window on the 6-digit second factor. See [TOTP — Lockout & Anti-Replay](10-totp-2fa.md).
+
 ---
 
 ## Magic Links
@@ -273,7 +291,13 @@ When using `JwtController` for stateless JWT authentication, refresh tokens allo
 public int $jwtRefreshLifetime = 30 * DAY; // Default: 30 days
 ```
 
-Refresh tokens are stored in `auth_users_identities` (type: `jwt_refresh`) and are one-time use (rotated on each refresh). See [Authentication — JWT Refresh Tokens](03-authentication.md#jwt-refresh-tokens).
+Refresh tokens are stored in `auth_users_identities` (type: `jwt_refresh`) and are one-time use (rotated on each refresh). `JwtController` routes login / refresh / logout through `service('jwtTokenRepository')`; logout soft-revokes the refresh token. See [Authentication — JWT Refresh Tokens](03-authentication.md#jwt-refresh-tokens).
+
+### Revoking Issued JWT Access Tokens
+
+JWT access tokens are signed and self-contained, so they cannot be deleted server-side. To support "log out everywhere", each user carries a `users.token_version` counter (int, default `0`, added by migration `2026-05-08-000001`). `JwtController` mints the access-token payload as `{uid, tv}` where `tv` is the user's current `token_version`; the JWT authenticator's `check()` rejects any token whose embedded `tv` no longer matches the user's `token_version`, returning `lang('Auth.revokedToken')`. (Legacy scalar payloads — a bare user id — are still accepted, with the `tv` check skipped.)
+
+Call `User::revokeIssuedTokens()` to bump `token_version` atomically and invalidate **all** outstanding access tokens at once. It is invoked automatically by `Bannable::ban()` and by `Services\PasswordChangeRecorder::record()` (password reset / change). See [Authentication — Revoking JWT Access Tokens](03-authentication.md#jwt-refresh-tokens).
 
 ---
 
@@ -304,10 +328,44 @@ public int  $timeBlocked           = 3600;  // Seconds
 
 ```php
 // Identify rate limit subject: 'IP_ADDRESS', 'USER', 'METHOD_NAME', 'ROUTED_URL'
-public string $limitMethod   = 'IP_ADDRESS';
-public int    $requestLimit  = 60;      // Max requests per window
+public string $limitMethod   = 'METHOD_NAME';
+public int    $requestLimit  = 10;      // Max requests per window
 public int    $timeLimit     = MINUTE;  // Window size in seconds
 ```
+
+These values are the **global** defaults applied by the `rates` filter. They can be overridden per route — see [Per-Route Rate Limits](#per-route-rate-limits) below.
+
+### Per-Route Rate Limits
+
+The registered filter alias is **`rates`**. It honours per-route arguments that override the global limit / window for that route:
+
+```php
+// app/Config/Routes.php
+
+// Use the global $requestLimit / $timeLimit
+$routes->post('contact', 'Contact::send', ['filter' => 'rates']);
+
+// Override the limit only (10 requests, global window)
+$routes->post('login', 'Auth::login', ['filter' => 'rates:10']);
+
+// Override limit AND window: 50 requests per minute
+$routes->post('api/search', 'Api::search', ['filter' => 'rates:50,MINUTE']);
+
+// The window may also be a raw number of seconds
+$routes->post('api/heavy', 'Api::heavy', ['filter' => 'rates:5,90']);
+```
+
+`rates:<limit>,<period>` — `<period>` is either a number of **seconds** or a named unit. Recognised units (case-insensitive):
+
+| Unit | Seconds |
+|------|---------|
+| `SECOND` | 1 |
+| `MINUTE` | 60 |
+| `HOUR` | 3600 |
+| `DAY` | 86400 |
+| `WEEK` | 604800 |
+
+A configured endpoint DB row (runtime / admin override) still wins over both the global config and per-route arguments. Exceeding the limit returns HTTP `429` with `lang('Auth.throttled', ...)`.
 
 ---
 
@@ -323,6 +381,49 @@ public int  $permissionCacheTTL     = 300;   // Cache lifetime in seconds
 ```
 
 The cache is automatically invalidated when you call `addGroup()`, `removeGroup()`, `addPermission()`, or `removePermission()`. See [Authorization — Permission Cache](06-authorization.md#permission-cache).
+
+### Gate → RBAC Fallback
+
+```php
+// When true, a Gate ability whose name looks like an RBAC permission
+// (contains a scope, e.g. "users.edit") and has no registered closure or
+// policy falls back to User::can(). This lets `gate:users.edit` and
+// `permission:users.edit` share semantics.
+// false = the Gate and RBAC systems stay fully independent.
+public bool $gateFallbackToRbac = true;
+```
+
+The `gate` filter honours this setting, so `gate:users.edit` resolves a registered Gate ability if one exists and otherwise defers to the user's RBAC permissions. See [Authorization](06-authorization.md).
+
+---
+
+## Performance: Hot-Path Write Throttles
+
+> **File**: `app/Config/AuthSecurity.php`
+
+On every authenticated request the active authenticator records when the user was last seen. To avoid a `users`-table `UPDATE` (and an access-token `UPDATE`) on every single request, both writes are throttled:
+
+```php
+// If true, record the logged-in user's last_active timestamp on each request.
+public bool $recordActiveDate = true;
+
+// Minimum seconds between two consecutive `users.last_active` writes for the
+// same user (applies only when $recordActiveDate is true). Avoids one
+// users-table UPDATE per request on the authenticated hot path.
+// 0 = write on every request (the legacy behaviour).
+public int $activeDateThrottle = 60;
+
+// Minimum seconds between two consecutive `last_used_at` writes for the same
+// access token (see the Access Tokens section above).
+// 0 = write on every request.
+public int $tokenLastUsedThrottle = 60;
+```
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `$recordActiveDate` | `true` | Record `users.last_active` for the authenticated user each request |
+| `$activeDateThrottle` | `60` | Min seconds between `users.last_active` writes per user. `0` = every request |
+| `$tokenLastUsedThrottle` | `60` | Min seconds between `last_used_at` writes per access token. `0` = every request |
 
 ---
 
@@ -441,8 +542,17 @@ public array $routes = [
         ['post', 'auth/jwt/refresh', 'JwtController::refresh', 'jwt-refresh'],
         ['post', 'auth/jwt/logout',  'JwtController::logout',  'jwt-logout'],
     ],
+
+    // OAuth 2.0 / social login
+    'oauth' => [
+        ['get', 'oauth/login/(:segment)',    'OauthController::redirect/$1', 'oauth-login'],
+        ['get', 'oauth/callback/(:segment)', 'OauthController::callback/$1', 'oauth-callback'],
+        ['get', 'oauth/link/(:segment)',     'OauthController::link/$1',     'oauth-link'],
+    ],
 ];
 ```
+
+The `oauth-link` route (`GET oauth/link/(:segment)`) is the explicit, user-initiated linking flow: it **requires an authenticated user**, stashes the current user (`oauth_link_user_id`), and the shared callback then links the provider to the *current* user — no e-mail merge and no verified-email requirement, because the user is acting deliberately. Linking a social account that is already bound to a different local user is refused with `lang('Auth.oauthAlreadyLinked')`. See [OAuth 2.0 & Social Login](09-oauth.md).
 
 ---
 
@@ -512,6 +622,7 @@ public array $providers = [
         'clientSecret' => env('OAUTH_GITHUB_CLIENT_SECRET'),
         'redirectUri'  => 'https://yourapp.com/oauth/github/callback',
         'scopes'       => ['user:email'],
+        // 'allowUnverifiedEmailLink' => true, // see "Account Linking & Verified Email" below
     ],
     'azure' => [
         'clientId'     => env('OAUTH_AZURE_CLIENT_ID'),
@@ -543,6 +654,26 @@ public array $providers = [
 | `fieldsEndpoint` | Custom API URL for profile fields (GenericProfileResolver) |
 | `profileResolver` | Custom resolver class (must implement `ProfileResolverInterface`) |
 | `tenant` | Azure-only: `'common'`, `'organizations'`, or tenant GUID |
+| `allowUnverifiedEmailLink` | Opt-in (default unset / `false`): allow auto-linking to an existing local account even when the provider cannot assert the e-mail is verified |
+
+### Account Linking & Verified Email
+
+When a social account's e-mail matches an **existing** local (password) account, the identity is auto-linked **only if the provider asserts the e-mail is verified** (OIDC `email_verified` / Google `verified_email`). Providers that cannot assert verification (e.g. Facebook, GitHub) refuse the merge — `OauthManager` throws an `AuthenticationException` carrying `lang('Auth.oauthEmailUnverified')`.
+
+To allow auto-linking for such a provider anyway, opt in per provider:
+
+```php
+'github' => [
+    'clientId'                 => env('OAUTH_GITHUB_CLIENT_ID'),
+    'clientSecret'             => env('OAUTH_GITHUB_CLIENT_SECRET'),
+    'redirectUri'              => 'https://yourapp.com/oauth/github/callback',
+    'allowUnverifiedEmailLink' => true, // trust this provider's e-mail
+],
+```
+
+> **Security warning:** leave `allowUnverifiedEmailLink` unset unless you fully trust the provider. With it enabled, an attacker who registers a social account using a victim's e-mail address could be auto-linked into — and logged in as — the victim's local account.
+
+For an explicit, user-initiated link (the authenticated user deliberately connects a provider, with no e-mail merge and no verified-email requirement), use the `oauth-link` route — see [Routes](#routes) and [OAuth 2.0 & Social Login](09-oauth.md).
 
 See [OAuth 2.0 & Social Login](09-oauth.md) for full setup instructions, profile resolvers, OAuth events, and the `OAuthTokenRepository`.
 
@@ -590,6 +721,42 @@ See [TOTP — Trust This Device](10-totp-2fa.md#trust-this-device) for the user 
 
 ---
 
+## Password Confirmation ("sudo mode")
+
+> **File**: `app/Config/AuthSecurity.php`
+
+The `password-confirm` filter forces an already-authenticated user to re-enter their password before reaching sensitive routes (changing email / 2FA settings, generating API tokens, account deletion). The global window is:
+
+```php
+// How long (seconds) a password confirmation stays valid before the
+// `password-confirm` filter bounces the user to /auth/confirm-password.
+// 0 = always require a fresh confirmation on every protected request.
+// 3 * HOUR matches Laravel Fortify's default.
+public int $passwordConfirmationLifetime = 3 * HOUR;
+```
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `$passwordConfirmationLifetime` | `3 * HOUR` | Global max age (seconds) of a password confirmation accepted by the `password-confirm` filter. `0` = require a fresh confirmation every time |
+
+### Per-Route Override
+
+The filter accepts a per-route lifetime argument, `password-confirm:<seconds>`, which overrides the global value for that route — letting your most sensitive endpoints demand a fresher confirmation:
+
+```php
+// app/Config/Routes.php
+
+// Standard sudo mode: honour the global $passwordConfirmationLifetime
+$routes->post('account/email', 'Account::changeEmail', ['filter' => 'auth:session,password-confirm']);
+
+// Stricter: require a confirmation no older than 60 seconds for this route
+$routes->post('account/delete', 'Account::delete', ['filter' => 'auth:session,password-confirm:60']);
+```
+
+Apply `password-confirm` **after** an authentication filter (`session` / `auth`) on the same route — it intentionally leaves anonymous requests alone and is not a replacement for authentication.
+
+---
+
 ## Compliance & Observability
 
 > **File**: `app/Config/AuthSecurity.php`
@@ -627,6 +794,31 @@ public array $passwordValidators = [
     \Daycry\Auth\Authentication\Passwords\HistoryValidator::class,
 ];
 ```
+
+---
+
+## Scheduled Maintenance (`auth:purge`)
+
+Instead of the probabilistic on-login purge (`$rememberMePurgeChance`, now `0` by default), run the dedicated maintenance command on a schedule (cron / [daycry/jobs](https://github.com/daycry/jobs)):
+
+```bash
+# Purge expired remember-me tokens AND terminated device sessions older than 30 days
+php spark auth:purge
+
+# Override the device-session age cutoff (days)
+php spark auth:purge --days 7
+```
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--days <n>` | `30` | Remove terminated `auth_device_sessions` rows older than `<n>` days. Values `<= 0` fall back to `30` |
+
+`auth:purge` (command group: **Auth**) removes:
+
+- **expired remember-me tokens** from `auth_remember_tokens` (all expired rows, regardless of `--days`), and
+- **terminated device sessions** older than `--days` from `auth_device_sessions`.
+
+This is table maintenance only — token expiry is enforced at validation time, so purging never affects which tokens can authenticate.
 
 ---
 
@@ -704,7 +896,7 @@ Then enforce rotation on protected routes:
 
 ```php
 // app/Config/Routes.php
-$routes->group('app', ['filter' => 'session,password-age'], static function ($routes) {
+$routes->group('app', ['filter' => 'auth:session,password-age'], static function ($routes) {
     $routes->get('/dashboard', 'Dashboard::index');
 });
 ```

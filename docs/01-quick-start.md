@@ -4,7 +4,7 @@ Get Daycry Auth running in your CodeIgniter 4 application in a few minutes.
 
 ## Requirements
 
-- PHP 8.1 or higher
+- PHP 8.2 or higher
 - CodeIgniter 4.4 or higher
 - Composer
 
@@ -69,27 +69,36 @@ class Auth extends BaseAuth
 
 ---
 
-## Register Filters
+## Filters
 
-In `app/Config/Filters.php`, add the auth filter aliases:
+You do **not** need to register the auth filter aliases manually — they are
+auto-registered by the package's `Registrar` (`Daycry\Auth\Config\Registrar::Filters()`)
+as soon as the package is installed. The available aliases are:
+
+| Alias | Purpose |
+|---|---|
+| `auth` | Authenticate using the default authenticator (or one passed as an argument). |
+| `basic-auth` | HTTP Basic authentication. |
+| `chain` | Try each authenticator in `$authenticationChain` order. |
+| `group` | Require group membership, e.g. `group:admin,editor`. |
+| `permission` | Require a permission, e.g. `permission:users.edit`. |
+| `gate` | Authorize via a Gate ability/policy. |
+| `rates` | Per-IP/user rate limiting (e.g. `rates:50,MINUTE`). |
+| `force-reset` | Force a password change. |
+| `token-scope` | Require an access-token scope. |
+| `password-age` / `password-confirm` | Password-age / re-confirmation gates. |
+
+To require a **specific** authenticator, pass it as an argument to the `auth`
+filter rather than using a per-authenticator alias:
 
 ```php
-public array $aliases = [
-    // Authentication
-    'session'     => \Daycry\Auth\Filters\AuthSessionFilter::class,
-    'tokens'      => \Daycry\Auth\Filters\AuthAccessTokenFilter::class,
-    'jwt'         => \Daycry\Auth\Filters\AuthJWTFilter::class,
-    'chain'       => \Daycry\Auth\Filters\ChainFilter::class,
-
-    // Authorization
-    'group'       => \Daycry\Auth\Filters\GroupFilter::class,
-    'permission'  => \Daycry\Auth\Filters\PermissionFilter::class,
-
-    // Security
-    'auth-rates'  => \Daycry\Auth\Filters\AuthRatesFilter::class,
-    'force-reset' => \Daycry\Auth\Filters\ForcePasswordResetFilter::class,
-];
+// Session, Access Token, or JWT — selected via the filter argument:
+$routes->group('app',  ['filter' => 'auth:session'],      static fn ($routes) => /* ... */);
+$routes->group('api',  ['filter' => 'auth:access_token'], static fn ($routes) => /* ... */);
+$routes->group('jwt',  ['filter' => 'auth:jwt'],          static fn ($routes) => /* ... */);
 ```
+
+With no argument, `auth` uses `Config\Auth::$defaultAuthenticator`.
 
 ---
 
@@ -115,13 +124,13 @@ $routes->group('auth', ['namespace' => 'Daycry\Auth\Controllers'], static functi
 });
 
 // Protected routes — must be logged in
-$routes->group('dashboard', ['filter' => 'session'], static function ($routes) {
+$routes->group('dashboard', ['filter' => 'auth:session'], static function ($routes) {
     $routes->get('/', 'Dashboard::index');
     $routes->get('profile', 'Dashboard::profile');
 });
 
 // Admin routes — must be logged in AND in the 'admin' group
-$routes->group('admin', ['filter' => 'session,group:admin'], static function ($routes) {
+$routes->group('admin', ['filter' => 'auth:session,group:admin'], static function ($routes) {
     $routes->get('/', 'Admin::index');
     $routes->get('users', 'Admin::users');
 });
@@ -223,6 +232,6 @@ After following these steps, your application has:
 
 - **Migrations failed**: Check your database configuration in `app/Config/Database.php`
 - **Routes 404**: Verify the namespace and controller names
-- **Filters not working**: Confirm aliases are registered in `app/Config/Filters.php`
+- **Filters not working**: The auth aliases auto-register via the package `Registrar`; if you replaced `app/Config/Filters.php` wholesale, make sure you didn't drop the framework's `Registrar` discovery. Select an authenticator with `auth:session` / `auth:access_token` / `auth:jwt` (there is no bare `session`/`tokens`/`jwt` alias).
 - **Check migration status**: `php spark migrate:status`
 - **Check logs**: `writable/logs/`

@@ -4,6 +4,10 @@ This guide covers Daycry Auth's compliance and observability features:
 
 - **Granular audit log** — separate event-level table for sensitive account changes
 - **Suspicious login detection** — IP / device anomaly alerts
+- **Token fingerprints & hashed-at-rest tokens** — never store raw bearer / link tokens
+- **Remember-me theft detection** — selector/validator mismatch triggers a full purge + alert
+- **JWT access-token revocation** — `token_version` invalidates every outstanding token at once
+- **Refresh-token revoke reasons** — rotation vs logout recorded in the audit log
 - **Compromised-password recheck on login** — opt-in HIBP recheck
 - **Password history** — prevent reuse of recent passwords
 - **Password rotation policy** — force resets after a configurable age
@@ -14,11 +18,17 @@ These features are independent — enable only the ones you need.
 ## 📋 Index
 
 - [Audit Log](#audit-log)
+- [Token Fingerprints in the Login Log](#token-fingerprints-in-the-login-log)
+- [Hashed-at-Rest Tokens (Magic Link & Password Reset)](#hashed-at-rest-tokens-magic-link--password-reset)
 - [Suspicious Login Detection](#suspicious-login-detection)
+- [Remember-Me Theft Detection](#remember-me-theft-detection)
+- [JWT Access-Token Revocation (`token_version`)](#jwt-access-token-revocation-token_version)
+- [Refresh-Token Revoke Reasons](#refresh-token-revoke-reasons)
 - [Compromised-Password Recheck on Login](#compromised-password-recheck-on-login)
 - [Password History (No Reuse)](#password-history-no-reuse)
 - [Password Rotation Policy](#password-rotation-policy)
 - [GDPR Export & Anonymization](#gdpr-export--anonymization)
+- [Scheduled Cleanup (`auth:purge`)](#scheduled-cleanup-authpurge)
 - [Quick Configuration Reference](#quick-configuration-reference)
 
 ---
@@ -57,9 +67,9 @@ Every event written by `\Daycry\Auth\Services\AuditLogger` lands in `auth_audit_
 | `EVENT_GROUP_ASSIGNED` / `EVENT_GROUP_REVOKED` | `Authorizable::addGroup()` / `removeGroup()` |
 | `EVENT_PERMISSION_GRANTED` / `EVENT_PERMISSION_REVOKED` | `Authorizable::addPermission()` / `removePermission()` |
 | `EVENT_TOKEN_REVOKED` | `AccessTokenRepository::softRevokeAccessToken()` / `softRevokeAllAccessTokens()` |
-| `EVENT_REFRESH_TOKEN_REVOKED` | `JwtController::logout()` / `JwtTokenRepository::softRevokeRefreshToken()` |
+| `EVENT_REFRESH_TOKEN_REVOKED` | `JwtTokenRepository::softRevokeRefreshToken()` — fired on `JwtController::logout()` and on refresh rotation (the consumed token is one-time-use); `metadata.reason` is `rotation` or `logout` |
 | `EVENT_TRUSTED_DEVICE_ADDED` | User ticks "Trust this device" on 2FA |
-| `EVENT_SUSPICIOUS_LOGIN` | `SuspiciousLoginDetector` flags a login |
+| `EVENT_SUSPICIOUS_LOGIN` | `SuspiciousLoginDetector` flags a login, **or** `RememberMe` detects a remember-me token theft (`metadata.reason = remember_me_validator_mismatch`) |
 | `EVENT_USER_ANONYMIZED` | `auth:gdpr anonymize` CLI command |
 | `EVENT_OAUTH_LINKED` / `EVENT_OAUTH_UNLINKED` | Reserved for application use |
 | `EVENT_EMAIL_CHANGE_REQUEST` / `EVENT_EMAIL_CHANGED` | Reserved for application use |
@@ -130,6 +140,40 @@ The migration `2026-05-07-000002_create_audit_logs_table.php` creates the table 
 
 ---
 
+## Token Fingerprints in the Login Log
+
+The login-attempt log (`auth_logins`, written by the authenticators' base flow) stores an **identifier** for every attempt. For the stateless authenticators that identifier is a non-reversible fingerprint, never the raw bearer token.
+
+| Authenticator | `auth_logins.identifier` stored | Method |
+|---------------|----------------------------------|--------|
+| `AccessToken` | `hash('sha256', $token)` of the X-API-KEY value | `AccessToken::getLogCredentials()` |
+| `JWT` | `hash('sha256', $token)` of the `Authorization: Bearer` value | `JWT::getLogCredentials()` |
+| `Session` | the email / username identifier (not a secret) | `Session::getLogCredentials()` |
+
+Each authenticator implements the abstract `Base::getLogCredentials(array $credentials): mixed`. The base login flow calls it before writing the `auth_logins` row, so a leaked or shared log database never yields a usable token — only its fingerprint, which cannot be replayed. An empty token is logged as an empty string (`$token === '' ? '' : hash('sha256', $token)`).
+
+> The same `hash('sha256', $rawToken)` fingerprint is what `auth_users_identities.secret` stores for `ACCESS_TOKEN` and `JWT_REFRESH` identities, so the value in the login log can be correlated with the identity row without either ever holding the raw token.
+
+---
+
+## Hashed-at-Rest Tokens (Magic Link & Password Reset)
+
+Ephemeral e-mailed tokens — magic-link login and password-reset codes — are now stored **SHA-256 hashed at rest**. The RAW token is e-mailed to the user; only `hash('sha256', $token)` is persisted in `auth_users_identities.secret`.
+
+### How it works
+
+1. `Daycry\Auth\Libraries\TokenEmailSender` generates a random token, e-mails the raw value, and persists `'secret' => hash('sha256', $token)`.
+2. Lookups go through `UserIdentityModel::getIdentityBySecret(string $type, ?string $secret)`, which hashes the looked-up value (`->where('secret', hash('sha256', $secret))`) before matching — so the raw token from the e-mail link is verified against the stored hash without the raw value ever touching the database.
+3. Single-use + expiry are enforced by the consuming controllers.
+
+A database or backup leak therefore never exposes a directly usable login/reset token.
+
+> **Upgrade note:** because the storage format changed, any **unconsumed** magic-link / password-reset tokens issued *before* the upgrade become invalid — affected users simply request a new link. There is no destructive schema change; only the storage format of `auth_users_identities.secret` for these ephemeral identity types changed.
+
+> The magic-link e-mail view also receives the `$user` variable, so templates can address the recipient (e.g. `$user->username`).
+
+---
+
 ## Suspicious Login Detection
 
 After every successful login, `SuspiciousLoginDetector` compares the new login against the user's recent history. When something looks off, it fires the `suspicious-login` event and writes an audit entry — your application listens to the event to deliver an email / Slack / push notification.
@@ -183,6 +227,104 @@ The package ships `Views/Email/suspicious_login_alert.php` as a starting templat
 ### What lands in the audit log
 
 Every flagged login also writes an `EVENT_SUSPICIOUS_LOGIN` row with the flags and request context as metadata, so you have a permanent record even if the email fails to send.
+
+---
+
+## Remember-Me Theft Detection
+
+Remember-me cookies use the Paragonie split selector/validator design. `Daycry\Auth\Authentication\Services\RememberMe` enforces two security guarantees on every cookie presented to `checkRememberMeToken()`:
+
+### Expiry enforced at validation time
+
+An expired remember-me cookie can no longer authenticate. `checkRememberMeToken()` rejects a token once `expires` is in the past, regardless of whether the row has been purged from the table yet:
+
+```php
+if (Time::parse($token->expires)->getTimestamp() <= Time::now()->getTimestamp()) {
+    return false;
+}
+```
+
+The probabilistic on-login purge is now **table maintenance only** — never the security control. (See `$rememberMePurgeChance` below, whose default is now `0`, and the scheduled [`auth:purge`](#scheduled-cleanup-authpurge) command.)
+
+### Theft response
+
+If the **selector matches but the validator does not** (`hash_equals()` fails), the cookie was likely stolen or guessed. `RememberMe::handlePossibleTheft()` performs a defence-in-depth response:
+
+1. **Purge all of the user's tokens** — `RememberModel::purgeRememberTokensByUserId($userId)` invalidates every remember-me token the user holds, forcing a fresh login everywhere.
+2. **Write an audit entry** — `AuditLogger::record(AuditLogger::EVENT_SUSPICIOUS_LOGIN, $userId, ['reason' => 'remember_me_validator_mismatch', 'selector' => $selector])`.
+3. **Fire an event** — `Events::trigger('remember-me-theft', $userId, $selector)` so your application can notify the user.
+
+### React with an event listener
+
+```php
+// app/Config/Events.php
+use CodeIgniter\Events\Events;
+
+Events::on('remember-me-theft', static function (int $userId, string $selector): void {
+    // Notify the user that a persistent-login cookie was misused and all
+    // remember-me sessions were revoked as a precaution.
+    log_message('warning', "Remember-me theft suspected for user {$userId} (selector {$selector})");
+});
+```
+
+---
+
+## JWT Access-Token Revocation (`token_version`)
+
+JWT access tokens are stateless and self-contained, so they cannot be revoked individually. Instead, every user carries a `token_version` counter; bumping it invalidates **every** outstanding access token for that user in one operation ("log out everywhere").
+
+### How it works
+
+1. `JwtController` mints the access-token payload as `{uid, tv}`, where `tv` is the user's current `token_version` at issue time:
+
+   ```php
+   $payload = [
+       'uid' => $user->id,
+       'tv'  => (int) ($user->token_version ?? 0),
+   ];
+   ```
+
+2. The `JWT` authenticator's `check()` rejects a token whose embedded `tv` no longer matches the user's stored `token_version`, returning `lang('Auth.revokedToken')` ("The token has been revoked."):
+
+   ```php
+   if ($tokenVersion !== null && (int) ($user->token_version ?? 0) !== $tokenVersion) {
+       return new Result(['success' => false, 'reason' => lang('Auth.revokedToken')]);
+   }
+   ```
+
+3. **Legacy tokens** carrying a bare scalar user id (no `tv`) are still accepted — the version check is simply skipped for them.
+
+### Revoking
+
+`User::revokeIssuedTokens(): void` bumps `token_version` atomically (`token_version + 1`):
+
+```php
+$user->revokeIssuedTokens(); // every previously-issued JWT now fails validation
+```
+
+It is also called automatically by:
+
+| Trigger | Source |
+|---------|--------|
+| Ban | `Bannable::ban()` |
+| Password reset / change | `Services\PasswordChangeRecorder::record()` |
+
+### Database
+
+Migration `2026-05-08-000001_add_jwt_token_version_to_users.php` adds `users.token_version` (`int`, default `0`).
+
+---
+
+## Refresh-Token Revoke Reasons
+
+JWT **refresh** tokens are soft-revoked (the `revoked_at` column), and each revocation records *why* in the audit log. `JwtTokenRepository::softRevokeRefreshToken(int $identityId, ?int $userId = null, ?string $reason = null)` writes an `EVENT_REFRESH_TOKEN_REVOKED` row whose `metadata.reason` distinguishes the two paths:
+
+| `metadata.reason` | When | Source |
+|-------------------|------|--------|
+| `rotation` | A refresh token was exchanged for a new one — refresh is one-time-use, so the consumed token is immediately revoked | `JwtController::refresh()` |
+| `logout` | Stateless logout soft-revokes the presented refresh token | `JwtController::logout()` |
+
+`JwtController` routes refresh / logout / issue through `service('jwtTokenRepository')`. When `$reason` is `null` the audit entry is still written (only `identity_id` in metadata), but the built-in flows always pass a reason.
 
 ---
 
@@ -284,7 +426,7 @@ The `password-age` alias is registered automatically by `Registrar`. Apply it al
 
 ```php
 // app/Config/Routes.php
-$routes->group('app', ['filter' => 'session,password-age'], static function ($routes) {
+$routes->group('app', ['filter' => 'auth:session,password-age'], static function ($routes) {
     $routes->get('/dashboard', 'Dashboard::index');
 });
 ```
@@ -323,9 +465,9 @@ The payload includes:
 
 - `user` — identity row (id, uuid, username, email, active, lockout state, password rotation timestamp).
 - `identities` — every row in `auth_users_identities`, with **secrets redacted**:
-  - bcrypt password hashes are marked `<redacted: bcrypt hash>`
+  - bcrypt password hashes are marked `<redacted: bcrypt hash>` (the `secret2` column)
   - access / refresh tokens marked `<redacted: hashed token>`
-  - other types (magic link, OAuth, TOTP secret) include the raw `secret` column (these are short-lived or already encrypted)
+  - other types (magic link, password reset, OAuth, TOTP secret) emit the stored `secret` column verbatim — and these are never the raw value: magic-link / password-reset secrets are SHA-256-hashed at rest, OAuth identities hold provider data, and the TOTP secret is AES-encrypted
 - `device_sessions` — full history (active + terminated).
 - `login_history` — last 500 entries from `auth_logins`.
 - `audit_log` — last 500 entries from `auth_audit_logs`, with metadata decoded.
@@ -358,6 +500,29 @@ The command prompts for confirmation before any destructive action. Login attemp
 
 ---
 
+## Scheduled Cleanup (`auth:purge`)
+
+`php spark auth:purge` (command group **Auth**) replaces the probabilistic, on-login purge of expired tokens with a deterministic, scheduled job. It removes:
+
+- expired remember-me tokens from `auth_remember_tokens`, and
+- terminated device sessions older than `--days`.
+
+```bash
+# Purge expired remember-me tokens + terminated sessions older than 30 days (default)
+php spark auth:purge
+
+# Override the device-session age threshold
+php spark auth:purge --days 7
+```
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--days <n>` | `30` | Age in days above which terminated device sessions are removed. |
+
+Run it on a schedule (cron or `daycry/jobs`) rather than relying on the on-login purge. Because remember-me expiry is now [enforced at validation time](#remember-me-theft-detection), the only role of the inline purge is table maintenance — and its probability default is now `0` (see `$rememberMePurgeChance` below).
+
+---
+
 ## Quick Configuration Reference
 
 All compliance features are opt-in. Here is the full set of new toggles in `app/Config/AuthSecurity.php`:
@@ -381,6 +546,11 @@ class AuthSecurity extends AuthSecurityConfig
     // Force password rotation every 90 days
     public int $passwordMaxAge = 90 * DAY;
 
+    // Inline expired remember-me purge probability. Default is now 0 —
+    // expiry is enforced at validation time, so schedule `auth:purge`
+    // instead of paying purge latency on a fraction of logins.
+    public int $rememberMePurgeChance = 0;
+
     // Add HistoryValidator to the chain
     public array $passwordValidators = [
         \Daycry\Auth\Authentication\Passwords\CompositionValidator::class,
@@ -394,7 +564,7 @@ class AuthSecurity extends AuthSecurityConfig
 And the routing-level wiring in `app/Config/Routes.php`:
 
 ```php
-$routes->group('app', ['filter' => 'session,password-age'], static function ($routes) {
+$routes->group('app', ['filter' => 'auth:session,password-age'], static function ($routes) {
     // Routes that should enforce password rotation
 });
 ```

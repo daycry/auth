@@ -16,6 +16,10 @@ Daycry Auth integrates with [PHP League's OAuth2 Client](https://oauth2-client.l
   - [Facebook](#facebook)
   - [Microsoft / Azure](#microsoft--azure)
   - [Generic OIDC Provider](#generic-oidc-provider)
+- [Account Linking & Email Verification](#account-linking--email-verification)
+  - [Verified-Email Requirement](#verified-email-requirement)
+  - [allowUnverifiedEmailLink Opt-In](#allowunverifiedemaillink-opt-in)
+- [Explicit Linking for Logged-In Users](#explicit-linking-for-logged-in-users)
 - [Stored Token Data](#stored-token-data)
 - [Profile Fields](#profile-fields)
   - [Configuring Profile Fields](#configuring-profile-fields)
@@ -42,9 +46,11 @@ Redirected to Google OAuth consent screen
         |
 User authorizes -> Google redirects back to /oauth/google/callback
         |
-System retrieves the user's email from Google
+System retrieves the user's email (and verified flag) from Google
         |
-If email exists -> link the OAuth identity and log in
+If a matching OAuth identity exists -> update tokens and log in
+If the email matches an EXISTING password account -> link only if the
+    provider asserts the email is verified (see Account Linking below)
 If email is new -> create user account, link identity, log in
         |
 Tokens + profile data stored in auth_users_identities
@@ -154,6 +160,7 @@ Each provider entry supports these keys:
 | `fields` | No | Extra profile fields to fetch (see [Profile Fields](#profile-fields)) |
 | `fieldsEndpoint` | No | Custom API endpoint for profile fields |
 | `profileResolver` | No | Custom profile resolver class (see [Custom Profile Resolver](#custom-profile-resolver)) |
+| `allowUnverifiedEmailLink` | No | Opt-in (default unset = `false`). Allow auto-linking to an existing password account even when the provider cannot assert the email is verified (see [Account Linking & Email Verification](#account-linking--email-verification)) |
 | `tenant` | Azure only | Azure AD tenant: `'common'`, `'organizations'`, or a tenant GUID |
 
 > **Security**: Always load credentials from environment variables, never hardcode them.
@@ -171,17 +178,20 @@ If you use `auth()->routes($routes)` in `app/Config/Routes.php`, OAuth routes ar
 ```php
 // app/Config/Routes.php
 $routes->group('oauth', ['namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
-    // Initiates the redirect to the provider
+    // Initiates the redirect to the provider (sign in / sign up)
     $routes->get('login/(:segment)',    'OauthController::redirect/$1',  ['as' => 'oauth-login']);
-    // Handles the callback from the provider
+    // Handles the callback from the provider (shared by sign-in and link flows)
     $routes->get('callback/(:segment)', 'OauthController::callback/$1', ['as' => 'oauth-callback']);
+    // Links a provider to the *already logged-in* user (see Explicit Linking)
+    $routes->get('link/(:segment)',     'OauthController::link/$1',     ['as' => 'oauth-link']);
 });
 ```
 
 | Route | Named Route | Description |
 |-------|-------------|-------------|
-| `GET /oauth/login/{provider}` | `oauth-login` | Redirects user to provider |
+| `GET /oauth/login/{provider}` | `oauth-login` | Redirects user to provider (sign in / sign up) |
 | `GET /oauth/callback/{provider}` | `oauth-callback` | Handles the return from provider |
+| `GET /oauth/link/{provider}` | `oauth-link` | Links a provider to the currently authenticated user (see [Explicit Linking for Logged-In Users](#explicit-linking-for-logged-in-users)) |
 
 ---
 
@@ -331,6 +341,110 @@ For providers that follow OpenID Connect standards:
     // 'profileResolver'      => \App\OAuth\MyCustomResolver::class,
 ],
 ```
+
+---
+
+## Account Linking & Email Verification
+
+When a social login arrives, `OauthManager::processUser()` decides how to map it to a local account. The three cases (in order) are:
+
+1. **Known social identity** -- an `auth_users_identities` row already exists for this provider + social ID. The stored tokens and profile are refreshed and the user is logged in. No email check is involved.
+2. **Email matches an EXISTING local account** -- no OAuth identity exists yet, but a local (password) account already uses the same email. **This is the sensitive case** (see below): the merge is only auto-performed when the provider asserts the email is verified.
+3. **Brand-new email** -- no identity and no matching account, so a new user is created, assigned to the default group, and logged in.
+
+### Verified-Email Requirement
+
+Case 2 above is the classic **unverified-email account-takeover** vector: an attacker registers a social account at a provider that does *not* verify email ownership, sets the email to the victim's address, and -- if the library blindly merged on email -- would be silently logged in as the victim.
+
+To prevent this, Daycry Auth links a social account to an **existing** password account only when the provider tells us the email is verified. The verified signal is read from the resource owner during `extractUserData()`:
+
+| Provider type | Verified signal read | Asserts verification? |
+|---------------|----------------------|-----------------------|
+| Generic OIDC | `email_verified` claim | Yes, when the IdP sets it |
+| Google | `email_verified` / legacy `verified_email` | Yes |
+| Microsoft / Azure | `email_verified` claim | Yes, when present |
+| Facebook | (none exposed) | **No** |
+| GitHub | (none exposed) | **No** |
+
+The flag is normalised from the provider's inconsistent representations (`true`, `1`, `"1"`, `"true"`) into a strict boolean.
+
+If the provider does **not** assert a verified email and the matching local account exists, the merge is refused:
+
+```php
+throw new AuthenticationException(lang('Auth.oauthEmailUnverified'));
+// "This email address is already registered.
+//  Sign in with your password to link this provider."
+```
+
+> This guard applies **only** to case 2 (linking to a pre-existing password account). Case 1 (re-login of a known social identity) and case 3 (a brand-new account) are unaffected -- there is no existing account to take over.
+
+The recommended recovery path for the user is exactly what the message says: sign in with their password first, then attach the provider deliberately via the [explicit linking flow](#explicit-linking-for-logged-in-users).
+
+### allowUnverifiedEmailLink Opt-In
+
+If you fully trust a provider's email even though it does not send a verified flag, you can opt in **per provider** with `allowUnverifiedEmailLink`:
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `allowUnverifiedEmailLink` | unset (`= false`) | When `true`, auto-link a social account to an existing password account even if the provider does not assert the email is verified. When `false`/unset, such a merge is refused with `lang('Auth.oauthEmailUnverified')`. |
+
+```php
+// app/Config/AuthOAuth.php
+'github' => [
+    'clientId'     => env('OAUTH_GITHUB_CLIENT_ID'),
+    'clientSecret' => env('OAUTH_GITHUB_CLIENT_SECRET'),
+    'redirectUri'  => 'https://yourapp.com/oauth/github/callback',
+    'scopes'       => ['user:email'],
+    // GitHub does not expose a verified-email flag. Only enable this if you
+    // accept the account-takeover risk for accounts that already have a password.
+    'allowUnverifiedEmailLink' => true,
+],
+```
+
+> **Security**: Leave this unset (the secure default) unless you fully trust the provider. Providers that *do* assert verification (Google, generic OIDC, Azure) do not need it for verified emails. The most common reason to enable it is **Facebook** or **GitHub**, neither of which exposes a verified-email signal to the OAuth client.
+
+---
+
+## Explicit Linking for Logged-In Users
+
+Because auto-linking by email is deliberately restricted (above), Daycry Auth provides an **explicit** linking flow for users who are already signed in. This lets an authenticated user attach an additional provider to *their own* account without any email-matching heuristics.
+
+The flow is handled by `OauthController::link()` and the `oauth-link` route:
+
+| Route | Named Route | Description |
+|-------|-------------|-------------|
+| `GET /oauth/link/{provider}` | `oauth-link` | Begins linking `{provider}` to the currently authenticated user |
+
+### How It Differs From Sign-In
+
+| | `oauth-login` (sign in) | `oauth-link` (explicit link) |
+|--|--|--|
+| Requires an authenticated user | No | **Yes** (redirects to the login page if not) |
+| Email-merge to existing account | Yes (case 2, guarded) | **Never** -- links to the current user directly |
+| Verified-email requirement | Yes, for case 2 | **None** -- the user is already authenticated and acting deliberately |
+| Who gets linked | The user resolved by social ID / email | The **current** logged-in user |
+
+`link()` stashes the current user's id in the session (`oauth_link_user_id`) and redirects to the provider. The **shared** callback (`oauth-callback`) detects the stashed id and routes through the explicit-link path instead of the sign-in path, then clears the session key.
+
+### Adding a "Connect" Button
+
+```html
+<!-- On the user's account / security settings page -->
+<a href="<?= url_to('oauth-link', 'github') ?>" class="btn btn-dark">
+    <i class="bi bi-github me-2"></i>Connect GitHub
+</a>
+```
+
+### Already-Linked-Elsewhere Refusal
+
+If the chosen social account is already bound to a **different** local user, linking is refused (you cannot steal another user's social identity by linking it to your own account):
+
+```php
+throw new AuthenticationException(lang('Auth.oauthAlreadyLinked'));
+// "This account is already linked to a different user."
+```
+
+If the social account is already linked to the **current** user, the link is treated as a no-op that simply refreshes the stored token and profile.
 
 ---
 
@@ -669,7 +783,7 @@ Users can disconnect a social login from their account. Daycry Auth ships with `
 ```php
 $routes->post('security/oauth/unlink/(:segment)',
     'Daycry\Auth\Controllers\UserSecurityController::unlinkOauth/$1',
-    ['filter' => 'session', 'as' => 'oauth-unlink']);
+    ['filter' => 'auth:session', 'as' => 'oauth-unlink']);
 ```
 
 ### Unlink Button in a View
@@ -699,9 +813,11 @@ The unlink logic ensures users always retain at least one way to sign in. It wil
 When a user authenticates via OAuth, the system:
 
 1. **Looks up by social ID** -- if an OAuth identity with the same provider and social ID already exists, the tokens and profile are updated (re-login)
-2. **Finds the user by email** -- if no OAuth identity exists but an account with that email does, the OAuth identity is linked to it
+2. **Finds the user by email** -- if no OAuth identity exists but an account with that email does, the OAuth identity is linked to it **only when the provider asserts the email is verified** (or `allowUnverifiedEmailLink` is enabled for that provider). Otherwise the merge is refused with `lang('Auth.oauthEmailUnverified')`. See [Account Linking & Email Verification](#account-linking--email-verification).
 3. **Creates a new account** -- if no matching email is found, a new user is created automatically and assigned to the default group
 4. **Stores the provider identity** -- the OAuth provider ID, tokens, scopes, and profile data are saved in `auth_users_identities`
+
+> Already-authenticated users can attach a provider to their own account without any email matching via the [explicit linking flow](#explicit-linking-for-logged-in-users) (`oauth-link`).
 
 ### Handling New Users from OAuth
 

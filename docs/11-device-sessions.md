@@ -7,6 +7,7 @@ Device Sessions let you track every device and browser from which a user has log
 - [How It Works](#how-it-works)
 - [Configuration](#configuration)
 - [Database Migration](#database-migration)
+- [Revocation Invalidates the Live Session](#revocation-invalidates-the-live-session)
 - [Viewing Active Sessions](#viewing-active-sessions)
 - [Terminating Sessions](#terminating-sessions)
 - [Concurrent Session Limit](#concurrent-session-limit)
@@ -35,6 +36,8 @@ When a user logs in, a record is created in the `auth_device_sessions` table con
 | `created_at` | When the session was created |
 
 When the user logs out, the session record is updated with a `logged_out_at` timestamp.
+
+A terminated row (`logged_out_at` set) is no longer cosmetic: with `trackDeviceSessions` enabled, every authenticated request re-checks that the live PHP session still maps to a non-terminated row, so revoking a session genuinely signs that device out. See [Revocation Invalidates the Live Session](#revocation-invalidates-the-live-session).
 
 ---
 
@@ -73,6 +76,53 @@ php spark migrate --all
 ```
 
 The table also includes a `uuid` column for safe external exposure (never expose the integer `id` directly in APIs or URLs).
+
+---
+
+## Revocation Invalidates the Live Session
+
+When `sessionConfig['trackDeviceSessions']` is `true`, revoking a device session now **actually logs that device out** on its next request — it no longer merely flips a database column while the cookie keeps working.
+
+### What changed
+
+Previously, terminating a session only set `logged_out_at` on the `auth_device_sessions` row. The PHP session cookie itself stayed valid, so a "revoked" device could keep making authenticated requests until the cookie naturally expired.
+
+Now, on **every authenticated request**, the `Session` authenticator verifies that the current PHP session still maps to a non-terminated `auth_device_sessions` row. A session that was revoked remotely — or evicted by the [concurrent-session limit](#concurrent-session-limit) — is forced to re-authenticate.
+
+### Where the check happens
+
+The check runs inside `Session::checkUserState()`, which backs every `auth()->loggedIn()` / `auth()->user()` call (and therefore the `auth` / `chain` filters). When tracking is enabled and the live session has been terminated, the authenticator drops the user to the anonymous state and clears the session user info:
+
+```php
+// Daycry\Auth\Authentication\Authenticators\Session::checkUserState()
+if (
+    (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false)
+    && ! $this->deviceRecorder->isCurrentSessionActive()
+) {
+    $this->userState = AuthenticationState::ANONYMOUS;
+    $this->removeSessionUserInfo();
+
+    return;
+}
+```
+
+`DeviceSessionRecorder::isCurrentSessionActive()` resolves the current `session_id()` and delegates to `DeviceSessionModel::isSessionActive(string $sessionId): bool`.
+
+### Fail-safe behaviour (no false logouts)
+
+`isSessionActive()` returns `false` **only when a row exists and has been terminated** (`logged_out_at` is set). It returns `true` in every other case:
+
+| Situation | `isSessionActive()` | Effect on the request |
+|-----------|---------------------|-----------------------|
+| Matching row exists, `logged_out_at IS NULL` | `true` | Stays logged in |
+| Matching row exists, `logged_out_at` set (revoked / evicted) | `false` | Forced to re-authenticate |
+| **No matching row** (predates tracking, or recording silently failed) | `true` | Stays logged in |
+| No active PHP session id (e.g. CLI / tests) | `true` | Stays logged in |
+| Lookup throws (DB error) | `true` (logged) | Stays logged in |
+
+This is deliberately fail-safe: a session that has no tracked row is **never** falsely logged out. Sessions created before device tracking was enabled — and sessions whose row recording silently failed (device tracking is non-critical and swallows its own errors) — continue to work normally. Only an explicitly terminated row triggers re-authentication.
+
+> Because the verdict is recomputed per request, no in-memory cache hides a fresh revocation: the device is cut off on its very next request.
 
 ---
 
@@ -180,7 +230,7 @@ Requires `sessionConfig.trackDeviceSessions = true`.
 ### Edge cases
 
 - The session a user is currently using **can** be among the terminated ones — they will be redirected to login on their next request from that device.
-- The PHP session cookie itself remains valid until the next request (the auth filter then sees `logged_out_at != null` and rejects).
+- The PHP session cookie itself stays in the browser until the next request, but it is now inert: on that next request the authenticator's [live revocation check](#revocation-invalidates-the-live-session) sees `logged_out_at` is set and drops the user to anonymous, so an evicted device is genuinely signed out (this requires `trackDeviceSessions = true`).
 - Forcing the user to log out from the **current** device is intentional when the limit is set to 1: it implements "single device" licensing.
 
 ---
@@ -215,7 +265,7 @@ A user-facing endpoint that shows the user's recent login attempts (success + fa
 
 ```php
 // Wire the route once
-$routes->group('account/security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+$routes->group('account/security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
     $routes->get('activity', 'UserSecurityController::loginActivity', ['as' => 'security-activity']);
 });
 ```
@@ -232,7 +282,7 @@ Daycry Auth includes a `UserSecurityController` with ready-made actions for sess
 
 ```php
 // app/Config/Routes.php
-$routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+$routes->group('security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
     // Device sessions
     $routes->get('sessions',                     'UserSecurityController::deviceSessionsView', ['as' => 'security-sessions']);
     $routes->delete('sessions/(:segment)',       'UserSecurityController::terminateDeviceSession/$1');
@@ -391,9 +441,9 @@ php spark auth:sessions terminate -e alice@example.com
 php spark auth:sessions terminate -i 42
 ```
 
-This sets `logged_out_at` on every active row in `auth_device_sessions` for the user. Their next request from any browser/device falls back to login.
+This sets `logged_out_at` on every active row in `auth_device_sessions` for the user. With `trackDeviceSessions = true`, their next request from any browser/device hits the [live revocation check](#revocation-invalidates-the-live-session), is dropped to anonymous, and falls back to login.
 
-> The PHP session ID lives in the cookie until the user's next request. The auth filter then sees there is no matching active row and rejects.
+> The PHP session ID lives in the cookie until the user's next request. On that request the authenticator sees the matching row is terminated (`logged_out_at` set) and forces re-authentication.
 
 See [CLI Commands — `auth:sessions`](14-cli-commands.md#auth-sessions) for the full reference.
 
