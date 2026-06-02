@@ -59,6 +59,46 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         return \fake(UserModel::class);
     }
 
+    public function testCheckAcceptsLegacyScalarPayload(): void
+    {
+        $user  = $this->createUser();
+        $token = (new DaycryJWTAdapter())->encode($user->id);
+
+        // Tokens minted before token_version existed carry a bare scalar uid.
+        $this->assertTrue($this->auth->check(['token' => $token])->isOK());
+    }
+
+    public function testCheckRejectsTokenWithStaleTokenVersion(): void
+    {
+        $user  = $this->createUser();
+        $token = (new DaycryJWTAdapter())->encode(['uid' => $user->id, 'tv' => 0]);
+
+        // Valid while the embedded token_version matches the user's.
+        $this->assertTrue($this->auth->check(['token' => $token])->isOK());
+
+        // Bumping token_version revokes every previously issued access token.
+        model(UserModel::class)->update($user->id, ['token_version' => 1]);
+
+        $this->assertFalse($this->auth->check(['token' => $token])->isOK());
+    }
+
+    public function testGetLogCredentialsMasksRawToken(): void
+    {
+        $raw = self::BAD_JWT;
+
+        $logged = $this->auth->getLogCredentials(['token' => $raw]);
+
+        // The full signed JWT must never be persisted verbatim in the login log.
+        $this->assertNotSame($raw, $logged);
+        $this->assertSame(hash('sha256', $raw), $logged);
+    }
+
+    public function testGetLogCredentialsReturnsEmptyStringWhenNoToken(): void
+    {
+        $this->assertSame('', $this->auth->getLogCredentials([]));
+        $this->assertSame('', $this->auth->getLogCredentials(['token' => '']));
+    }
+
     public function testLogin(): void
     {
         $user = $this->createUser();
@@ -183,7 +223,8 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         // A login attempt should have always been recorded
         $this->seeInDatabase('auth_logins', [
             'id_type'    => JWT::ID_TYPE_JWT,
-            'identifier' => self::BAD_JWT,
+            // The login log stores a non-reversible fingerprint, never the raw JWT.
+            'identifier' => hash('sha256', self::BAD_JWT),
             'success'    => 0,
         ]);
     }
@@ -205,7 +246,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         // The login attempt should have been recorded
         $this->seeInDatabase('auth_logins', [
             'id_type'    => JWT::ID_TYPE_JWT,
-            'identifier' => $token,
+            'identifier' => hash('sha256', $token),
             'success'    => 0,
             'user_id'    => $this->user->id,
         ]);
@@ -235,7 +276,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         // A login attempt should have been recorded
         $this->seeInDatabase('auth_logins', [
             'id_type'    => JWT::ID_TYPE_JWT,
-            'identifier' => $token,
+            'identifier' => hash('sha256', $token),
             'success'    => 1,
         ]);
     }
@@ -280,7 +321,8 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         // A login attempt should have been recorded
         $this->seeInDatabase('auth_logins', [
             'id_type'    => JWT::ID_TYPE_JWT,
-            'identifier' => self::BAD_JWT,
+            // The login log stores a non-reversible fingerprint, never the raw JWT.
+            'identifier' => hash('sha256', self::BAD_JWT),
             'success'    => 0,
         ]);
     }
@@ -320,7 +362,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         // A login attempt should have been recorded
         $this->seeInDatabase('auth_logins', [
             'id_type'    => JWT::ID_TYPE_JWT,
-            'identifier' => $expiredToken,
+            'identifier' => hash('sha256', $expiredToken),
             'success'    => 0,
         ]);
     }

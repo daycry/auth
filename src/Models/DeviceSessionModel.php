@@ -16,7 +16,6 @@ namespace Daycry\Auth\Models;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\DeviceSession;
 use Daycry\Auth\Entities\User;
-use Symfony\Component\Uid\Uuid;
 
 class DeviceSessionModel extends BaseModel
 {
@@ -58,7 +57,7 @@ class DeviceSessionModel extends BaseModel
     protected function generateUuid(array $data): array
     {
         if (empty($data['data']['uuid'])) {
-            $data['data']['uuid'] = Uuid::v7()->toRfc4122();
+            $data['data']['uuid'] = service('uuid')->uuid7()->toRfc4122();
         }
 
         return $data;
@@ -96,6 +95,27 @@ class DeviceSessionModel extends BaseModel
     {
         return $this->where('session_id', $sessionId)
             ->first();
+    }
+
+    /**
+     * Returns whether the given PHP session id still maps to an ACTIVE device
+     * session.
+     *
+     * Returns false ONLY when a row exists and has been terminated
+     * (`logged_out_at` set) — i.e. the session was revoked remotely or evicted
+     * by the concurrent-session limit. Returns true when no row exists, so
+     * sessions that predate device tracking (or whose recording silently
+     * failed) are never falsely invalidated.
+     */
+    public function isSessionActive(string $sessionId): bool
+    {
+        if ($sessionId === '') {
+            return true;
+        }
+
+        $session = $this->findBySessionId($sessionId);
+
+        return $session === null || empty($session->logged_out_at);
     }
 
     /**

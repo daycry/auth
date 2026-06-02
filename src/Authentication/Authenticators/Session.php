@@ -283,6 +283,16 @@ class Session extends Base implements AuthenticatorInterface
     }
 
     /**
+     * Exposes the per-user lockout manager so post-auth actions (e.g. the TOTP
+     * second factor) can apply the same brute-force throttling that guards
+     * password authentication.
+     */
+    public function getLockoutManager(): UserLockoutManager
+    {
+        return $this->lockoutManager;
+    }
+
+    /**
      * Returns an action object from the session data
      */
     public function getAction(): ?ActionInterface
@@ -375,57 +385,83 @@ class Session extends Base implements AuthenticatorInterface
      */
     public function login(User $user, bool $actions = true): void
     {
+        // Force-login path (no post-auth actions) — used by loginById().
+        if (! $actions) {
+            $this->forceLoginWithoutActions($user);
+
+            return;
+        }
+
         $this->user = $user;
 
         // Reset per-user failed login counter on successful login
         $this->lockoutManager->resetOnSuccess($user);
 
-        if ($actions) {
-            // Update the user's last used date on their password identity.
-            $identity = $user->getEmailIdentity();
-            if ($identity instanceof UserIdentity) {
-                $this->userIdentityModel->touchIdentity($identity);
-            }
+        // Update the user's last used date on their password identity.
+        $identity = $user->getEmailIdentity();
+        if ($identity instanceof UserIdentity) {
+            $this->userIdentityModel->touchIdentity($identity);
+        }
 
-            // Set auth action from database.
-            $this->setAuthAction();
+        // Set auth action from database.
+        $this->setAuthAction();
 
-            // If an action has been defined for login, start it up.
-            $this->startUpAction('login', $user);
+        // If an action has been defined for login, start it up.
+        $this->startUpAction('login', $user);
 
-            $this->startLogin($user);
+        $this->beginSession($user);
 
-            $this->issueRememberMeToken();
-
-            if (! $this->hasAction()) {
-                $this->completeLogin($user);
-            }
-        } else {
-            // Check identities for actions
-            if ($this->getIdentitiesForAction($user) !== []) {
-                throw new LogicException(
-                    'The user has identities for action, so cannot complete login.'
-                    . ' If you want to start to login with auth action, use startLogin() instead.'
-                    . ' Or delete identities for action in database.'
-                    . ' user_id: ' . $user->id,
-                );
-            }
-            // Check auth_action in Session
-            if ($this->getSessionKey('auth_action')) {
-                throw new LogicException(
-                    'The user has auth action in session, so cannot complete login.'
-                    . ' If you want to start to login with auth action, use startLogin() instead.'
-                    . ' Or delete `auth_action` and `auth_action_message` in session data.'
-                    . ' user_id: ' . $user->id,
-                );
-            }
-
-            $this->startLogin($user);
-
-            $this->issueRememberMeToken();
-
+        if (! $this->hasAction()) {
             $this->completeLogin($user);
         }
+    }
+
+    /**
+     * Completes login immediately, bypassing the post-auth action system.
+     *
+     * Throws when the user still has a pending action (identity row or
+     * `auth_action` in session) — those callers must use the action flow.
+     */
+    private function forceLoginWithoutActions(User $user): void
+    {
+        $this->user = $user;
+
+        // Reset per-user failed login counter on successful login
+        $this->lockoutManager->resetOnSuccess($user);
+
+        // Check identities for actions
+        if ($this->getIdentitiesForAction($user) !== []) {
+            throw new LogicException(
+                'The user has identities for action, so cannot complete login.'
+                . ' If you want to start to login with auth action, use startLogin() instead.'
+                . ' Or delete identities for action in database.'
+                . ' user_id: ' . $user->id,
+            );
+        }
+        // Check auth_action in Session
+        if ($this->getSessionKey('auth_action')) {
+            throw new LogicException(
+                'The user has auth action in session, so cannot complete login.'
+                . ' If you want to start to login with auth action, use startLogin() instead.'
+                . ' Or delete `auth_action` and `auth_action_message` in session data.'
+                . ' user_id: ' . $user->id,
+            );
+        }
+
+        $this->beginSession($user);
+
+        $this->completeLogin($user);
+    }
+
+    /**
+     * Shared session-establishment tail: start the login session and issue the
+     * remember-me token if requested.
+     */
+    private function beginSession(User $user): void
+    {
+        $this->startLogin($user);
+
+        $this->issueRememberMeToken();
     }
 
     /**
@@ -495,7 +531,7 @@ class Session extends Base implements AuthenticatorInterface
             throw AuthenticationException::forInvalidUser();
         }
 
-        $this->login($user, false);
+        $this->forceLoginWithoutActions($user);
     }
 
     /**
@@ -686,6 +722,20 @@ class Session extends Base implements AuthenticatorInterface
             // If having `auth_action`, it is pending.
             if ($this->getSessionKey('auth_action')) {
                 $this->userState = AuthenticationState::PENDING;
+
+                return;
+            }
+
+            // When device-session tracking is on, the live PHP session must still
+            // map to an active (non-revoked) device-session row. This makes remote
+            // "revoke" and concurrent-session eviction actually invalidate the
+            // session instead of only flipping a DB column.
+            if (
+                (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false)
+                && ! $this->deviceRecorder->isCurrentSessionActive()
+            ) {
+                $this->userState = AuthenticationState::ANONYMOUS;
+                $this->removeSessionUserInfo();
 
                 return;
             }

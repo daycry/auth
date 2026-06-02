@@ -14,8 +14,12 @@ declare(strict_types=1);
 namespace Tests\Authentication;
 
 use CodeIgniter\I18n\Time;
+use Daycry\Auth\Authentication\Authentication;
+use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Entities\DeviceSession;
 use Daycry\Auth\Models\DeviceSessionModel;
+use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
 
@@ -152,6 +156,76 @@ final class DeviceSessionTest extends DatabaseTestCase
 
         $notFound = $model->findBySessionId('nonexistent');
         $this->assertNotInstanceOf(DeviceSession::class, $notFound);
+    }
+
+    public function testIsSessionActiveReturnsTrueForActiveSession(): void
+    {
+        /** @var DeviceSessionModel $model */
+        $model = model(DeviceSessionModel::class);
+        $model->createSession($this->user, 'active_sid', '10.0.0.1');
+
+        $this->assertTrue($model->isSessionActive('active_sid'));
+    }
+
+    public function testIsSessionActiveReturnsFalseForTerminatedSession(): void
+    {
+        /** @var DeviceSessionModel $model */
+        $model = model(DeviceSessionModel::class);
+        $model->createSession($this->user, 'revoked_sid', '10.0.0.1');
+        $model->terminateSession('revoked_sid');
+
+        $this->assertFalse($model->isSessionActive('revoked_sid'));
+    }
+
+    public function testIsSessionActiveReturnsTrueForUnknownSession(): void
+    {
+        // No row → benefit of the doubt: sessions that predate device tracking
+        // (or whose recording silently failed) must not be falsely logged out.
+        /** @var DeviceSessionModel $model */
+        $model = model(DeviceSessionModel::class);
+
+        $this->assertTrue($model->isSessionActive('never_recorded'));
+    }
+
+    public function testLoggedInRejectsRevokedDeviceSession(): void
+    {
+        $startedHere = false;
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            @session_start();
+            $startedHere = true;
+        }
+
+        $sid = session_id();
+
+        try {
+            $this->assertNotSame('', $sid, 'A native session id is required for this test.');
+
+            /** @var DeviceSessionModel $model */
+            $model = model(DeviceSessionModel::class);
+            $model->createSession($this->user, $sid, '10.0.0.1');
+            // Simulate a remote "revoke" of this device session.
+            $model->terminateSession($sid);
+
+            $_SESSION['user'] = ['id' => $this->user->id];
+
+            $config = new Auth();
+            $auth   = new Authentication($config);
+            $auth->setProvider(model(UserModel::class));
+            /** @var Session $authenticator */
+            $authenticator = $auth->factory('session');
+
+            $this->assertFalse(
+                $authenticator->loggedIn(),
+                'A device session terminated remotely must no longer be authenticated.',
+            );
+        } finally {
+            unset($_SESSION['user']);
+
+            if ($startedHere) {
+                @session_destroy();
+            }
+        }
     }
 
     public function testGetActiveForUser(): void

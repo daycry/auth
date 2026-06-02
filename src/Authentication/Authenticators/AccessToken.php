@@ -167,7 +167,13 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
     {
         $this->authType = self::ID_TYPE_ACCESS_TOKEN;
 
-        return $credentials['token'] ?? '';
+        $token = $credentials['token'] ?? '';
+
+        // Never persist the raw, replayable bearer credential in the login log.
+        // Record a non-reversible SHA-256 fingerprint instead — this is the same
+        // hash the access token is stored under, so logs remain correlatable
+        // without being usable to authenticate.
+        return $token === '' ? '' : hash('sha256', $token);
     }
 
     /**

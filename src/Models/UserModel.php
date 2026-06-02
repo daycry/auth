@@ -23,7 +23,6 @@ use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Exceptions\ValidationException;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Faker\Generator;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @phpstan-consistent-constructor
@@ -43,6 +42,7 @@ class UserModel extends BaseModel implements UserProviderInterface
         'last_active',
         'failed_login_count',
         'locked_until',
+        'token_version',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
@@ -83,7 +83,7 @@ class UserModel extends BaseModel implements UserProviderInterface
     protected function generateUuid(array $data): array
     {
         if (empty($data['data']['uuid'])) {
-            $data['data']['uuid'] = Uuid::v7()->toRfc4122();
+            $data['data']['uuid'] = service('uuid')->uuid7()->toRfc4122();
         }
 
         return $data;

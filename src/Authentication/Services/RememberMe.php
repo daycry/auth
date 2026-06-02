@@ -13,12 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Services;
 
+use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\I18n\Time;
 use Config\Services;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\RememberModel;
+use Daycry\Auth\Services\AuditLogger;
 use stdClass;
 
 class RememberMe
@@ -154,6 +156,25 @@ class RememberMe
     }
 
     /**
+     * Responds to a likely remember-me token theft (selector match, validator
+     * mismatch): purges every remember-me token for the user, writes an audit
+     * entry, and fires a `remember-me-theft` event so the app can notify them.
+     */
+    protected function handlePossibleTheft(stdClass $token): void
+    {
+        $userId = (int) $token->user_id;
+
+        $this->rememberModel->purgeRememberTokensByUserId($userId);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_SUSPICIOUS_LOGIN, $userId, [
+            'reason'   => 'remember_me_validator_mismatch',
+            'selector' => (string) $token->selector,
+        ]);
+
+        Events::trigger('remember-me-theft', $userId, (string) $token->selector);
+    }
+
+    /**
      * @return false|stdClass
      */
     protected function checkRememberMeToken(string $remember)
@@ -173,6 +194,19 @@ class RememberMe
         }
 
         if (hash_equals($token->hashedValidator, $hashedValidator) === false) {
+            // Selector matched but validator did not: the persistent-login cookie
+            // was likely stolen or guessed. Per the Paragonie design, invalidate
+            // ALL of this user's remember-me tokens and raise an alarm.
+            $this->handlePossibleTheft($token);
+
+            return false;
+        }
+
+        // Enforce expiry at validation time. The probabilistic purge
+        // (purgeOldRememberTokens) is only table maintenance and must never be
+        // relied upon as the security control — otherwise an expired cookie
+        // keeps authenticating until a purge happens to fire.
+        if (Time::parse($token->expires)->getTimestamp() <= Time::now()->getTimestamp()) {
             return false;
         }
 

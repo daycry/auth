@@ -141,6 +141,63 @@ final class RememberMeTest extends DatabaseTestCase
         service('superglobals')->unsetCookie($cookieName);
     }
 
+    public function testCheckWithStolenValidatorPurgesAllUserTokens(): void
+    {
+        $expires = Time::now()->addSeconds(
+            (int) service('settings')->get('Auth.sessionConfig')['rememberLength'],
+        )->format('Y-m-d H:i:s');
+
+        // Two valid remember tokens for the same user.
+        $selectorA = bin2hex(random_bytes(12));
+        $this->rememberModel->rememberUser($this->user, $selectorA, hash('sha256', bin2hex(random_bytes(20))), $expires);
+
+        $selectorB = bin2hex(random_bytes(12));
+        $this->rememberModel->rememberUser($this->user, $selectorB, hash('sha256', bin2hex(random_bytes(20))), $expires);
+
+        $cookiePrefix = (string) (service('settings')->get('Cookie.prefix') ?? '');
+        $cookieName   = $cookiePrefix . service('settings')->get('Auth.sessionConfig')['rememberCookieName'];
+
+        // Present selectorA with the WRONG validator — a theft/guess signal.
+        service('superglobals')->setCookie($cookieName, $selectorA . ':wrong-validator');
+
+        $result = $this->rememberMe->check();
+        $this->assertNotInstanceOf(stdClass::class, $result);
+
+        // Theft response: ALL of the user's remember-me tokens are invalidated.
+        $this->dontSeeInDatabase($this->tables['remember_tokens'], ['user_id' => $this->user->id]);
+
+        service('superglobals')->unsetCookie($cookieName);
+    }
+
+    public function testCheckWithExpiredTokenReturnsNull(): void
+    {
+        $selector  = bin2hex(random_bytes(12));
+        $validator = bin2hex(random_bytes(20));
+        // The validator is correct; only the expiry is stale (expired yesterday).
+        $expired = Time::now()->subDays(1)->format('Y-m-d H:i:s');
+
+        $this->rememberModel->rememberUser(
+            $this->user,
+            $selector,
+            hash('sha256', $validator),
+            $expired,
+        );
+
+        $cookiePrefix = (string) (service('settings')->get('Cookie.prefix') ?? '');
+        $cookieName   = $cookiePrefix . service('settings')->get('Auth.sessionConfig')['rememberCookieName'];
+
+        service('superglobals')->setCookie($cookieName, $selector . ':' . $validator);
+
+        $result = $this->rememberMe->check();
+
+        // An expired remember-me token must NOT authenticate, even with a valid
+        // validator — expiry has to be enforced at validation time, not left to
+        // the probabilistic purge.
+        $this->assertNotInstanceOf(stdClass::class, $result);
+
+        service('superglobals')->unsetCookie($cookieName);
+    }
+
     public function testCheckWithMalformedCookieReturnsNull(): void
     {
         $cookiePrefix = (string) (service('settings')->get('Cookie.prefix') ?? '');

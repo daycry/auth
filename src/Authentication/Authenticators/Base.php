@@ -185,6 +185,20 @@ abstract class Base
             );
         }
 
+        // Throttle `last_active` writes — on the authenticated hot path this
+        // would otherwise be one users-table UPDATE per request. Skip the write
+        // when the recorded value is newer than the configured threshold.
+        $throttle = (int) (setting('AuthSecurity.activeDateThrottle') ?? 0);
+        $current  = $this->user->last_active;
+
+        if (
+            $throttle > 0
+            && $current instanceof Time
+            && $current->isAfter(Time::now()->subSeconds($throttle))
+        ) {
+            return;
+        }
+
         $this->user->last_active = Time::now();
 
         $this->provider->updateActiveDate($this->user);

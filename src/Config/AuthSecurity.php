@@ -218,6 +218,30 @@ class AuthSecurity extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Gate → RBAC fallback
+     * --------------------------------------------------------------------
+     * When true, a Gate ability that looks like an RBAC permission (contains a
+     * scope, e.g. `users.edit`) and has no registered closure or policy falls
+     * back to the user's RBAC permissions via User::can(). This makes the
+     * `gate:` and `permission:` filters share semantics. Set false to keep the
+     * Gate and RBAC systems fully independent.
+     */
+    public bool $gateFallbackToRbac = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * users.last_active Throttle
+     * --------------------------------------------------------------------
+     * Minimum number of seconds between two consecutive `last_active` writes
+     * for the same user (see $recordActiveDate). Avoids one users-table
+     * UPDATE per request on the authenticated hot path.
+     *
+     * 0 disables throttling (writes on every request, the legacy behaviour).
+     */
+    public int $activeDateThrottle = 60;
+
+    /**
+     * --------------------------------------------------------------------
      * Allow Magic Link Logins
      * --------------------------------------------------------------------
      * If true, will allow the use of "magic links" sent via the email
@@ -315,10 +339,16 @@ class AuthSecurity extends BaseConfig
      * --------------------------------------------------------------------
      * Remember-Me Purge Chance
      * --------------------------------------------------------------------
-     * Probability (1–100) that old remember-me tokens are purged on login.
-     * Higher values mean more frequent purging. 0 = never purge automatically.
+     * Probability (1–100) that expired remember-me tokens are purged inline
+     * on login. 0 = never purge on the request path (the default).
+     *
+     * Purging is table maintenance, not a security control — expiry is always
+     * enforced when a token is validated (see RememberMe::checkRememberMeToken()),
+     * so an unpurged expired token can never authenticate. Prefer scheduling the
+     * `php spark auth:purge` command instead of paying purge latency (and a
+     * full-table scan) on a fraction of interactive logins.
      */
-    public int $rememberMePurgeChance = 20;
+    public int $rememberMePurgeChance = 0;
 
     /**
      * --------------------------------------------------------------------

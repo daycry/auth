@@ -73,6 +73,37 @@ class DeviceSessionRecorder
     }
 
     /**
+     * Returns whether the current PHP session still maps to an active device
+     * session.
+     *
+     * Returns false only when the current session was terminated (revoked
+     * remotely or evicted by the concurrent-session limit). Returns true when
+     * there is no active PHP session, no matching row, or a tracking error
+     * occurs — auth must never break because of device tracking.
+     */
+    public function isCurrentSessionActive(): bool
+    {
+        $sessionId = session_id();
+
+        if ($sessionId === '' || $sessionId === false) {
+            return true;
+        }
+
+        try {
+            /** @var DeviceSessionModel $deviceSessionModel */
+            $deviceSessionModel = model(DeviceSessionModel::class);
+
+            return $deviceSessionModel->isSessionActive($sessionId);
+        } catch (Throwable $e) {
+            log_message('error', 'DeviceSessionRecorder::isCurrentSessionActive failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return true;
+        }
+    }
+
+    /**
      * Terminates the current device session.
      */
     public function terminateCurrentSession(): void

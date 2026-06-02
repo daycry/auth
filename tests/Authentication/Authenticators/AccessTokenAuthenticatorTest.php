@@ -67,6 +67,63 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
         $this->auth->recordActiveDate();
     }
 
+    public function testRecordActiveDateThrottlesWritesWithinWindow(): void
+    {
+        setting('AuthSecurity.activeDateThrottle', 60);
+
+        $user   = fake(UserModel::class);
+        $recent = Time::now()->subSeconds(5)->format('Y-m-d H:i:s');
+        model(UserModel::class)->builder()->set('last_active', $recent)->where('id', $user->id)->update();
+        $user->last_active = Time::parse($recent);
+
+        $this->auth->login($user);
+        $this->auth->recordActiveDate();
+
+        // Within the throttle window → the DB write must be skipped.
+        $this->seeInDatabase($this->tables['users'], [
+            'id'          => $user->id,
+            'last_active' => $recent,
+        ]);
+    }
+
+    public function testRecordActiveDateWritesWhenStale(): void
+    {
+        setting('AuthSecurity.activeDateThrottle', 60);
+
+        $user  = fake(UserModel::class);
+        $stale = Time::now()->subSeconds(600)->format('Y-m-d H:i:s');
+        model(UserModel::class)->builder()->set('last_active', $stale)->where('id', $user->id)->update();
+        $user->last_active = Time::parse($stale);
+
+        $this->auth->login($user);
+        $this->auth->recordActiveDate();
+
+        // Older than the throttle window → the write must still happen.
+        $this->dontSeeInDatabase($this->tables['users'], [
+            'id'          => $user->id,
+            'last_active' => $stale,
+        ]);
+    }
+
+    public function testGetLogCredentialsMasksRawToken(): void
+    {
+        $raw = 'a-real-bearer-token-value';
+
+        $logged = $this->auth->getLogCredentials(['token' => $raw]);
+
+        // The raw, replayable credential must never reach the login log.
+        $this->assertNotSame($raw, $logged);
+        // A non-reversible SHA-256 fingerprint is logged instead (matches the
+        // hash the access token is stored under, so logs remain correlatable).
+        $this->assertSame(hash('sha256', $raw), $logged);
+    }
+
+    public function testGetLogCredentialsReturnsEmptyStringWhenNoToken(): void
+    {
+        $this->assertSame('', $this->auth->getLogCredentials([]));
+        $this->assertSame('', $this->auth->getLogCredentials(['token' => '']));
+    }
+
     public function testLogout(): void
     {
         // this one's a little odd since it's stateless, but roll with it...
@@ -200,7 +257,8 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
         // A failed login attempt should have been recorded by default.
         $this->seeInDatabase($this->tables['logins'], [
             'id_type'    => AccessToken::ID_TYPE_ACCESS_TOKEN,
-            'identifier' => 'abc123',
+            // The login log stores a non-reversible fingerprint, never the raw token.
+            'identifier' => hash('sha256', 'abc123'),
             'success'    => 0,
         ]);
     }
@@ -227,7 +285,7 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
         // A successful login attempt is not recorded by default.
         $this->seeInDatabase($this->tables['logins'], [
             'id_type'    => AccessToken::ID_TYPE_ACCESS_TOKEN,
-            'identifier' => $token->raw_token,
+            'identifier' => hash('sha256', $token->raw_token),
             'success'    => 1,
         ]);
     }
@@ -258,7 +316,7 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
 
         $this->seeInDatabase($this->tables['logins'], [
             'id_type'    => AccessToken::ID_TYPE_ACCESS_TOKEN,
-            'identifier' => $token->raw_token,
+            'identifier' => hash('sha256', $token->raw_token),
             'success'    => 1,
         ]);
     }
