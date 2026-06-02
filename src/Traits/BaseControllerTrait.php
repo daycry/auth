@@ -25,6 +25,7 @@ use Daycry\Auth\Services\ExceptionHandler;
 use Daycry\Auth\Services\RequestLogger;
 use Daycry\Encryption\Encryption;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * BaseControllerTrait that delegates to specialized services
@@ -42,6 +43,7 @@ trait BaseControllerTrait
     protected ExceptionHandler $exceptionHandler;
     protected array $args;
     protected mixed $content = null;
+    protected bool $requestFinalized = false;
 
     /**
      * Hook for early checks - can be overridden by implementing classes
@@ -84,20 +86,48 @@ trait BaseControllerTrait
     }
 
     /**
-     * Cleanup and logging on destruction
+     * Cleanup and logging on destruction.
+     *
+     * Delegates to {@see finalizeRequest()}, which is guarded so that a failure
+     * can never escape the destructor: an exception thrown from `__destruct`
+     * during PHP shutdown is an uncatchable fatal.
      */
     public function __destruct()
     {
-        if (isset($this->request) && $this->request) {
-            $this->requestLogger->logRequest($this->response);
+        $this->finalizeRequest();
+    }
 
-            if (! $this->requestLogger->isRequestAuthorized()) {
-                $this->attemptHandler->handleInvalidAttempt($this->request);
-            }
+    /**
+     * Performs end-of-request bookkeeping: request logging, invalid-attempt
+     * handling and validator reset.
+     *
+     * Idempotent (safe to call more than once) and never throws — any failure
+     * is logged instead. Can also be invoked from an `after` filter for
+     * deterministic timing instead of relying on `__destruct`.
+     */
+    public function finalizeRequest(): void
+    {
+        if ($this->requestFinalized) {
+            return;
         }
+        $this->requestFinalized = true;
 
-        if (isset($this->validator) && $this->validator) {
-            $this->validator->reset();
+        try {
+            if (isset($this->request) && $this->request) {
+                $this->requestLogger->logRequest($this->response);
+
+                if (! $this->requestLogger->isRequestAuthorized()) {
+                    $this->attemptHandler->handleInvalidAttempt($this->request);
+                }
+            }
+
+            if (isset($this->validator) && $this->validator) {
+                $this->validator->reset();
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'Request finalization failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 

@@ -52,9 +52,14 @@ class RatesFilter implements FilterInterface
 
         $endpoint = checkEndpoint();
 
-        $limit = service('settings')->get('AuthSecurity.requestLimit') ?? 10;
-        $time  = service('settings')->get('AuthSecurity.timeLimit') ?? 60;
+        $limit = (int) (service('settings')->get('AuthSecurity.requestLimit') ?? 10);
+        $time  = (int) (service('settings')->get('AuthSecurity.timeLimit') ?? 60);
 
+        // Per-route arguments (e.g. `rates:50,MINUTE`) override the global
+        // defaults for that route.
+        [$limit, $time] = $this->applyArguments($arguments, $limit, $time);
+
+        // A configured endpoint row (runtime/admin override) wins over both.
         if ($endpoint instanceof Endpoint) {
             $limit = $endpoint->limit ?: $limit;
             $time  = $endpoint->time ?: $time;
@@ -75,6 +80,54 @@ class RatesFilter implements FilterInterface
                 lang('Auth.throttled', [$throttler->getTokenTime()]), // message
             );
         }
+    }
+
+    /**
+     * Applies per-route filter arguments over the resolved limit/time.
+     *
+     * Accepts `rates:<limit>` and `rates:<limit>,<period>` where `<period>` is
+     * either a number of seconds or a named unit (SECOND, MINUTE, HOUR, DAY,
+     * WEEK). Unknown/empty arguments leave the corresponding value unchanged.
+     *
+     * @param array<int, string>|null $arguments
+     *
+     * @return array{0: int, 1: int} [limit, time]
+     */
+    private function applyArguments($arguments, int $limit, int $time): array
+    {
+        if (! is_array($arguments) || $arguments === []) {
+            return [$limit, $time];
+        }
+
+        if (isset($arguments[0]) && is_numeric($arguments[0])) {
+            $limit = (int) $arguments[0];
+        }
+
+        if (isset($arguments[1])) {
+            $time = $this->parsePeriod((string) $arguments[1], $time);
+        }
+
+        return [$limit, $time];
+    }
+
+    /**
+     * Converts a period argument to seconds. Accepts a numeric value (seconds)
+     * or a named unit; falls back to $default for anything unrecognised.
+     */
+    private function parsePeriod(string $period, int $default): int
+    {
+        if (is_numeric($period)) {
+            return (int) $period;
+        }
+
+        return match (strtoupper($period)) {
+            'SECOND', 'SECONDS', 'SEC' => 1,
+            'MINUTE', 'MINUTES', 'MIN' => 60,
+            'HOUR', 'HOURS'            => 3600,
+            'DAY', 'DAYS'              => 86400,
+            'WEEK', 'WEEKS'            => 604800,
+            default                    => $default,
+        };
     }
 
     /**
