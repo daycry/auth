@@ -156,8 +156,9 @@ final class OauthManagerTest extends TestCase
         $resourceOwner = Mockery::mock(GenericResourceOwner::class);
         $resourceOwner->shouldReceive('getId')->andReturn('social_456');
         $resourceOwner->shouldReceive('toArray')->andReturn([
-            'email' => 'existing@example.com', // Matches existing
-            'name'  => 'ExistingUserUpdated',
+            'email'          => 'existing@example.com', // Matches existing
+            'name'           => 'ExistingUserUpdated',
+            'email_verified' => true,                   // provider asserts the e-mail is verified
         ]);
 
         $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
@@ -175,6 +176,161 @@ final class OauthManagerTest extends TestCase
             'user_id' => $user->id,
             'type'    => 'oauth_generic',
             'secret'  => 'social_456',
+        ]);
+    }
+
+    public function testHandleCallbackRefusesLinkingUnverifiedEmailToExistingAccount(): void
+    {
+        // Pre-existing local (password) account.
+        $userModel = new UserModel();
+        $user      = new User([
+            'username' => 'VictimUser',
+            'email'    => 'victim@example.com',
+            'password' => 'password123',
+        ]);
+        $userModel->save($user);
+
+        session()->set('oauth2state', 'valid_state');
+
+        $provider    = Mockery::mock(AbstractProvider::class);
+        $accessToken = new AccessToken(['access_token' => 'test_token']);
+        $provider->shouldReceive('getAccessToken')->andReturn($accessToken);
+
+        // Attacker's social account uses the victim's e-mail but the provider
+        // does NOT assert it as verified (no email_verified claim).
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('attacker_social_id');
+        $resourceOwner->shouldReceive('toArray')->andReturn([
+            'email' => 'victim@example.com',
+            'name'  => 'Attacker',
+        ]);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        // Must refuse to merge — otherwise this is a silent account takeover.
+        $this->expectException(AuthenticationException::class);
+
+        try {
+            $this->manager->handleCallback('auth_code', 'valid_state');
+        } finally {
+            // No social identity may be linked to the victim and no login granted.
+            $this->dontSeeInDatabase('auth_users_identities', [
+                'user_id' => $user->id,
+                'type'    => 'oauth_generic',
+            ]);
+            $this->assertFalse(auth()->loggedIn());
+        }
+    }
+
+    public function testHandleCallbackLinksProviderToLoggedInUser(): void
+    {
+        $userModel = new UserModel();
+        $user      = new User(['username' => 'LinkMe', 'email' => 'linkme@example.com', 'password' => 'password123']);
+        $userModel->save($user);
+        $user = $userModel->findById($userModel->getInsertID());
+
+        session()->set('oauth2state', 'valid_state');
+        // Explicit linking mode: the logged-in user is attaching this provider.
+        session()->set('oauth_link_user_id', $user->id);
+
+        $provider = Mockery::mock(AbstractProvider::class);
+        $provider->shouldReceive('getAccessToken')->andReturn(new AccessToken(['access_token' => 'test_token']));
+
+        // The provider's e-mail differs from the user's — linking must not depend
+        // on an e-mail match.
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('link_social_id');
+        $resourceOwner->shouldReceive('toArray')->andReturn(['email' => 'social-only@example.com', 'name' => 'LinkMe']);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        $returned = $this->manager->handleCallback('auth_code', 'valid_state');
+
+        $this->assertSame($user->id, $returned->id);
+        $this->seeInDatabase('auth_users_identities', [
+            'user_id' => $user->id,
+            'type'    => 'oauth_generic',
+            'secret'  => 'link_social_id',
+        ]);
+    }
+
+    public function testHandleCallbackRefusesLinkingSocialAccountOwnedByAnotherUser(): void
+    {
+        $userModel = new UserModel();
+
+        $userA = new User(['username' => 'OwnerA', 'email' => 'ownera@example.com', 'password' => 'password123']);
+        $userModel->save($userA);
+        $userA = $userModel->findById($userModel->getInsertID());
+
+        model(UserIdentityModel::class)->insert([
+            'user_id' => $userA->id,
+            'type'    => 'oauth_generic',
+            'name'    => 'OwnerA',
+            'secret'  => 'shared_social',
+            'secret2' => 'token',
+            'extra'   => json_encode([]),
+        ]);
+
+        $userB = new User(['username' => 'UserB', 'email' => 'userb@example.com', 'password' => 'password123']);
+        $userModel->save($userB);
+        $userB = $userModel->findById($userModel->getInsertID());
+
+        session()->set('oauth2state', 'valid_state');
+        session()->set('oauth_link_user_id', $userB->id);
+
+        $provider = Mockery::mock(AbstractProvider::class);
+        $provider->shouldReceive('getAccessToken')->andReturn(new AccessToken(['access_token' => 'token']));
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('shared_social');
+        $resourceOwner->shouldReceive('toArray')->andReturn(['email' => 'userb@example.com', 'name' => 'UserB']);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        // The social account already belongs to userA → linking to userB is refused.
+        $this->expectException(AuthenticationException::class);
+        $this->manager->handleCallback('auth_code', 'valid_state');
+    }
+
+    public function testHandleCallbackAllowsUnverifiedEmailLinkWhenProviderOptsIn(): void
+    {
+        $config                       = new AuthConfig();
+        $config->providers['generic'] = ['allowUnverifiedEmailLink' => true];
+        $manager                      = new OauthManager($config);
+
+        $userModel = new UserModel();
+        $user      = new User([
+            'username' => 'OptInUser',
+            'email'    => 'optin@example.com',
+            'password' => 'password123',
+        ]);
+        $userModel->save($user);
+        $user = $userModel->findById($userModel->getInsertID());
+
+        session()->set('oauth2state', 'valid_state');
+
+        $provider    = Mockery::mock(AbstractProvider::class);
+        $accessToken = new AccessToken(['access_token' => 'test_token']);
+        $provider->shouldReceive('getAccessToken')->andReturn($accessToken);
+
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('optin_social_id');
+        $resourceOwner->shouldReceive('toArray')->andReturn([
+            'email' => 'optin@example.com',
+            'name'  => 'OptInUser',
+        ]);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+
+        $manager->setProviderInstance($provider, 'generic');
+
+        // Opt-in flag set → merge proceeds even without a verified-email claim.
+        $returnedUser = $manager->handleCallback('auth_code', 'valid_state');
+
+        $this->assertSame($user->id, $returnedUser->id);
+        $this->seeInDatabase('auth_users_identities', [
+            'user_id' => $user->id,
+            'type'    => 'oauth_generic',
+            'secret'  => 'optin_social_id',
         ]);
     }
 
