@@ -34,6 +34,23 @@ return [
     'expiredJWT'     => 'Срок действия токена истёк.',
     'beforeValidJWT' => 'Токен ещё не доступен.',
 
+    // WebAuthn / Passkeys
+    'webauthnMaxCredentials'     => 'You have reached the maximum number of registered passkeys.',
+    'webauthnChallengeExpired'   => 'The passkey challenge has expired. Please try again.',
+    'webauthnVerificationFailed' => 'Passkey verification failed.',
+    'webauthnDisabled'           => 'Passkey sign-in is not available.',
+    'notLoggedIn'                => 'You must be logged in to do that.',
+    'needWebauthn'               => 'Please verify with your passkey.',
+    'webauthnSetupTitle'         => 'Passkeys',
+    'webauthnUnnamed'            => 'Unnamed passkey',
+    'webauthnDelete'             => 'Remove',
+    'webauthnNamePlaceholder'    => 'Name this passkey (e.g. My laptop)',
+    'webauthnAdd'                => 'Add passkey',
+    'webauthnRegistered'         => 'Passkey registered.',
+    'webauthn2faTitle'           => 'Two-factor verification',
+    'webauthn2faPrompt'          => 'Verify your identity with your passkey.',
+    'webauthn2faStart'           => 'Use passkey',
+
     'email'           => 'Адрес электронной почты',
     'username'        => 'Имя пользователя',
     'password'        => 'Пароль',
