@@ -4,18 +4,20 @@ Testing is crucial for maintaining the reliability and security of your authenti
 
 ## 📋 Table of Contents
 
-- [🏃‍♂️ Quick Start](#️-quick-start)
+- [🏃‍♂️ Quick Start](#quick-start)
 - [🧪 Test Categories](#-test-categories)
 - [🔧 Test Setup](#-test-setup)
-- [🛡️ Testing Authentication](#️-testing-authentication)
+- [🛡️ Testing Authentication](#testing-authentication)
 - [👥 Testing Authorization](#-testing-authorization)
-- [🎛️ Testing Controllers](#️-testing-controllers)
+- [🎛️ Testing Controllers](#testing-controllers)
 - [🔍 Testing Filters](#-testing-filters)
 - [📊 Testing Models](#-testing-models)
-- [🏗️ Testing Traits](#️-testing-traits)
+- [🏗️ Testing Traits](#testing-traits)
+- [🔑 Testing WebAuthn](#-testing-webauthn)
 - [🎯 Testing Best Practices](#-testing-best-practices)
 - [🚀 Contributing Tests](#-contributing-tests)
 
+(quick-start)=
 ## 🏃‍♂️ Quick Start
 
 ### Running Tests
@@ -146,6 +148,7 @@ Each call replaces only the specified keys; unspecified keys keep their defaults
 
 > The previous typo'd names (`inkectMockAttributes*`) still work as deprecated aliases for backward-compatibility but will be removed in v6 — migrate any custom tests to the spelled-correctly variants.
 
+(testing-authentication)=
 ## 🛡️ Testing Authentication
 
 ### Login Tests
@@ -280,6 +283,7 @@ class AuthorizationTest extends DatabaseTestCase
 }
 ```
 
+(testing-controllers)=
 ## 🎛️ Testing Controllers
 
 ### Controller Test Example
@@ -433,6 +437,7 @@ class UserModelTest extends DatabaseTestCase
 }
 ```
 
+(testing-traits)=
 ## 🏗️ Testing Traits
 
 ### Testing BaseControllerTrait
@@ -462,6 +467,25 @@ class BaseControllerTraitTest extends DatabaseTestCase
     }
 }
 ```
+
+## 🔑 Testing WebAuthn
+
+WebAuthn ceremonies normally require real hardware (a phone, security key, or platform authenticator). To test full register / login / 2FA flows without any device, the library ships a **software authenticator** under `tests/_support/`:
+
+| Helper | Purpose |
+|--------|---------|
+| `Tests\Support\WebAuthn\VirtualAuthenticator` | Produces *real* attestation / assertion responses (ES256, hand-built CBOR/COSE) that the genuine `web-auth/webauthn-lib` validators accept. Drives end-to-end ceremonies with no hardware and no brittle static fixtures. |
+| `Tests\Support\WebAuthn\SuppressesWebauthnDeprecations` | A trait WebAuthn tests `use` to silence the library's own internal deprecations (see note below). |
+
+```php
+$authn   = new VirtualAuthenticator('example.com', 'https://example.com');
+$options = service('webAuthnManager')->startRegistration($user, 'My Laptop');
+$entity  = service('webAuthnManager')->finishRegistration($user, $authn->register(json_encode($options)));
+```
+
+> **Why the deprecation-suppression trait is needed.** `web-auth/webauthn-lib` (v5.3) emits an `E_USER_DEPRECATED` for the still-required relying-party name. The test suite runs with `CODEIGNITER_SCREAM_DEPRECATIONS=1`, which turns deprecations into fatals — so WebAuthn tests `use SuppressesWebauthnDeprecations` to mute the library's own internal deprecations without weakening the global setting.
+
+See [WebAuthn / Passkeys — Testing](15-webauthn.md#testing) for the security-invariant test layout (`tests/WebAuthn/WebAuthnSecurityTest.php`).
 
 ## 🎯 Testing Best Practices
 

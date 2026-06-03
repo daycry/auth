@@ -15,6 +15,7 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 - [JWT Access-Token Revocation](#jwt-access-token-revocation)
 - [JWT Refresh Tokens](#jwt-refresh-tokens)
 - [Magic Link Authentication](#magic-link-authentication)
+- [WebAuthn / Passkeys](#webauthn--passkeys)
 - [Guest Authenticator](#guest-authenticator)
 - [Password Reset](#password-reset)
 - [Force Password Reset](#force-password-reset)
@@ -328,7 +329,7 @@ X-API-KEY: your_raw_token_here
 
 Or via query string:
 
-```
+```text
 GET /api/users?token=your_raw_token_here
 ```
 
@@ -392,7 +393,7 @@ $routes->get('api/posts',  'Posts::index',  ['filter' => 'auth:access_token,toke
 $routes->post('api/posts', 'Posts::create', ['filter' => 'auth:access_token,token-scope:posts.read,posts.write']);
 ```
 
-The `*` wildcard scope satisfies any check. See [Filters — Token Scope Filter](04-filters.md#3-token-scope-filter-token-scope) for details.
+The `*` wildcard scope satisfies any check. See {ref}`Filters — Token Scope Filter <token-scope-filter-token-scope>` for details.
 
 ### Admin CLI
 
@@ -403,7 +404,7 @@ php spark auth:tokens revoke -e alice@example.com
 php spark auth:tokens revoke -e alice@example.com --type=access_token
 ```
 
-See [CLI — `auth:tokens`](14-cli-commands.md#auth-tokens) for the full reference.
+See {ref}`CLI — auth:tokens <auth-tokens>` for the full reference.
 
 ---
 
@@ -533,7 +534,7 @@ public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity
 
 ### Login
 
-```http
+```text
 POST /auth/jwt/login
 Content-Type: application/x-www-form-urlencoded
 
@@ -553,7 +554,7 @@ email=user@example.com&password=secret
 
 ### Refresh an Expired Access Token
 
-```http
+```text
 POST /auth/jwt/refresh
 Content-Type: application/x-www-form-urlencoded
 
@@ -575,7 +576,7 @@ user_id=42&refresh_token=a3f8c2d1e4b7...
 
 ### Logout (Revoke Refresh Token)
 
-```http
+```text
 POST /auth/jwt/logout
 Content-Type: application/x-www-form-urlencoded
 
@@ -651,6 +652,19 @@ $routes->get('login/magic-link',        'MagicLinkController::loginView',  ['as'
 $routes->post('login/magic-link',       'MagicLinkController::loginAction');
 $routes->get('login/verify-magic-link', 'MagicLinkController::verify',     ['as' => 'verify-magic-link']);
 ```
+
+---
+
+## WebAuthn / Passkeys
+
+**Best for**: Phishing-resistant, passwordless sign-in (Face ID / Touch ID / Windows Hello / security keys), and a strong opt-in second factor.
+
+Passkeys authenticate with public-key cryptography instead of a shared secret. The private key never leaves the device; the server stores only the public key, so a database breach exposes nothing replayable. Credentials are bound to your domain, making passkeys **phishing-resistant by design**. The feature is **opt-in per user** behind the global `AuthSecurity::$webauthnEnabled` flag (default `false`), and supports two integration models:
+
+- **Passwordless login** (usernameless / discoverable) — the user signs in with just a passkey. A passkey verified with user verification is already multi-factor (possession + inherence), so a successful assertion **completes the session directly** via `auth()->login($user, false)` and does **not** re-run the `login` Action pipeline.
+- **Passkey as a second factor** — presented *after* the password through the post-auth Action system, using `Webauthn2FA` (mutually exclusive with `Totp2FA`, since only one `login` action is supported).
+
+The ceremonies run over JSON endpoints exposed by `WebAuthnController` (registered only when the flag is on). See [WebAuthn / Passkeys](15-webauthn.md) for configuration, enrollment, login/2FA flows, the `HasWebAuthn` trait, and the full set of security invariants.
 
 ---
 
@@ -890,7 +904,8 @@ If you are running this library in production you already need TLS — and once 
 | Server-to-server API auth | [Access Token (Bearer)](#access-token-authenticator) or [JWT](#jwt-authenticator) |
 | Web login with sessions | [Session](#session-authenticator) |
 | Social login | [OAuth 2.0](09-oauth.md) |
-| Passwordless | [Magic Link](#magic-link-authentication) |
+| Passwordless | [Magic Link](#magic-link-authentication) or [WebAuthn / Passkeys](15-webauthn.md) |
+| Phishing-resistant MFA | [WebAuthn / Passkeys](15-webauthn.md) |
 | HTTP-level basic auth | [`BasicAuthFilter`](../src/Filters/BasicAuthFilter.php) over TLS |
 
 ### If your use case really requires Digest
@@ -914,5 +929,6 @@ The decision **not to merge this into `daycry/auth` core** is intentional — ke
 - [Filters](04-filters.md) — Protect routes with authentication filters
 - [Controllers](05-controllers.md) — Password reset and force reset controllers
 - [TOTP 2FA](10-totp-2fa.md) — Time-based one-time passwords
+- [WebAuthn / Passkeys](15-webauthn.md) — Passwordless login and passkey 2FA
 - [Device Sessions](11-device-sessions.md) — Track active logins
 - [Logging & Monitoring](07-logging.md) — Events and logs

@@ -28,6 +28,7 @@ php spark list Auth
 
 ## Setup & Discovery
 
+(auth-setup)=
 ### `auth:setup`
 
 Bootstraps a fresh installation: copies `Config/Auth.php` into `app/Config/`, registers the routes, sets `csrfProtection = 'session'`, configures email defaults, and runs migrations.
@@ -42,6 +43,7 @@ php spark auth:setup -f
 
 > Run once after `composer require daycry/auth`. Idempotent — safe to re-run when upgrading.
 
+(auth-discover)=
 ### `auth:discover`
 
 Walks the application's controllers and registers them in the auth tables (used by the per-controller permission system). Run this any time you add or rename controllers if you rely on the database-backed authorization model.
@@ -54,6 +56,7 @@ php spark auth:discover
 
 ## User management
 
+(auth-user)=
 ### `auth:user`
 
 Create / update / inspect users from the CLI.
@@ -93,6 +96,7 @@ php spark auth:user removegroup -e alice@example.com -g admin
 
 ## Token & session admin
 
+(auth-tokens)=
 ### `auth:tokens`
 
 Soft-revokes a user's API tokens. Soft-revocation sets `revoked_at` so the row is filtered out on lookup but remains for audit purposes.
@@ -119,6 +123,7 @@ php spark auth:tokens revoke -i 42 --type=all
 
 Each successful revocation writes an `EVENT_TOKEN_REVOKED` / `EVENT_REFRESH_TOKEN_REVOKED` entry to the audit log.
 
+(auth-sessions)=
 ### `auth:sessions`
 
 Terminates every active device session for a user (kicks them off all browsers/devices).
@@ -134,6 +139,7 @@ Sets `logged_out_at` on every active row in `auth_device_sessions`. The next req
 
 ## Maintenance
 
+(auth-purge)=
 ### `auth:purge`
 
 Housekeeping command that removes stale auth records. It purges:
@@ -166,6 +172,7 @@ Returns exit code `0` on success and `1` if the purge throws (the error is print
 
 ## Two-factor admin
 
+(auth-totp)=
 ### `auth:totp`
 
 ```bash
@@ -181,6 +188,7 @@ After running this, the user re-enrolls TOTP from scratch the next time they vis
 
 ## Audit & compliance
 
+(auth-audit)=
 ### `auth:audit`
 
 Reads from the audit log table.
@@ -211,6 +219,7 @@ php spark auth:audit --type=login.suspicious --since=30d --limit=200
 
 Output is a CLI table with `ID`, `When`, `Event`, `User`, `IP`, and a truncated `Metadata` column. Use the JSON metadata via the API (`AuditLogModel::recentForUser()`) when you need full payloads.
 
+(auth-gdpr)=
 ### `auth:gdpr`
 
 Two subcommands:

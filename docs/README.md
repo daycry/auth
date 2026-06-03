@@ -87,6 +87,14 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 - Managing TOTP in controllers
 - Testing TOTP
 
+### [WebAuthn / Passkeys](15-webauthn.md)
+- Availability vs. enforcement (global flag, opt-in per user)
+- **Passwordless login** (usernameless / discoverable)
+- **Passkey as a second factor** (`Webauthn2FA` action)
+- Enrollment, routes & JSON endpoints
+- `HasWebAuthn` trait + dedicated `auth_webauthn_credentials` table
+- Security invariants + the in-test `VirtualAuthenticator`
+
 ### [Device Sessions](11-device-sessions.md)
 - Tracking logins per device
 - Viewing and terminating sessions

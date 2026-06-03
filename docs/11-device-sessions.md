@@ -65,7 +65,7 @@ With `trackDeviceSessions` set to `true`, every successful login call to `Sessio
 
 Device sessions require the `auth_device_sessions` table, which is created by the migration at:
 
-```
+```text
 src/Database/Migrations/2026-02-26-000002_create_device_sessions.php
 ```
 
@@ -445,7 +445,7 @@ This sets `logged_out_at` on every active row in `auth_device_sessions` for the 
 
 > The PHP session ID lives in the cookie until the user's next request. On that request the authenticator sees the matching row is terminated (`logged_out_at` set) and forces re-authentication.
 
-See [CLI Commands — `auth:sessions`](14-cli-commands.md#auth-sessions) for the full reference.
+See {ref}`CLI Commands — auth:sessions <auth-sessions>` for the full reference.
 
 ---
 

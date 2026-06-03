@@ -13,6 +13,7 @@ This guide covers all controllers included with Daycry Auth, including the new p
 - [ForcePasswordResetController](#forcepasswordresetcontroller)
 - [JwtController](#jwtcontroller)
 - [OauthController](#oauthcontroller)
+- [WebAuthnController](#webauthncontroller)
 - [UserSecurityController](#usersecuritycontroller)
 - [Creating Custom Controllers](#creating-custom-controllers)
 - [Best Practices](#best-practices)
@@ -81,7 +82,7 @@ The later automatic call from `__destruct()` is harmless because the guard flag 
 Handles traditional email + password login and logout.
 
 **Routes** (from `Config/Auth.php`):
-```
+```text
 GET  /login  → loginView()
 POST /login  → loginAction()
 GET  /logout → logoutAction()
@@ -123,7 +124,7 @@ class LoginController extends BaseLoginController
 Handles user registration.
 
 **Routes**:
-```
+```text
 GET  /register → registerView()
 POST /register → registerAction()
 ```
@@ -157,7 +158,7 @@ class RegisterController extends BaseRegisterController
 Handles post-authentication actions such as email 2FA, account activation, and TOTP verification.
 
 **Routes**:
-```
+```text
 GET  /auth/a/show   → show()
 POST /auth/a/handle → handle()
 POST /auth/a/verify → verify()
@@ -172,7 +173,7 @@ This controller is called automatically by the library when `$actions['login']` 
 Handles passwordless login via one-time email links.
 
 **Routes**:
-```
+```text
 GET  /login/magic-link        → loginView()
 POST /login/magic-link        → loginAction()
 GET  /login/verify-magic-link → verify()
@@ -191,12 +192,13 @@ class MagicLinkController extends BaseMagicLinkController
 
 ---
 
+(passwordresetcontroller)=
 ## PasswordResetController
 
 Provides the complete password reset flow for users who have forgotten their password.
 
 **Routes** (from `Config/Auth.php`):
-```
+```text
 GET  /password-reset          → requestView()   — Show "Enter your email" form
 POST /password-reset          → requestAction() — Send reset email
 GET  /password-reset/message  → messageView()   — "Check your inbox" confirmation
@@ -268,7 +270,7 @@ Events::on('passwordReset', static function (object $user): void {
 When an administrator flags an account for a mandatory password change (e.g., after a security incident), `ForcePasswordResetFilter` intercepts the user and sends them here.
 
 **Routes**:
-```
+```text
 GET  /force-reset → showView()    — Show the form (requires current password)
 POST /force-reset → resetAction() — Validate and update password
 ```
@@ -321,7 +323,7 @@ Provides a complete stateless JWT authentication API with refresh token rotation
 - `refresh()` and `logout()` look the token up with `getRefreshToken()` and **soft-revoke** the old one with `softRevokeRefreshToken()` (sets `revoked_at` rather than deleting the row), tagging the reason `'rotation'` and `'logout'` respectively.
 
 **Routes**:
-```
+```text
 POST /auth/jwt/login   → login()   — Exchange credentials for access + refresh token
 POST /auth/jwt/refresh → refresh() — Exchange refresh token for new token pair
 POST /auth/jwt/logout  → logout()  — Soft-revoke the refresh token
@@ -345,7 +347,7 @@ public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity (seconds)
 ### login()
 
 **Request** (`application/x-www-form-urlencoded` or JSON):
-```
+```text
 email=user@example.com
 password=secret
 ```
@@ -370,7 +372,7 @@ The minted JWT access token carries the payload `{uid, tv}`, where `tv` is the u
 ### refresh()
 
 **Request**:
-```
+```text
 user_id=42
 refresh_token=a3f8c2d1...
 ```
@@ -398,7 +400,7 @@ A `user_id` / `refresh_token` that does not resolve to a live (non-revoked, non-
 ### logout()
 
 **Request**:
-```
+```text
 user_id=42
 refresh_token=a3f8c2d1...
 ```
@@ -493,11 +495,32 @@ class OauthController extends BaseOauthController
 
 ---
 
+## WebAuthnController
+
+Exposes the WebAuthn / passkey ceremonies as **JSON endpoints**. The routes are auto-registered from `Config/Auth.php::$routes['webauthn']` **only when `AuthSecurity::$webauthnEnabled` is `true`**; the controller additionally re-checks the flag and returns `404` when the feature is disabled (defense in depth).
+
+| Method | Route | Action | Access |
+|--------|-------|--------|--------|
+| `POST` | `webauthn/register/options` | enrollment: creation options | auth required |
+| `POST` | `webauthn/register/verify` | enrollment: verify attestation | auth required |
+| `POST` | `webauthn/login/options` | passwordless: request options | public |
+| `POST` | `webauthn/login/verify` | passwordless: verify assertion | public |
+| `POST` | `webauthn/2fa/options` | 2FA: request options for the pending user | pending login |
+| `POST` | `webauthn/credentials/{uuid}/delete` | revoke a passkey | auth required |
+
+Every endpoint returns JSON (`{status, ...}` on success, or `{status:"error", error, message}` with a 4xx code). A successful passwordless `login/verify` establishes the session and returns `{status:"ok", redirect}`. The 2FA verify step is handled by the `Webauthn2FA` action through the shared `ActionController` verify endpoint, not by `WebAuthnController`.
+
+This is a JSON API controller — you typically do not extend it; an SPA can call the endpoints directly, while the bundled `webauthn_setup` / `webauthn_2fa_verify` views drive the browser ceremonies. See [WebAuthn / Passkeys — Routes & JSON Endpoints](15-webauthn.md#routes--json-endpoints) for the full request/response contracts and error codes.
+
+---
+
 ## UserSecurityController
 
 Provides self-service security management for logged-in users: change password, change email, manage device sessions, and unlink OAuth providers.
 
 **All routes require an active session** (`filter: session`).
+
+> When WebAuthn is enabled, the user's registered passkeys are listed inside the existing `security_overview` view rendered by this controller — the enrollment / deletion ceremonies themselves run against the JSON endpoints of [`WebAuthnController`](#webauthncontroller). See [WebAuthn / Passkeys](15-webauthn.md#frontend--javascript).
 
 ### Register the Routes
 

@@ -39,7 +39,7 @@ Daycry Auth integrates with [PHP League's OAuth2 Client](https://oauth2-client.l
 
 ## How It Works
 
-```
+```text
 User clicks "Login with Google"
         |
 Redirected to Google OAuth consent screen

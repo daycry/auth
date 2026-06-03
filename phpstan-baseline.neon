@@ -631,6 +631,12 @@ parameters:
 			path: src/Config/Services.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\WebAuthnCredentialModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Config/Services.php
+
+		-
 			rawMessage: 'Parameter #2 $params (list<string>) of method Daycry\Auth\Controllers\ActionController::_remap() should be contravariant with parameter $params (mixed) of method Daycry\Auth\Controllers\BaseAuthController::_remap()'
 			identifier: method.childParameterType
 			count: 1
@@ -1045,6 +1051,12 @@ parameters:
 			path: src/Entities/User.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\WebAuthnCredentialModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/User.php
+
+		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
 			count: 9
@@ -1301,6 +1313,12 @@ parameters:
 			identifier: function.internal
 			count: 1
 			path: src/Libraries/TokenEmailSender.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Libraries/WebAuthn/WebAuthnManager.php
 
 		-
 			rawMessage: '''
@@ -1873,6 +1891,12 @@ parameters:
 			path: tests/Entities/UserTest.php
 
 		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertSame() with ''webauthn'' and ''webauthn'' will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Enums/IdentityTypeTest.php
+
+		-
 			rawMessage: 'Call to internal function emailer().'
 			identifier: function.internal
 			count: 3
@@ -2098,6 +2122,18 @@ parameters:
 			path: tests/Models/UserIdentityModelTest.php
 
 		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\WebAuthnCredential'' and Daycry\Auth\Entities\WebAuthnCredential will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Models/WebAuthnCredentialModelTest.php
+
+		-
+			rawMessage: 'Parameter #1 $authenticatorAttestationResponse of method Webauthn\AuthenticatorAttestationResponseValidator::check() expects Webauthn\AuthenticatorAttestationResponse, Webauthn\AuthenticatorResponse given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Models/WebAuthnCredentialRepositoryTest.php
+
+		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Models\AttemptModel::countAll().'
 			identifier: method.notFound
 			count: 1
@@ -2192,6 +2228,48 @@ parameters:
 			identifier: method.nonObject
 			count: 1
 			path: tests/Validators/AttemptTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\CredentialRecord'' and Webauthn\CredentialRecord will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/WebAuthn/VirtualAuthenticatorTest.php
+
+		-
+			rawMessage: 'Parameter #1 $authenticatorAttestationResponse of method Webauthn\AuthenticatorAttestationResponseValidator::check() expects Webauthn\AuthenticatorAttestationResponse, Webauthn\AuthenticatorResponse given.'
+			identifier: argument.type
+			count: 1
+			path: tests/WebAuthn/VirtualAuthenticatorTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\WebAuthnCredential'' and Daycry\Auth\Entities\WebAuthnCredential will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnManagerRegistrationTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Symfony\\Component\\Serializer\\SerializerInterface'' and Symfony\Component\Serializer\SerializerInterface will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\AuthenticatorAssertionResponseValidator'' and Webauthn\AuthenticatorAssertionResponseValidator will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\AuthenticatorAttestationResponseValidator'' and Webauthn\AuthenticatorAttestationResponseValidator will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\PublicKeyCredentialCreationOptions'' and Webauthn\PublicKeyCredentialCreationOptions will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
 
 		-
 			rawMessage: Access to property $aliases on an unknown class Tests\Support\Filter.

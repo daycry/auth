@@ -22,7 +22,7 @@ Time-based One-Time Passwords (TOTP) add a powerful second layer of security to 
 
 ## How It Works
 
-```
+```text
 User enters email + password
         ↓
 Credentials verified ✅
@@ -64,6 +64,8 @@ public array $actions = [
 ```
 
 > **Note**: This only applies to users who have TOTP enabled (`hasTotpEnabled() === true`). Users who have not enrolled skip the 2FA step and log in directly.
+
+> **Only one `login` action is supported at a time.** `Totp2FA` and `Webauthn2FA` (passkey second factor) are therefore **mutually exclusive** as the login second factor — pick one. See [WebAuthn / Passkeys](15-webauthn.md#passkey-as-a-second-factor).
 
 ### 2. Set the Issuer Name
 
@@ -331,7 +333,7 @@ Backup codes let a user authenticate when their authenticator app is unavailable
 
 `Totp2FA::verifyCodeForUser()` first attempts to verify the input as a TOTP code. If that fails, it tries to consume a backup code:
 
-```
+```text
 User submits "abc123def4"
         ↓
 TOTP::verify(...) → false (not a 6-digit code)
@@ -470,7 +472,7 @@ This:
 1. Calls `$user->disableTotp()` — removes the TOTP secret + every backup code.
 2. Writes an `EVENT_TOTP_ADMIN_RESET` audit entry with `metadata.initiator = cli`.
 
-The user re-enrolls TOTP from scratch the next time they visit `/security/totp/setup`. See [CLI Commands — `auth:totp`](14-cli-commands.md#auth-totp) for full options.
+The user re-enrolls TOTP from scratch the next time they visit `/security/totp/setup`. See {ref}`CLI Commands — auth:totp <auth-totp>` for full options.
 
 ---
 
@@ -581,10 +583,12 @@ class TotpTest extends DatabaseTestCase
 - **TOTP codes are single-use within their acceptance window** (anti-replay): once a code's time-step is consumed, that code — and any older code still inside the window — is rejected. Backup codes are likewise single-use (one-time `used_at`).
 - If a user loses access to their authenticator app, they can use a [backup code](#backup-codes) (generated automatically on TOTP confirmation) or an [admin reset](#admin-totp-reset).
 - A user with a **pending** (unconfirmed) TOTP secret is **not** challenged at login. If they navigate away before confirming, they simply aren't enrolled yet.
+- **`Webauthn2FA` is an alternative second factor.** A passkey can replace TOTP as the login second factor, but only one `login` action is supported — `Totp2FA` and `Webauthn2FA` are mutually exclusive. See [WebAuthn / Passkeys](15-webauthn.md).
 
 ---
 
 🔗 **See also**:
 - [Device Sessions](11-device-sessions.md) — Manage trusted devices
 - [Authentication](03-authentication.md) — All authentication methods
+- [WebAuthn / Passkeys](15-webauthn.md) — Passkey second factor (alternative to TOTP)
 - [Filters](04-filters.md) — Protecting routes

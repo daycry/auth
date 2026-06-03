@@ -118,7 +118,7 @@ $adminUsers = model(\Daycry\Auth\Models\UserModel::class)
 
 Permissions follow a `resource.action` convention:
 
-```
+```text
 posts.create
 posts.edit
 posts.delete
@@ -197,7 +197,7 @@ $editorGroup->addPermission('posts.edit');
 
 ## Permission Inheritance
 
-```
+```text
 User
  ├── Direct permissions: [posts.delete]
  └── Groups:
@@ -754,7 +754,7 @@ public bool $permissionCacheEnabled = ENVIRONMENT === 'production';
 
 Use `resource.action` format consistently:
 
-```
+```text
 users.view    users.create    users.edit    users.delete
 posts.view    posts.create    posts.edit    posts.delete    posts.publish
 admin.panel   admin.settings  admin.logs

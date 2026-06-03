@@ -17,6 +17,7 @@ Welcome to the complete documentation for **Daycry Auth**, a comprehensive authe
 03-authentication
 09-oauth
 10-totp-2fa
+15-webauthn
 11-device-sessions
 ```
 
@@ -58,6 +59,7 @@ Welcome to the complete documentation for **Daycry Auth**, a comprehensive authe
 - **Multiple Authenticators**: Session, Access Token (with scope enforcement), JWT (with refresh tokens), Magic Link
 - **JWT Access-Token Revocation**: `users.token_version` lets you invalidate every outstanding access token at once — `User::revokeIssuedTokens()` ("log out everywhere"), fired automatically on ban and password change ([JWT](03-authentication.md))
 - **TOTP Two-Factor Authentication** with **backup codes**, optional **"Trust this device"** bypass, **brute-force lockout**, and **single-use (anti-replay) codes** ([TOTP](10-totp-2fa.md))
+- **WebAuthn / Passkeys** — **passwordless login** (usernameless/discoverable) and **passkey 2FA**, phishing-resistant, opt-in per user behind a global availability flag ([WebAuthn](15-webauthn.md))
 - **Device Session Tracking** with optional **concurrent-session limit** and **real, enforced revocation** — a revoked session is forced to re-authenticate on the next request ([Device Sessions](11-device-sessions.md))
 - **Password Reset** + **Force Password Reset** + optional **rotation policy** + **history (no reuse)**, with **hashed-at-rest** magic-link & reset tokens
 - **OAuth 2.0 / Social Login**: Google, GitHub, Facebook, Microsoft Azure, custom profile fields, OAuth events, explicit **account linking** (`oauth/link/(:segment)`) and **verified-email merge safety** ([OAuth](09-oauth.md))

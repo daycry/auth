@@ -67,6 +67,7 @@ public array $tables = [
     'attempts'           => 'auth_attempts',            // IP-based failed attempts
     'rates'              => 'auth_rates',               // Rate limit counters
     'device_sessions'    => 'auth_device_sessions',     // Active device sessions
+    'webauthn_credentials' => 'auth_webauthn_credentials', // WebAuthn / passkey credentials
 ];
 ```
 
@@ -218,7 +219,7 @@ public int $maxSimilarity = 50;
 public int $passwordResetLifetime = HOUR; // Default: 1 hour
 ```
 
-The reset flow is handled by `PasswordResetController`. Users request a reset link, receive it by email, and click it within this window. See [Controllers](05-controllers.md#password-reset-controller) for the full setup.
+The reset flow is handled by `PasswordResetController`. Users request a reset link, receive it by email, and click it within this window. See [Controllers](05-controllers.md#passwordresetcontroller) for the full setup.
 
 ---
 
@@ -463,8 +464,14 @@ public array $views = [
 
     // Email Change Confirmation
     'email-change-email'          => '\Daycry\Auth\Views\Email\email_change_email',
+
+    // WebAuthn / Passkeys (only used when AuthSecurity.$webauthnEnabled is true)
+    'webauthn_setup'              => '\Daycry\Auth\Views\webauthn_setup',
+    'webauthn_2fa_verify'         => '\Daycry\Auth\Views\webauthn_2fa_verify',
 ];
 ```
+
+> The `webauthn_setup` view renders the passkey enrollment widget; `webauthn_2fa_verify` is shown by the `Webauthn2FA` login action. Both are overridable like any other view. See [WebAuthn / Passkeys](15-webauthn.md#frontend--javascript).
 
 ---
 
@@ -549,8 +556,20 @@ public array $routes = [
         ['get', 'oauth/callback/(:segment)', 'OauthController::callback/$1', 'oauth-callback'],
         ['get', 'oauth/link/(:segment)',     'OauthController::link/$1',     'oauth-link'],
     ],
+
+    // WebAuthn / Passkeys — registered ONLY when AuthSecurity.$webauthnEnabled is true
+    'webauthn' => [
+        ['post', 'webauthn/register/options',          'WebAuthnController::registerOptions'],
+        ['post', 'webauthn/register/verify',           'WebAuthnController::registerVerify'],
+        ['post', 'webauthn/login/options',             'WebAuthnController::loginOptions'],
+        ['post', 'webauthn/login/verify',              'WebAuthnController::loginVerify'],
+        ['post', 'webauthn/2fa/options',               'WebAuthnController::twoFactorOptions'],
+        ['post', 'webauthn/credentials/(:segment)/delete', 'WebAuthnController::deleteCredential/$1'],
+    ],
 ];
 ```
+
+The `webauthn` route group is **auto-gated by `AuthSecurity::$webauthnEnabled`** (default `false`): `auth()->routes($routes)` registers these routes only when the flag is on, and `WebAuthnController` re-checks and returns `404` otherwise (defense in depth). See [WebAuthn / Passkeys — Routes & JSON Endpoints](15-webauthn.md#routes--json-endpoints) for the full contract.
 
 The `oauth-link` route (`GET oauth/link/(:segment)`) is the explicit, user-initiated linking flow: it **requires an authenticated user**, stashes the current user (`oauth_link_user_id`), and the shared callback then links the provider to the *current* user — no e-mail merge and no verified-email requirement, because the user is acting deliberately. Linking a social account that is already bound to a different local user is refused with `lang('Auth.oauthAlreadyLinked')`. See [OAuth 2.0 & Social Login](09-oauth.md).
 
@@ -564,11 +583,13 @@ Run additional verification steps after login or registration:
 use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Actions\EmailActivator;
 use Daycry\Auth\Authentication\Actions\Totp2FA;
+use Daycry\Auth\Authentication\Actions\Webauthn2FA;
 
 public array $actions = [
     'register' => EmailActivator::class, // Require email confirmation on signup
     'login'    => Email2FA::class,        // Require email 2FA on login
     // 'login' => Totp2FA::class,         // Or: require TOTP on login (per-user)
+    // 'login' => Webauthn2FA::class,     // Or: require a passkey on login (per-user)
 ];
 ```
 
@@ -577,6 +598,7 @@ public array $actions = [
 | `Email2FA` | Sends a 6-digit code to the user's email; required to complete login |
 | `EmailActivator` | Sends an activation link; user must click before first login |
 | `Totp2FA` | Requires a valid TOTP code (only for users who have enrolled) |
+| `Webauthn2FA` | Requires a passkey assertion (only for users who have enrolled). Requires `AuthSecurity.$webauthnEnabled = true`. **Mutually exclusive** with `Totp2FA` — only one `login` action is supported. See [WebAuthn / Passkeys](15-webauthn.md) |
 
 ---
 
@@ -718,6 +740,46 @@ public int $trustedDeviceLifetime = 30 * DAY;
 ```
 
 See [TOTP — Trust This Device](10-totp-2fa.md#trust-this-device) for the user flow.
+
+---
+
+## WebAuthn / Passkeys
+
+> **File**: `app/Config/AuthSecurity.php`
+
+Passwordless login and passkey-as-2FA are **opt-in per user behind a single global availability flag**. When `$webauthnEnabled` is `false` (the default) the feature does not exist — no `webauthn` routes are registered and every endpoint 404s.
+
+```php
+public bool    $webauthnEnabled                 = false;        // Global availability flag
+public ?string $webauthnRelyingPartyId          = null;         // null → request host
+public string  $webauthnRelyingPartyName        = 'Daycry Auth';
+public array   $webauthnAllowedOrigins          = [];           // [] → derived from base_url()
+public string  $webauthnUserVerification        = 'preferred';  // required | preferred | discouraged
+public string  $webauthnResidentKey             = 'preferred';  // discoverable credential
+public string  $webauthnAttestationConveyance   = 'none';       // none | indirect | direct
+public ?string $webauthnAuthenticatorAttachment = null;         // null | platform | cross-platform
+public int     $webauthnTimeout                 = 60000;        // ceremony timeout (ms)
+public int     $webauthnChallengeTtl            = 120;          // challenge validity (seconds, single-use)
+public int     $webauthnMaxCredentialsPerUser   = 10;           // per-user passkey cap
+```
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `$webauthnEnabled` | `false` | Global availability flag. `false` ⇒ no routes, endpoints 404 |
+| `$webauthnRelyingPartyId` | `null` | The `rpId` credentials are bound to (anti-phishing). `null` falls back to the request host |
+| `$webauthnRelyingPartyName` | `'Daycry Auth'` | Display name shown in the browser passkey prompt |
+| `$webauthnAllowedOrigins` | `[]` | Origins accepted during verification. `[]` derives from `base_url()`; add subdomains / native-app origins |
+| `$webauthnUserVerification` | `'preferred'` | `required` \| `preferred` \| `discouraged`. Use `required` for passwordless |
+| `$webauthnResidentKey` | `'preferred'` | Discoverable credential — needed for usernameless login |
+| `$webauthnAttestationConveyance` | `'none'` | `none` \| `indirect` \| `direct`. `none` is best for privacy |
+| `$webauthnAuthenticatorAttachment` | `null` | `null` (both) \| `platform` \| `cross-platform` |
+| `$webauthnTimeout` | `60000` | Ceremony timeout in milliseconds |
+| `$webauthnChallengeTtl` | `120` | Challenge validity in seconds (single-use) |
+| `$webauthnMaxCredentialsPerUser` | `10` | Per-user passkey cap |
+
+The dedicated table is `$tables['webauthn_credentials']` (`auth_webauthn_credentials`, see [Table Names](#table-names)); the auto-gated `webauthn` route group lives in [Routes](#routes); the `webauthn_setup` / `webauthn_2fa_verify` view keys live in [Views](#views); and `Webauthn2FA::class` is a [`$actions['login']`](#post-authentication-actions) option.
+
+> Requires the `web-auth/webauthn-lib:^5.3` Composer dependency. See [WebAuthn / Passkeys](15-webauthn.md) for the full reference, enrollment / login ceremonies, and security invariants.
 
 ---
 

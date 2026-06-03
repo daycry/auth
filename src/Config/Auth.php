@@ -17,6 +17,7 @@ use CodeIgniter\Config\BaseConfig;
 use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Actions\EmailActivator;
 use Daycry\Auth\Authentication\Actions\Totp2FA;
+use Daycry\Auth\Authentication\Actions\Webauthn2FA;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\Authenticators\Session;
@@ -57,25 +58,26 @@ class Auth extends BaseConfig
      * @var array<string, string>
      */
     public array $tables = [
-        'users'              => 'users',
-        'permissions'        => 'auth_permissions',
-        'permissions_users'  => 'auth_permissions_users',
-        'identities'         => 'auth_users_identities',
-        'logins'             => 'auth_logins',
-        'remember_tokens'    => 'auth_remember_tokens',
-        'groups'             => 'auth_groups',
-        'permissions_groups' => 'auth_permissions_groups',
-        'groups_users'       => 'auth_groups_users',
-        'logs'               => 'auth_logs',
-        'apis'               => 'auth_apis',
-        'controllers'        => 'auth_controllers',
-        'endpoints'          => 'auth_endpoints',
-        'attempts'           => 'auth_attempts',
-        'rates'              => 'auth_rates',
-        'device_sessions'    => 'auth_device_sessions',
-        'audit_logs'         => 'auth_audit_logs',
-        'totp_backup_codes'  => 'auth_totp_backup_codes',
-        'password_history'   => 'auth_password_history',
+        'users'                => 'users',
+        'permissions'          => 'auth_permissions',
+        'permissions_users'    => 'auth_permissions_users',
+        'identities'           => 'auth_users_identities',
+        'logins'               => 'auth_logins',
+        'remember_tokens'      => 'auth_remember_tokens',
+        'groups'               => 'auth_groups',
+        'permissions_groups'   => 'auth_permissions_groups',
+        'groups_users'         => 'auth_groups_users',
+        'logs'                 => 'auth_logs',
+        'apis'                 => 'auth_apis',
+        'controllers'          => 'auth_controllers',
+        'endpoints'            => 'auth_endpoints',
+        'attempts'             => 'auth_attempts',
+        'rates'                => 'auth_rates',
+        'device_sessions'      => 'auth_device_sessions',
+        'audit_logs'           => 'auth_audit_logs',
+        'totp_backup_codes'    => 'auth_totp_backup_codes',
+        'password_history'     => 'auth_password_history',
+        'webauthn_credentials' => 'auth_webauthn_credentials',
     ];
 
     /** AUTHENTICATION CONFIGURATION */
@@ -211,6 +213,7 @@ class Auth extends BaseConfig
      * Available action classes:
      * - Email2FA::class       — sends a 6-digit code by email (login)
      * - Totp2FA::class        — validates an RFC 6238 TOTP code (login)
+     * - Webauthn2FA::class    — validates a WebAuthn/passkey assertion (login)
      * - EmailActivator::class — requires email confirmation before login (register)
      *
      * Only one action per event is supported.
@@ -363,6 +366,9 @@ class Auth extends BaseConfig
         'email-change-email' => '\Daycry\Auth\Views\Email\email_change_email',
         // User security overview (device sessions + TOTP status)
         'security_overview' => '\Daycry\Auth\Views\profile\security',
+        // WebAuthn / passkeys
+        'webauthn_setup'      => '\Daycry\Auth\Views\webauthn_setup',
+        'webauthn_2fa_verify' => '\Daycry\Auth\Views\webauthn_2fa_verify',
     ];
 
     /**
@@ -547,6 +553,14 @@ class Auth extends BaseConfig
                 'JwtController::logout',
                 'jwt-logout',
             ],
+        ],
+        'webauthn' => [
+            ['post', 'webauthn/register/options', 'WebAuthnController::registerOptions', 'webauthn-register-options'],
+            ['post', 'webauthn/register/verify', 'WebAuthnController::registerVerify', 'webauthn-register-verify'],
+            ['post', 'webauthn/login/options', 'WebAuthnController::loginOptions', 'webauthn-login-options'],
+            ['post', 'webauthn/login/verify', 'WebAuthnController::loginVerify', 'webauthn-login-verify'],
+            ['post', 'webauthn/2fa/options', 'WebAuthnController::twoFactorOptions', 'webauthn-2fa-options'],
+            ['post', 'webauthn/credentials/(:segment)/delete', 'WebAuthnController::deleteCredential/$1', 'webauthn-credential-delete'],
         ],
     ];
 

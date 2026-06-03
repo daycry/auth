@@ -27,6 +27,7 @@ enum IdentityType: string
     case RESET_PASSWORD = 'reset_password';
     case JWT_REFRESH    = 'jwt_refresh';
     case EMAIL_CHANGE   = 'email_change';
+    case WEBAUTHN       = 'webauthn';
 
     /**
      * Build the identity type string for a dynamic OAuth provider.
