@@ -1,98 +1,159 @@
-# Daycry Auth Documentation
+---
+hide:
+  - navigation
+  - toc
+---
 
-Welcome to the complete documentation for **Daycry Auth**, a comprehensive authentication and authorization library for CodeIgniter 4.
+<div class="hero" markdown>
 
-## Main Features
+# Daycry Auth
 
-### Authentication
-- **Multiple Authenticators**: Session, Access Token (with scope enforcement), JWT (with refresh tokens), Magic Link
-- **JWT Access-Token Revocation**: `users.token_version` lets you invalidate every outstanding access token at once — `User::revokeIssuedTokens()` ("log out everywhere"), fired automatically on ban and password change ([JWT](03-authentication.md))
-- **TOTP Two-Factor Authentication** with **backup codes**, optional **"Trust this device"** bypass, **brute-force lockout**, and **single-use (anti-replay) codes** ([TOTP](10-totp-2fa.md))
-- **WebAuthn / Passkeys** — **passwordless login** (usernameless/discoverable) and **passkey 2FA**, phishing-resistant, opt-in per user behind a global availability flag ([WebAuthn](15-webauthn.md))
-- **Device Session Tracking** with optional **concurrent-session limit** and **real, enforced revocation** — a revoked session is forced to re-authenticate on the next request ([Device Sessions](11-device-sessions.md))
-- **Password Reset** + **Force Password Reset** + optional **rotation policy** + **history (no reuse)**, with **hashed-at-rest** magic-link & reset tokens
-- **OAuth 2.0 / Social Login**: Google, GitHub, Facebook, Microsoft Azure, custom profile fields, OAuth events, explicit **account linking** (`oauth/link/(:segment)`) and **verified-email merge safety** ([OAuth](09-oauth.md))
+Authentication &amp; Authorization for **CodeIgniter 4** — Session, Access Token, JWT, OAuth, TOTP and **WebAuthn / Passkeys**, with a full **RBAC** authorization system. Batteries included, secure by default.
 
-### Authorization
-- **Groups & Permissions (RBAC)** with optional persistent cache, uniform wildcard matching (`*`, `posts.*`) across user- and group-level permissions, and a **Gate → RBAC bridge** (`gateFallbackToRbac`)
-- **API token scope enforcement** (`token-scope:` filter)
-- **Per-Route Rate Limiting** — `rates:<limit>,<period>` overrides the global limit for a single route (`<period>` in seconds or `SECOND`/`MINUTE`/`HOUR`/`DAY`/`WEEK`) ([Filters](04-filters.md))
-- **Sudo Mode (Password Confirmation)** — `password-confirm:<seconds>` enforces a fresh confirmation on the most sensitive routes, overriding the global window ([Filters](04-filters.md))
-- **Flexible Filters**: Auth, chain, group, permission, gate, token-scope, password-age, rate limiting (`rates`), force-reset, password-confirm
+[Get started :material-rocket-launch:](01-quick-start.md){ .md-button .md-button--primary }
+[WebAuthn / Passkeys :material-fingerprint:](15-webauthn.md){ .md-button }
+[GitHub :material-github:](https://github.com/daycry/auth){ .md-button }
 
-### Security
-- **Per-User Account Lockout** (atomic) — independent of IP-based blocking, now also applied to **TOTP / backup-code verification**
-- **Compromised-Password Recheck on Login** (HIBP integration, opt-in)
-- **Suspicious Login Detection** with `suspicious-login` event for email alerts, plus **remember-me theft detection** (a mismatched validator purges all of the user's tokens and fires `remember-me-theft`)
-- **Secret-safe login log** — Access Token / JWT credentials are stored in `auth_logins` as a non-reversible SHA-256 fingerprint, never the raw bearer token
-- **Timing-safe OAuth state** validation
+</div>
 
-### Compliance & Operations
-- **Granular audit log** (`auth_audit_logs`) — 22 canonical event types, filterable CLI
-- **GDPR helpers** — JSON data export + account anonymization
-- **Admin CLI**: `auth:tokens revoke`, `auth:sessions terminate`, `auth:totp reset`, `auth:audit`, `auth:gdpr export|anonymize`
-- **Scheduled Maintenance**: `auth:purge [--days <n>]` — purges expired remember-me tokens and old terminated device sessions; run on a schedule instead of the probabilistic on-login purge ([CLI Commands](14-cli-commands.md))
-- **Complete Logging**: CI4 Events + database login attempts + audit log
-- **Highly Customizable**: Extend or replace any component
+## Features
 
-## Quick Start
+<div class="grid cards" markdown>
 
-```bash
-composer require daycry/auth
-php spark migrate --all
-php spark auth:setup
-```
+-   :material-key-variant:{ .lg .middle } __Multiple authenticators__
 
-```php
-// Login
-$result = auth()->attempt(['email' => 'user@example.com', 'password' => 'secret']);
+    ---
 
-if ($result->isOK()) {
-    return redirect()->to('/dashboard');
-}
-```
+    Session, Access Token (with scope enforcement), JWT (refresh tokens + one-shot **revocation** via `token_version`), and Magic Link — all behind one helper.
 
-## Documentation Sections
+    [:octicons-arrow-right-24: Authentication](03-authentication.md)
 
-### [Quick Start Guide](01-quick-start.md)
-Install and configure Daycry Auth in minutes.
+-   :material-fingerprint:{ .lg .middle } __WebAuthn / Passkeys__
 
-### [Configuration](02-configuration.md)
-Every configuration option explained with examples.
+    ---
 
-### [Authentication](03-authentication.md)
-Session, Access Token, JWT (with refresh), Magic Link, Password Reset, and more.
+    **Passwordless login** (usernameless/discoverable) and **passkey 2FA**. Phishing-resistant by design, opt-in per user behind a global flag.
 
-### [OAuth 2.0 & Social Login](09-oauth.md)
-Google, GitHub, Facebook, Microsoft Azure — and any OIDC provider. Profile fields, custom resolvers, OAuth events, scopes tracking, explicit account linking, and `allowUnverifiedEmailLink` merge safety.
+    [:octicons-arrow-right-24: WebAuthn](15-webauthn.md)
 
-### [TOTP Two-Factor Authentication](10-totp-2fa.md)
-Time-based OTP with authenticator apps, brute-force lockout, and single-use anti-replay codes.
+-   :material-cellphone-key:{ .lg .middle } __TOTP two-factor__
 
-### [WebAuthn / Passkeys](15-webauthn.md)
-Passwordless login (usernameless/discoverable) and passkey 2FA, phishing-resistant, opt-in per user.
+    ---
 
-### [Device Sessions](11-device-sessions.md)
-Track and manage active logins across devices, with enforced revocation that forces re-authentication.
+    RFC 6238 TOTP with **backup codes**, *"trust this device"* bypass, per-user brute-force lockout, and **single-use anti-replay** codes.
 
-### [Security Filters](04-filters.md)
-Protect routes with authentication and authorization filters, including per-route rate limits (`rates:<limit>,<period>`) and sudo mode (`password-confirm:<seconds>`).
+    [:octicons-arrow-right-24: TOTP 2FA](10-totp-2fa.md)
 
-### [Controllers](05-controllers.md)
-All included controllers: Login, Register, Password Reset, Force Reset, JWT, UserSecurity.
+-   :material-account-multiple-check:{ .lg .middle } __OAuth 2.0 / Social__
 
-### [Authorization](06-authorization.md)
-Groups, permissions, permission cache, wildcard matching, the Gate → RBAC bridge, and RBAC patterns.
+    ---
 
-### [Logging & Monitoring](07-logging.md)
-CI4 Events, database logs, per-user lockout, and rate limiting.
+    Google, GitHub, Facebook, Microsoft Azure and any OIDC provider. Profile fields, OAuth events, explicit **account linking** and verified-email merge safety.
 
-### [Testing](08-testing.md)
-Unit and integration testing with authentication mocking.
+    [:octicons-arrow-right-24: OAuth](09-oauth.md)
 
-## Additional Resources
+-   :material-shield-account:{ .lg .middle } __RBAC authorization__
 
-- **GitHub**: [daycry/auth](https://github.com/daycry/auth)
-- **CodeIgniter 4 Docs**: [codeigniter4.github.io](https://codeigniter4.github.io/)
-- **Packagist**: [packagist.org/packages/daycry/auth](https://packagist.org/packages/daycry/auth)
-- **Issues**: [github.com/daycry/auth/issues](https://github.com/daycry/auth/issues)
+    ---
+
+    Groups &amp; permissions with optional cache, uniform wildcard matching (`posts.*`), and a **Gate → RBAC bridge**. Plus filters: group, permission, gate, token-scope.
+
+    [:octicons-arrow-right-24: Authorization](06-authorization.md)
+
+-   :material-devices:{ .lg .middle } __Device sessions__
+
+    ---
+
+    Track active logins per device, optional concurrent-session limit, and **real enforced revocation** — a revoked session must re-authenticate on its next request.
+
+    [:octicons-arrow-right-24: Device Sessions](11-device-sessions.md)
+
+-   :material-speedometer:{ .lg .middle } __Filters &amp; rate limiting__
+
+    ---
+
+    Per-route rate limits (`rates:<limit>,<period>`) and **sudo mode** (`password-confirm:<seconds>`) that override global windows on your most sensitive routes.
+
+    [:octicons-arrow-right-24: Filters](04-filters.md)
+
+-   :material-clipboard-text-clock:{ .lg .middle } __Audit &amp; compliance__
+
+    ---
+
+    Granular **audit log** (22 event types), **GDPR** export/anonymize helpers, and an admin **CLI** for tokens, sessions, TOTP, audit and scheduled purges.
+
+    [:octicons-arrow-right-24: Audit &amp; Compliance](13-audit-and-compliance.md)
+
+</div>
+
+## Quick start
+
+=== ":material-package-down: Install"
+
+    ```bash
+    composer require daycry/auth
+    php spark migrate --all
+    php spark auth:setup
+    ```
+
+=== ":material-login: Authenticate"
+
+    ```php
+    $result = auth()->attempt([
+        'email'    => 'user@example.com',
+        'password' => 'secret',
+    ]);
+
+    if ($result->isOK()) {
+        return redirect()->to('/dashboard');
+    }
+    ```
+
+=== ":material-shield-lock: Protect a route"
+
+    ```php
+    // app/Config/Routes.php
+    $routes->group('admin', ['filter' => 'group:admin'], static function ($routes) {
+        $routes->get('dashboard', 'Admin::index');
+    });
+    ```
+
+[:octicons-arrow-right-24: Full quick-start guide](01-quick-start.md)
+
+## Security, by default
+
+<div class="grid cards" markdown>
+
+-   :material-lock-check:{ .lg .middle } __Hardened auth__
+
+    ---
+
+    Per-user atomic lockout, compromised-password recheck (HIBP), suspicious-login &amp; remember-me theft detection, and a **secret-safe login log** (SHA-256 fingerprints, never raw tokens).
+
+-   :material-puzzle:{ .lg .middle } __Customizable__
+
+    ---
+
+    Swap or extend any component — authenticators, repositories, views, actions and policies are all resolvable services you can override.
+
+    [:octicons-arrow-right-24: Configuration](02-configuration.md)
+
+-   :material-test-tube:{ .lg .middle } __Tested__
+
+    ---
+
+    A large PHPUnit suite (incl. a real in-test WebAuthn authenticator), PHPStan level 5, deptrac and Rector keep the library correct and clean.
+
+    [:octicons-arrow-right-24: Testing](08-testing.md)
+
+</div>
+
+---
+
+<p class="md-content-footer" markdown>
+**Resources** —
+[GitHub](https://github.com/daycry/auth) ·
+[Packagist](https://packagist.org/packages/daycry/auth) ·
+[Issues](https://github.com/daycry/auth/issues) ·
+[CodeIgniter 4](https://codeigniter4.github.io/)
+</p>

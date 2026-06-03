@@ -36,6 +36,10 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.tooltips
+    - content.action.edit
+    - content.action.view
+    - navigation.footer
+    - navigation.path
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -100,6 +104,9 @@ validation:
 exclude_docs: |
   superpowers/
   README.md
+
+extra_css:
+  - stylesheets/extra.css
 
 extra:
   social:
