@@ -38,6 +38,8 @@ return [
     'webauthnMaxCredentials'     => 'You have reached the maximum number of registered passkeys.',
     'webauthnChallengeExpired'   => 'The passkey challenge has expired. Please try again.',
     'webauthnVerificationFailed' => 'Passkey verification failed.',
+    'webauthnDisabled'           => 'Passkey sign-in is not available.',
+    'notLoggedIn'                => 'You must be logged in to do that.',
 
     'email'           => 'Email Address',
     'username'        => 'Username',

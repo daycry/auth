@@ -155,8 +155,18 @@ class Auth
 
         $namespace = $config['namespace'] ?? 'Daycry\Auth\Controllers';
 
-        $routes->group('/', ['namespace' => $namespace], static function (RouteCollection $routes) use ($authRoutes, $config): void {
+        // Defense in depth: skip the WebAuthn route group entirely when the
+        // feature is globally disabled (the controller also 404s per-method).
+        $disabledGroups = [];
+        if (! (bool) (setting('AuthSecurity.webauthnEnabled') ?? false)) {
+            $disabledGroups[] = 'webauthn';
+        }
+
+        $routes->group('/', ['namespace' => $namespace], static function (RouteCollection $routes) use ($authRoutes, $config, $disabledGroups): void {
             foreach ($authRoutes as $name => $row) {
+                if (in_array($name, $disabledGroups, true)) {
+                    continue;
+                }
                 if (! isset($config['except']) || ! in_array($name, $config['except'], true)) {
                     foreach ($row as $params) {
                         $options = isset($params[3])

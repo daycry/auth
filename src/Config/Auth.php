@@ -364,6 +364,9 @@ class Auth extends BaseConfig
         'email-change-email' => '\Daycry\Auth\Views\Email\email_change_email',
         // User security overview (device sessions + TOTP status)
         'security_overview' => '\Daycry\Auth\Views\profile\security',
+        // WebAuthn / passkeys
+        'webauthn_setup'      => '\Daycry\Auth\Views\webauthn_setup',
+        'webauthn_2fa_verify' => '\Daycry\Auth\Views\webauthn_2fa_verify',
     ];
 
     /**
@@ -548,6 +551,14 @@ class Auth extends BaseConfig
                 'JwtController::logout',
                 'jwt-logout',
             ],
+        ],
+        'webauthn' => [
+            ['post', 'webauthn/register/options', 'WebAuthnController::registerOptions', 'webauthn-register-options'],
+            ['post', 'webauthn/register/verify', 'WebAuthnController::registerVerify', 'webauthn-register-verify'],
+            ['post', 'webauthn/login/options', 'WebAuthnController::loginOptions', 'webauthn-login-options'],
+            ['post', 'webauthn/login/verify', 'WebAuthnController::loginVerify', 'webauthn-login-verify'],
+            ['post', 'webauthn/2fa/options', 'WebAuthnController::twoFactorOptions', 'webauthn-2fa-options'],
+            ['post', 'webauthn/credentials/(:segment)/delete', 'WebAuthnController::deleteCredential/$1', 'webauthn-credential-delete'],
         ],
     ];
 
