@@ -13,45 +13,41 @@ Filters are the cornerstone of security in Daycry Auth. This complete guide will
 
 ## 🔧 Initial Setup
 
-### 1. Register Filters in `app/Config/Filters.php`
+### Filter aliases are auto-registered
+
+You do **not** register the auth filter aliases yourself. They are contributed
+automatically by `Daycry\Auth\Config\Registrar::Filters()` when the package is
+installed, so they are available in `app/Config/Filters.php` out of the box:
+
+| Alias | Class | Purpose |
+|---|---|---|
+| `auth` | `AuthFilter` | Authenticate (default authenticator, or one passed as an argument). |
+| `basic-auth` | `BasicAuthFilter` | HTTP Basic authentication. |
+| `chain` | `ChainAuthFilter` | Try each authenticator in `$authenticationChain` order. |
+| `group` | `GroupFilter` | Require group membership (`group:admin,editor`). |
+| `permission` | `PermissionFilter` | Require a permission (`permission:users.edit`). |
+| `gate` | `GateFilter` | Authorize via a Gate ability / Policy. |
+| `token-scope` | `TokenScopeFilter` | Require an access-token scope. |
+| `rates` | `RatesFilter` | Per-IP/user rate limiting (`rates:50,MINUTE`). |
+| `force-reset` | `ForcePasswordResetFilter` | Force a password change. |
+| `password-age` | `PasswordAgeFilter` | Require a password younger than the configured max age. |
+| `password-confirm` | `PasswordConfirmFilter` | Require recent password re-confirmation. |
+
+> **Selecting an authenticator.** There is no per-authenticator alias such as
+> `session`/`tokens`/`jwt`. Pass the authenticator name as an argument to the
+> `auth` filter instead: `auth:session`, `auth:access_token`, or `auth:jwt`.
+> With no argument, `auth` uses `Config\Auth::$defaultAuthenticator`.
+
+To enable a filter globally, reference the alias (and optional arguments) in
+`app/Config/Filters.php`:
 
 ```php
-<?php
-
-namespace Config;
-
-use CodeIgniter\Config\BaseConfig;
-
-class Filters extends BaseConfig
-{
-    public array $aliases = [
-        // === AUTHENTICATION FILTERS ===
-        'session'      => \Daycry\Auth\Filters\AuthSessionFilter::class,
-        'tokens'       => \Daycry\Auth\Filters\AuthAccessTokenFilter::class,
-        'jwt'          => \Daycry\Auth\Filters\AuthJWTFilter::class,
-        'basic-auth'   => \Daycry\Auth\Filters\BasicAuthFilter::class,
-        'chain'        => \Daycry\Auth\Filters\ChainFilter::class,
-
-        // === AUTHORIZATION FILTERS ===
-        'group'        => \Daycry\Auth\Filters\GroupFilter::class,
-        'permission'   => \Daycry\Auth\Filters\PermissionFilter::class,
-        'token-scope'  => \Daycry\Auth\Filters\TokenScopeFilter::class,
-
-        // === CONTROL FILTERS ===
-        'auth-rates'   => \Daycry\Auth\Filters\AuthRatesFilter::class,
-        'force-reset'  => \Daycry\Auth\Filters\ForcePasswordResetFilter::class,
-        'password-age' => \Daycry\Auth\Filters\PasswordAgeFilter::class,
-        'auth-request' => \Daycry\Auth\Filters\AuthRequestFilter::class,
-    ];
-
-    // Global filters (optional)
-    public array $globals = [
-        'before' => [
-            // 'auth-rates', // Global rate limiting
-        ],
-        'after' => [],
-    ];
-}
+public array $globals = [
+    'before' => [
+        // 'rates', // Global rate limiting using the configured defaults
+    ],
+    'after' => [],
+];
 ```
 
 ## 🔐 Authentication Filters
@@ -64,7 +60,7 @@ Verifies that the user is authenticated via session.
 
 ```php
 // In routes
-$routes->group('dashboard', ['filter' => 'session'], function($routes) {
+$routes->group('dashboard', ['filter' => 'auth:session'], function($routes) {
     $routes->get('/', 'Dashboard::index');
     $routes->get('profile', 'Dashboard::profile');
 });
@@ -72,7 +68,7 @@ $routes->group('dashboard', ['filter' => 'session'], function($routes) {
 // In controller
 class Dashboard extends BaseController
 {
-    protected $filters = ['session'];
+    protected $filters = ['auth:session'];
     
     public function index()
     {
@@ -103,7 +99,7 @@ Verifies authentication via access tokens.
 
 ```php
 // API Routes
-$routes->group('api/v1', ['filter' => 'tokens'], function($routes) {
+$routes->group('api/v1', ['filter' => 'auth:access_token'], function($routes) {
     $routes->get('users', 'API\Users::index');
     $routes->post('users', 'API\Users::create');
     $routes->resource('posts', ['controller' => 'API\Posts']);
@@ -112,7 +108,7 @@ $routes->group('api/v1', ['filter' => 'tokens'], function($routes) {
 // In API controller
 class UsersAPI extends ResourceController
 {
-    protected $filters = ['tokens'];
+    protected $filters = ['auth:access_token'];
     
     public function index()
     {
@@ -147,7 +143,7 @@ Verifies JWT tokens in the Authorization header.
 
 ```php
 // API with JWT
-$routes->group('api/jwt', ['filter' => 'jwt'], function($routes) {
+$routes->group('api/jwt', ['filter' => 'auth:jwt'], function($routes) {
     $routes->get('profile', 'API\Profile::show');
     $routes->put('profile', 'API\Profile::update');
 });
@@ -271,14 +267,14 @@ Verifies that the user belongs to one or more groups.
 
 ```php
 // Single group
-$routes->group('admin', ['filter' => 'session,group:admin'], function($routes) {
+$routes->group('admin', ['filter' => 'auth:session,group:admin'], function($routes) {
     $routes->get('/', 'Admin::dashboard');
     $routes->get('users', 'Admin::users');
 });
 
 // Multiple groups (OR - any of them)
 $routes->get('moderator-panel', 'Moderator::panel', [
-    'filter' => 'session,group:admin,moderator'
+    'filter' => 'auth:session,group:admin,moderator'
 ]);
 
 // In controller
@@ -303,7 +299,7 @@ $groups = [
 ];
 
 // Usage with hierarchy
-$routes->group('management', ['filter' => 'session,group:admin'], function($routes) {
+$routes->group('management', ['filter' => 'auth:session,group:admin'], function($routes) {
     $routes->get('/', 'Management::index');
     
     // Only super-admin
@@ -322,12 +318,12 @@ Verifies specific granular permissions.
 ```php
 // Specific permission
 $routes->get('admin/users/edit/(:num)', 'Admin\Users::edit/$1', [
-    'filter' => 'session,permission:users.edit'
+    'filter' => 'auth:session,permission:users.edit'
 ]);
 
 // Multiple permissions (AND - must have all)
 $routes->delete('admin/users/(:num)', 'Admin\Users::delete/$1', [
-    'filter' => 'session,permission:users.delete,users.manage'
+    'filter' => 'auth:session,permission:users.delete,users.manage'
 ]);
 
 // In controller
@@ -368,7 +364,7 @@ $permissions = [
 ];
 
 // Usage in specific routes
-$routes->group('admin/content', ['filter' => 'session'], function($routes) {
+$routes->group('admin/content', ['filter' => 'auth:session'], function($routes) {
     $routes->get('/', 'Content::index', ['filter' => 'permission:content.view']);
     $routes->get('create', 'Content::create', ['filter' => 'permission:content.create']);
     $routes->post('store', 'Content::store', ['filter' => 'permission:content.create']);
@@ -378,19 +374,62 @@ $routes->group('admin/content', ['filter' => 'session'], function($routes) {
 });
 ```
 
-### 3. **Token Scope Filter** (`token-scope`)
+### 3. **Gate Filter** (`gate`)
+
+Authorizes a request against a Gate ability — a closure rule registered with
+`Gate::define()` or a class-based policy registered with `Gate::policy()`. Apply it on
+routes that map cleanly to a single ability **without** a resource argument
+(`gate:dashboard.view`, `gate:billing.access`). For abilities that need a resource
+instance, call the Gate API inside the controller (`Gate::authorize('post.update', $post)`).
+
+```php
+// Single ability
+$routes->get('admin', 'Admin::index', ['filter' => 'auth:session,gate:admin.access']);
+
+// Multiple abilities — AND-ed (every ability must allow)
+$routes->get('billing', 'Billing::index', ['filter' => 'auth:session,gate:billing.view,billing.manage']);
+```
+
+#### Gate → RBAC fallback
+
+The `gate` filter honors the **Gate → RBAC fallback**. When an ability looks like an RBAC
+permission — it contains a scope separator, e.g. `users.edit` — and there is **no**
+registered closure or policy for it, the Gate defers to the authenticated user's RBAC
+permissions via `User::can()`. This lets `gate:users.edit` and `permission:users.edit`
+share the same semantics.
+
+```php
+// app/Config/AuthSecurity.php
+public bool $gateFallbackToRbac = true; // default
+```
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `AuthSecurity::$gateFallbackToRbac` | `true` | A scoped ability (`users.edit`) with no registered closure/policy falls back to `User::can()`. Set `false` to keep the Gate and RBAC systems fully independent (such abilities then simply deny). |
+
+The fallback only applies to abilities that contain a `.` scope separator and only when a
+`User` is authenticated. Explicit closures and policies always take precedence over the
+RBAC fallback.
+
+#### Failure response
+
+`gate` extends `AbstractAuthFilter`, so a denied request reuses
+`buildDeniedResponse()` and redirects to `Auth::permissionDeniedRedirect()` (or returns a
+`403` JSON body for API requests).
+
+### 4. **Token Scope Filter** (`token-scope`)
 
 Validates that the **access token** used to authenticate the request grants every scope listed in the filter argument. Only meaningful after a token-based authenticator has run (`tokens`, `jwt`, or `chain`).
 
 ```php
 // Single scope — token must grant `posts.read`
 $routes->get('api/posts', 'Posts::index', [
-    'filter' => 'tokens,token-scope:posts.read',
+    'filter' => 'auth:access_token,token-scope:posts.read',
 ]);
 
 // Multiple scopes — AND-ed (token must grant BOTH)
 $routes->post('api/posts', 'Posts::create', [
-    'filter' => 'tokens,token-scope:posts.read,posts.write',
+    'filter' => 'auth:access_token,token-scope:posts.read,posts.write',
 ]);
 ```
 
@@ -469,43 +508,90 @@ class HybridAPI extends ResourceController
 
 ## 📊 Control Filters
 
-### 1. **Auth Rates Filter** (`auth-rates`)
+### 1. **Auth Rates Filter** (`rates`)
 
-Request rate control per user/IP.
+Request rate control per user/IP. The **registered alias is `rates`** (there is no
+`auth-rates` alias).
 
 #### Global Configuration
 
 ```php
-// In Filters.php
+// In app/Config/Filters.php
 public array $globals = [
     'before' => [
-        'auth-rates', // Apply to all routes
+        'rates', // Apply the global defaults to all routes
     ],
 ];
 
-// In Auth.php
-public string $limitMethod = 'USER';     // Per authenticated user
-public int $requestLimit = 100;          // 100 requests
-public int $timeLimit = HOUR;            // Per hour
+// In app/Config/AuthSecurity.php
+public string $limitMethod = 'METHOD_NAME'; // IP_ADDRESS | USER | METHOD_NAME | ROUTED_URL
+public int $requestLimit   = 10;            // requests allowed per window
+public int $timeLimit      = MINUTE;        // window length (seconds)
 ```
 
-#### Specific Configuration
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `AuthSecurity::$limitMethod` | `'METHOD_NAME'` | Bucket key: `IP_ADDRESS`, `USER`, `METHOD_NAME`, or `ROUTED_URL`. |
+| `AuthSecurity::$requestLimit` | `10` | Requests allowed per window (used when no per-route/endpoint override). |
+| `AuthSecurity::$timeLimit` | `MINUTE` | Window length in seconds. |
+
+#### Per-route arguments: `rates:<limit>,<period>`
+
+The filter now honors per-route arguments that **override the global limit/time for
+that route only**:
 
 ```php
-// API-specific rate limiting
-$routes->group('api', ['filter' => 'auth-rates:50,MINUTE'], function($routes) {
+// API-specific rate limiting: 50 requests per minute on this group.
+$routes->group('api', ['filter' => 'rates:50,MINUTE'], function($routes) {
     $routes->resource('users');
 });
 
-// In controller with custom rate limiting
+// In a controller with custom rate limiting.
 class APIController extends ResourceController
 {
     protected $filters = [
         'tokens',
-        'auth-rates:200,HOUR' // 200 requests per hour
+        'rates:200,HOUR', // 200 requests per hour
     ];
 }
 ```
+
+- The **first** argument is the request limit (a number).
+- The **second** argument is the period. It may be a **number of seconds**, or one of
+  the named units below (case-insensitive; plural and short forms are accepted):
+
+| Period argument | Resolves to |
+|-----------------|-------------|
+| `SECOND` / `SECONDS` / `SEC` | 1 s |
+| `MINUTE` / `MINUTES` / `MIN` | 60 s |
+| `HOUR` / `HOURS` | 3 600 s |
+| `DAY` / `DAYS` | 86 400 s |
+| `WEEK` / `WEEKS` | 604 800 s |
+| `90` (numeric) | 90 s |
+| unrecognised | leaves the resolved window unchanged |
+
+```php
+// 30 requests per 5 minutes (period given in seconds):
+$routes->get('reports', 'Reports::index', ['filter' => 'rates:30,300']);
+
+// 30 requests per minute (named unit resolves to 60 seconds):
+$routes->get('reports', 'Reports::index', ['filter' => 'rates:30,MINUTE']);
+```
+
+Only the limit may be supplied (`rates:25`), in which case the period falls back to the
+global `timeLimit`.
+
+#### Override precedence
+
+A configured **endpoint database row** still wins over both the global defaults and the
+per-route argument. The resolution order applied by `RatesFilter::before()` is:
+
+1. Global `AuthSecurity::$requestLimit` / `$timeLimit`.
+2. Per-route argument (`rates:<limit>,<period>`) — overrides the globals for that route.
+3. A matching `Endpoint` row (runtime/admin override) — overrides everything above.
+
+A user whose `ignore_rates` flag is set bypasses throttling entirely. When the limit is
+exceeded the filter returns a `429` response with the `Auth.throttled` message.
 
 ### 2. **Force Password Reset Filter** (`force-reset`)
 
@@ -514,7 +600,7 @@ Forces password change when necessary.
 ```php
 // Apply after login
 $routes->group('secure', [
-    'filter' => 'session,force-reset'
+    'filter' => 'auth:session,force-reset'
 ], function($routes) {
     $routes->get('dashboard', 'Dashboard::index');
 });
@@ -532,7 +618,7 @@ Forces a password reset once the user's `password_changed_at` is older than `Aut
 public int $passwordMaxAge = 90 * DAY; // 90-day rotation
 
 // app/Config/Routes.php
-$routes->group('app', ['filter' => 'session,password-age'], function ($routes) {
+$routes->group('app', ['filter' => 'auth:session,password-age'], function ($routes) {
     $routes->get('dashboard', 'Dashboard::index');
 });
 ```
@@ -559,13 +645,13 @@ public int $passwordConfirmationLifetime = 3 * HOUR; // 0 = always re-confirm
 ```php
 // 1. Wire the confirmation form once (must be reachable WITHOUT
 //    password-confirm to break the chicken-and-egg loop):
-$routes->group('auth', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+$routes->group('auth', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
     $routes->get('confirm-password',  'UserSecurityController::confirmPasswordView',   ['as' => 'password-confirm-show']);
     $routes->post('confirm-password', 'UserSecurityController::confirmPasswordAction', ['as' => 'password-confirm']);
 });
 
 // 2. Apply the filter on routes that need fresh confirmation:
-$routes->group('account/security', ['filter' => 'session,password-confirm'], static function ($routes) {
+$routes->group('account/security', ['filter' => 'auth:session,password-confirm'], static function ($routes) {
     $routes->post('totp/disable',       'Account::disableTotp');
     $routes->post('email/change',       'Account::changeEmail');
     $routes->post('tokens/generate',    'Account::generateApiToken');
@@ -573,35 +659,52 @@ $routes->group('account/security', ['filter' => 'session,password-confirm'], sta
 });
 ```
 
+#### Per-route TTL: `password-confirm:<seconds>`
+
+The filter honors a per-route lifetime argument. `password-confirm:<seconds>` requires a
+password confirmation **no older than `<seconds>`** for that route, regardless of the
+global `AuthSecurity::$passwordConfirmationLifetime`. Use it to demand a fresher
+confirmation on your most sensitive routes ("sudo mode"):
+
+```php
+// The global window may be 3 hours, but these two routes demand a confirmation
+// that is at most 60 seconds old.
+$routes->post('account/delete',  'Account::deleteAccount', ['filter' => 'auth:session,password-confirm:60']);
+$routes->post('account/disable-2fa', 'Account::disableTotp', ['filter' => 'auth:session,password-confirm:60']);
+```
+
+The argument must be numeric; non-numeric arguments are ignored and the global
+`passwordConfirmationLifetime` applies. A value of `0` (global or per-route) means every
+protected request requires a fresh confirmation.
+
 #### Behaviour
 
 1. The filter no-ops for anonymous requests — pair it with `session`/`auth` which handle the login redirect.
 2. Reads `password_confirmed_at` from the session.
-3. If the timestamp is missing or older than `passwordConfirmationLifetime`, stashes the current URL and redirects to `password-confirm-show`.
-4. After the user submits the form successfully, `UserSecurityController::confirmPasswordAction` stamps a fresh timestamp, writes an `EVENT_PASSWORD_CONFIRMED` audit entry, and redirects back to the originally intended URL.
+3. Resolves the lifetime: a numeric per-route argument overrides the global `passwordConfirmationLifetime`.
+4. If the timestamp is missing or older than the resolved lifetime, stashes the current URL (`passwordConfirmIntendedUrl` tempdata) and redirects to `password-confirm-show` with the `Auth.passwordConfirmRequired` error.
+5. After the user submits the form successfully, `UserSecurityController::confirmPasswordAction` stamps a fresh timestamp, writes an `EVENT_PASSWORD_CONFIRMED` audit entry, and redirects back to the originally intended URL.
 
 #### Settings reference
 
-| Setting | Effect |
-|---------|--------|
-| `passwordConfirmationLifetime = 0` | Every protected request requires a fresh confirmation. |
-| `passwordConfirmationLifetime = HOUR` | One confirmation valid for 1 h. |
-| `passwordConfirmationLifetime = 3 * HOUR` (default) | Matches Laravel Fortify. |
+| Setting / argument | Default | Effect |
+|--------------------|---------|--------|
+| `passwordConfirmationLifetime = 0` | — | Every protected request requires a fresh confirmation. |
+| `passwordConfirmationLifetime = HOUR` | — | One confirmation valid for 1 h. |
+| `passwordConfirmationLifetime = 3 * HOUR` | default | Matches Laravel Fortify. |
+| `password-confirm:<seconds>` (route argument) | unset | Per-route override of the lifetime, in seconds, for that route only. |
 
 > The view rendered by `confirmPasswordView()` is `Daycry\Auth\Views\confirm_password.php`. Override via `setting('Auth.views')['confirm_password']`.
 
-### 5. **Auth Request Filter** (`auth-request`)
+### Request logging (not a filter)
 
-Logging and monitoring of authenticated requests.
-
-```php
-// Enable request logging
-$routes->group('admin', [
-    'filter' => 'session,auth-request'
-], function($routes) {
-    $routes->get('/', 'Admin::index');
-});
-```
+There is **no `auth-request` filter alias**. Logging and monitoring of
+authenticated requests happens automatically for controllers that extend
+`Daycry\Auth\Controllers\BaseAuthController`: end-of-request bookkeeping runs in
+`BaseControllerTrait::finalizeRequest()` (idempotent and exception-safe — it can
+also be invoked from an `after` filter for deterministic timing). What gets
+logged is controlled by the logging settings — see the
+[Logging guide](07-logging.md).
 
 ## 🛠️ Advanced Configuration
 
@@ -672,7 +775,7 @@ class CustomAuthFilter implements FilterInterface
 ```php
 // Multiple filters in specific order
 $routes->group('secure-api', [
-    'filter' => 'auth-rates,chain,permission:api.access'
+    'filter' => 'rates,chain,permission:api.access'
 ], function($routes) {
     $routes->resource('sensitive-data');
 });
@@ -685,7 +788,7 @@ class SecureController extends BaseController
         'group:admin,moderator',       // Must be admin or moderator
         'permission:admin.access',     // Must have specific permission
         'force-reset',                 // Check if password reset needed
-        'auth-rates:50,HOUR',         // Maximum 50 requests per hour
+        'rates:50,HOUR',         // Maximum 50 requests per hour
     ];
 }
 ```
@@ -698,7 +801,7 @@ class SecureController extends BaseController
 // Main panel - requires authentication
 $routes->group('admin', [
     'namespace' => 'App\Controllers\Admin',
-    'filter' => 'session'
+    'filter' => 'auth:session'
 ], function($routes) {
     
     // Dashboard - basic admin access
@@ -729,7 +832,7 @@ $routes->group('admin', [
 // API that accepts tokens, JWT or session
 $routes->group('api/v1', [
     'namespace' => 'App\Controllers\API',
-    'filter' => 'auth-rates:1000,HOUR' // Global rate limiting
+    'filter' => 'rates:1000,HOUR' // Global rate limiting
 ], function($routes) {
     
     // Public endpoints (no auth)
@@ -750,7 +853,7 @@ $routes->group('api/v1', [
     
     // Admin endpoints - admins only with strict rate limiting
     $routes->group('admin', [
-        'filter' => 'chain,group:admin,auth-rates:100,HOUR'
+        'filter' => 'chain,group:admin,rates:100,HOUR'
     ], function($routes) {
         $routes->get('stats', 'Admin::stats');
         $routes->get('users', 'Admin::users', ['filter' => 'permission:admin.users']);
@@ -811,7 +914,7 @@ class MultiLevelController extends BaseController
 // In app/Config/Filters.php
 public array $globals = [
     'before' => [
-        'auth-rates' => ['except' => ['api/public/*']],
+        'rates' => ['except' => ['api/public/*']],
     ],
 ];
 

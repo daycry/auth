@@ -243,6 +243,8 @@ abstract class AbstractTranslationTestCase extends TestCase
             'Auth.unknownOauthProvider',
             'Auth.invalidOauthState',
             'Auth.emailNotFoundInOauth',
+            'Auth.oauthEmailUnverified',
+            'Auth.oauthAlreadyLinked',
             // Password Reset — newly added, pending community translation
             'Auth.passwordResetTitle',
             'Auth.passwordResetIntro',

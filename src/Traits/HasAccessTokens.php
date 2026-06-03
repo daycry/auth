@@ -15,7 +15,6 @@ namespace Daycry\Auth\Traits;
 
 use Daycry\Auth\Entities\AccessToken;
 use Daycry\Auth\Models\AccessTokenRepository;
-use Daycry\Auth\Models\UserIdentityModel;
 
 /**
  * Trait HasAccessTokens
@@ -38,10 +37,7 @@ trait HasAccessTokens
      */
     private function accessTokenRepository(): AccessTokenRepository
     {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        return new AccessTokenRepository($identityModel);
+        return service('accessTokenRepository');
     }
 
     /**

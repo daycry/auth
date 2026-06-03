@@ -43,6 +43,9 @@ trait Bannable
 
         $this->bannableUserModel()->save($this);
 
+        // Invalidate any outstanding JWT access tokens for the banned user.
+        $this->revokeIssuedTokens();
+
         return $this;
     }
 

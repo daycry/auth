@@ -243,7 +243,13 @@ class UserIdentityModel extends BaseModel
     }
 
     /**
-     * Used by 'magic-link'.
+     * Used by 'magic-link' and 'password-reset'.
+     *
+     * Ephemeral tokens are stored as a non-reversible SHA-256 hash, so a
+     * database leak does not expose directly-usable tokens. Callers pass the
+     * RAW token; it is matched against the stored hash.
+     *
+     * @see TokenEmailSender::sendTokenEmail()
      */
     public function getIdentityBySecret(string $type, ?string $secret): ?UserIdentity
     {
@@ -252,7 +258,7 @@ class UserIdentityModel extends BaseModel
         }
 
         return $this->where('type', $type)
-            ->where('secret', $secret)
+            ->where('secret', hash('sha256', $secret))
             ->first();
     }
 

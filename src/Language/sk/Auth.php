@@ -129,6 +129,8 @@ return [
     'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
     'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
     'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
+    'oauthEmailUnverified' => 'This email address is already registered. Sign in with your password to link this provider.',
+    'oauthAlreadyLinked'   => 'This account is already linked to a different user.',
 
     // Groups
     'unknownGroup' => '{0} nie je platná skupina.',

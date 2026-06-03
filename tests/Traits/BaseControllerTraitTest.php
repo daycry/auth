@@ -23,6 +23,7 @@ use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Encryption\Encryption;
 use Exception;
 use ReflectionClass;
+use RuntimeException;
 use Tests\Support\DatabaseTestCase;
 
 /**
@@ -76,6 +77,11 @@ final class BaseControllerTraitTest extends DatabaseTestCase
             public function getRequestLogger(): RequestLogger
             {
                 return $this->requestLogger;
+            }
+
+            public function setRequestLogger(RequestLogger $requestLogger): void
+            {
+                $this->requestLogger = $requestLogger;
             }
 
             public function getAttemptHandler(): AttemptHandler
@@ -206,6 +212,28 @@ final class BaseControllerTraitTest extends DatabaseTestCase
         $this->controller->__destruct();
 
         // If we reach here without exceptions, the destructor works
+        $this->assertTrue(true);
+    }
+
+    public function testDestructorSwallowsLoggerExceptions(): void
+    {
+        $request  = service('request');
+        $response = service('response');
+        $logger   = service('logger');
+        $this->controller->initController($request, $response, $logger);
+
+        // A request logger that blows up mid-finalization.
+        $this->controller->setRequestLogger(new class () extends RequestLogger {
+            public function logRequest(ResponseInterface $response): void
+            {
+                throw new RuntimeException('logging failure');
+            }
+        });
+
+        // An exception thrown from __destruct during shutdown is an uncatchable
+        // fatal — finalization must swallow it.
+        $this->controller->__destruct();
+
         $this->assertTrue(true);
     }
 

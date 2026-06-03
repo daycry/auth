@@ -9,6 +9,7 @@ Time-based One-Time Passwords (TOTP) add a powerful second layer of security to 
 - [User Enrollment](#user-enrollment)
 - [Login Flow](#login-flow)
 - [HasTotp Trait Reference](#hastotp-trait-reference)
+- [Brute-Force Lockout & Anti-Replay](#brute-force-lockout--anti-replay)
 - [Backup Codes](#backup-codes)
 - [Trust This Device](#trust-this-device)
 - [UserSecurityController Integration](#usersecuritycontroller-integration)
@@ -171,8 +172,11 @@ Once TOTP is **confirmed** for a user, the flow is handled **automatically** by 
 3. Session detects the `Totp2FA` action is configured
 4. User is **redirected to the action show page** (not logged in yet)
 5. The built-in view asks for the 6-digit code
-6. `ActionController::verify()` decrypts the stored secret and validates the code
-7. On success, `completeLogin()` clears the pending action state and creates the session
+6. `Totp2FA::verify()` first checks the **per-user lockout** (`isLockedOut()`); if the account is locked, the form is redisplayed with the lockout message and no code is checked
+7. Otherwise it validates the code (TOTP or a backup code). A wrong code **counts a failed attempt** (`recordFailedAttempt()`) — repeated failures lock the account exactly like password failures
+8. On success, `resetOnSuccess()` clears the failure counter, then `completeLogin()` clears the pending action state and creates the session
+
+> **The second factor is now rate-limited.** Before this change, an attacker who had already passed the password step could brute-force the 6-digit code indefinitely. TOTP and backup-code verification now share the same per-user lockout as password login — see [Brute-Force Lockout & Anti-Replay](#brute-force-lockout--anti-replay).
 
 ### Override the Default TOTP Views
 
@@ -219,6 +223,8 @@ $user->getTotpSecret(): ?string
 
 // Checks a 6-digit code against the user's stored secret.
 // $window defaults to AuthSecurity::$totpWindow when null.
+// Enforces single-use (anti-replay): a code whose matched time-step
+// has already been consumed is rejected even if still inside the window.
 $user->verifyTotpCode(string $code, ?int $window = null): bool
 
 // === Backup codes ===
@@ -253,6 +259,63 @@ public function securityIndex(): string
     ]);
 }
 ```
+
+---
+
+## Brute-Force Lockout & Anti-Replay
+
+The second factor is a 6-digit number — only one million possibilities. Without protection, an attacker who has already passed the password step could simply guess codes in a loop. Two independent mechanisms close that gap.
+
+### 1. Per-user lockout on the second factor
+
+`Totp2FA::verify()` reuses the **same per-user lockout** that guards password login (the `UserLockoutManager` service). This applies to **both** TOTP codes and backup codes — every wrong submission on the 2FA form counts toward the same threshold:
+
+1. On each request, `isLockedOut($user)` is checked first. If the account is locked, the 2FA form is redisplayed with `lang('Auth.userLockedOut', [$minutesLeft])` and the submitted code is **not** evaluated.
+2. A wrong TOTP/backup code calls `recordFailedAttempt($user)`, which atomically increments `users.failed_login_count`.
+3. Once the count reaches `userMaxAttempts`, the account is locked for `userLockoutTime` seconds (`users.locked_until` is set).
+4. A correct code calls `resetOnSuccess($user)`, which clears the counter and unlock timestamp.
+
+This is the exact same flow as password failures — a failed code and a failed password both advance the **one** per-user counter, and the lockout is shared.
+
+| `AuthSecurity` property | Default | Meaning |
+|--------------------------|---------|---------|
+| `$userMaxAttempts` | `5` | Maximum consecutive failures (password **or** 2FA) before the account is locked. `0` disables lockout entirely. |
+| `$userLockoutTime` | `3600` | Seconds the account stays locked after the threshold is reached. |
+
+```php
+// app/Config/AuthSecurity.php
+
+public int $userMaxAttempts = 5;    // lock after 5 failed attempts
+public int $userLockoutTime = 3600; // stay locked for 1 hour
+```
+
+> **Note**: Setting `$userMaxAttempts = 0` disables the lockout for **both** password and 2FA verification. Leave it at a sensible value (the default `5`) in production.
+
+### 2. TOTP codes are single-use within their window (anti-replay)
+
+A TOTP code is valid for the whole acceptance window (`totpWindow` steps either side of "now"). Within that window the same code would normally verify multiple times — a replay risk if a code is intercepted. `verifyTotpCode()` now makes each code **single-use**:
+
+1. `TOTP::verifyAndGetTimestep()` returns the **time-step counter** that matched (or `null` when nothing in the window matches). `TOTP::verify()` is a thin wrapper over it and behaves exactly as before.
+2. The last consumed time-step is persisted in the TOTP secret identity's `extra` JSON column as `{"last_timestep": <n>}`.
+3. A code whose matched time-step is **less than or equal to** the stored `last_timestep` is rejected — so the same code (and any older code still inside the window) can no longer be replayed.
+
+```text
+User submits code "123456"
+        ↓
+TOTP::verifyAndGetTimestep(...) → 58432109   (matched time-step)
+        ↓
+last_timestep stored on identity = 58432108
+        ↓
+58432109 > 58432108 → accepted, last_timestep updated to 58432109
+        ↓
+User (or attacker) replays "123456" within the same window
+        ↓
+TOTP::verifyAndGetTimestep(...) → 58432109
+        ↓
+58432109 <= 58432109 (stored) → REJECTED (already consumed)
+```
+
+> **Backup codes remain single-use as well**, enforced separately by marking the consumed row's `used_at` (see [Backup Codes](#backup-codes)). The anti-replay above applies specifically to time-based TOTP codes.
 
 ---
 
@@ -378,7 +441,7 @@ foreach ($devices->getAllForUser($user) as $session) {
 Daycry Auth ships with `UserSecurityController` which provides ready-to-use TOTP management endpoints. Register the routes in `app/Config/Routes.php`:
 
 ```php
-$routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+$routes->group('security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
     $routes->get('/',             'UserSecurityController::index',          ['as' => 'security']);
     $routes->get('totp/setup',    'UserSecurityController::totpSetup',      ['as' => 'totp-setup']);
     $routes->post('totp/confirm', 'UserSecurityController::totpSetupConfirm', ['as' => 'totp-setup-confirm']);
@@ -513,8 +576,10 @@ class TotpTest extends DatabaseTestCase
 
 - **Always require password confirmation** before enabling or disabling TOTP.
 - The TOTP secret is stored **AES-256 encrypted** in `auth_users_identities`. The raw base32 secret is never in the database in plain text.
-- TOTP codes are valid for a **30-second window** (±1 window tolerance for clock skew). Ensure your server clock is synchronized via NTP.
-- If a user loses access to their authenticator app they will be locked out. Consider implementing **backup codes** (not included) or an admin unlock procedure.
+- TOTP codes are valid for a **30-second window** (±`totpWindow` steps tolerance for clock skew). Ensure your server clock is synchronized via NTP.
+- **The second factor is brute-force protected.** TOTP and backup-code verification share the same per-user lockout as password login (`userMaxAttempts` / `userLockoutTime`). See [Brute-Force Lockout & Anti-Replay](#brute-force-lockout--anti-replay).
+- **TOTP codes are single-use within their acceptance window** (anti-replay): once a code's time-step is consumed, that code — and any older code still inside the window — is rejected. Backup codes are likewise single-use (one-time `used_at`).
+- If a user loses access to their authenticator app, they can use a [backup code](#backup-codes) (generated automatically on TOTP confirmation) or an [admin reset](#admin-totp-reset).
 - A user with a **pending** (unconfirmed) TOTP secret is **not** challenged at login. If they navigate away before confirming, they simply aren't enrolled yet.
 
 ---

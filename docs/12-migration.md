@@ -4,10 +4,95 @@ This document summarises breaking changes between major versions and how to upgr
 
 ## 📋 Index
 
+- [Upgrading to this release — token-version revocation & hashed ephemeral tokens](#upgrading-to-this-release--token-version-revocation--hashed-ephemeral-tokens)
 - [Upgrading to the next release (`Unreleased`)](#upgrading-to-the-next-release-unreleased)
 - [Upgrading to v5.x](#upgrading-to-v5x)
 - [Upgrading to v4.x — `Config\Auth` split](#upgrading-to-v4x--configauth-split)
 - [General upgrade checklist](#general-upgrade-checklist)
+
+---
+
+## Upgrading to this release — token-version revocation & hashed ephemeral tokens
+
+This release ships one additive migration and several **behavioural** changes that upgraders must be aware of. There are **no destructive schema changes** — the only schema delta is the additive `users.token_version` column.
+
+### Required steps
+
+1. **Run migrations** — one new migration ships with this release:
+
+   | Migration | Adds |
+   |-----------|------|
+   | `2026-05-08-000001_add_jwt_token_version_to_users` | `users.token_version` (`int`, `NOT NULL`, default `0`) |
+
+   ```bash
+   php spark migrate --all
+   ```
+
+   The column backs JWT access-token revocation (see below). `down()` simply drops the column.
+
+2. **Schedule `php spark auth:purge`** — `AuthSecurity::$rememberMePurgeChance` now defaults to **`0`** (was `20`). Expired remember-me tokens are now rejected at validation time regardless, so the old probabilistic on-login purge is pure table maintenance. Move that maintenance to a scheduled command instead:
+
+   ```bash
+   # Run on a schedule (cron / daycry/jobs)
+   php spark auth:purge            # purges expired remember-me tokens + terminated device sessions older than 30 days
+   php spark auth:purge --days 7   # use a 7-day retention window for terminated device sessions
+   ```
+
+   `auth:purge` (command group `Auth`) removes expired rows from `auth_remember_tokens` and terminated `auth_device_sessions` rows older than `--days` (default `30`). If you want to keep inline purging, set `AuthSecurity::$rememberMePurgeChance` back to a non-zero value — but a scheduled command is recommended.
+
+### Behavioural changes you must know about
+
+| Change | What it means for upgraders |
+|--------|-----------------------------|
+| **Magic-link / password-reset tokens are now hashed at rest** | `TokenEmailSender` stores `hash('sha256', $token)` in `auth_users_identities.secret`; the **raw** token is e-mailed and `UserIdentityModel::getIdentityBySecret()` hashes the looked-up value before matching. This is a **storage-format change** for those ephemeral identity types only — not a schema change. **Any unconsumed magic-link / password-reset tokens issued before the upgrade become invalid.** Users simply request a new link. |
+| **`auth()` throws on unknown methods** | `Daycry\Auth\Auth::__call()` now throws `\BadMethodCallException` when the resolved authenticator has no such method (previously returned `null` silently). A `Session`-only method (e.g. `startLogin`, `getPendingUser`, `remember`) called while a stateless authenticator is active will now surface immediately. Audit any code that called those methods through `auth()` regardless of the active authenticator. |
+| **Access-token / JWT login logging is fingerprinted** | The login-attempt log (`auth_logins.identifier`) now stores a non-reversible `hash('sha256', $token)` **fingerprint** for `AccessToken` and `JWT` credentials — never the raw bearer token. Session login still logs the email/username identifier (not a secret). Any tooling that parsed raw tokens out of the login log must be updated. |
+
+### JWT access-token revocation (new `token_version`)
+
+The new `users.token_version` column powers stateless, denylist-free revocation of JWT **access** tokens:
+
+- `JwtController` now mints the access-token payload as `{uid, tv}`, where `tv` is the user's current `token_version`. Legacy scalar payloads (a bare user id) are still accepted — the `tv` check is skipped for them.
+- The `JWT` authenticator's `check()` rejects a token whose embedded `tv` does not match the user's current `token_version`, returning `lang('Auth.revokedToken')`.
+- `User::revokeIssuedTokens()` bumps `token_version` atomically, invalidating **all** outstanding access tokens for that user. It is called automatically by `Bannable::ban()` and `Services\PasswordChangeRecorder::record()` (on password reset/change). Call it directly for a "log out everywhere" action:
+
+  ```php
+  $user->revokeIssuedTokens(); // every previously-issued JWT access token now fails check()
+  ```
+
+- `JwtController` routes refresh / logout / issue through `service('jwtTokenRepository')`: refresh is now one-time-use rotation, and logout soft-revokes the refresh token.
+
+### Other behaviour now enforced automatically (no action needed)
+
+- **Remember-me expiry & theft detection** — `RememberMe::checkRememberMeToken()` enforces expiry at validation time (an expired cookie can no longer authenticate). On theft detection (selector matches but validator does not) it purges **all** of the user's remember-me tokens, writes the `login.suspicious` audit event, and fires `Events::trigger('remember-me-theft', $userId, $selector)`.
+- **TOTP lockout & anti-replay** — TOTP / backup-code verification now goes through the same per-user lockout as password login (`UserLockoutManager`), and a TOTP code is single-use within its acceptance window (a code at or below the last consumed time-step is rejected).
+- **Device-session revocation actually invalidates the live session** — when `Auth::$sessionConfig['trackDeviceSessions']` is `true`, every authenticated request verifies the current PHP session maps to a non-terminated `auth_device_sessions` row (`DeviceSessionModel::isSessionActive()`). A remotely-revoked or concurrent-limit-evicted session is forced to re-authenticate. (Previously "revoke" only flipped a DB column and the cookie kept working.)
+
+### Optional — opt-in to new behaviour
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `AuthSecurity::$activeDateThrottle` | `60` | Minimum seconds between `users.last_active` writes on the authenticated hot path. `0` = write every request (legacy behaviour). |
+| `AuthSecurity::$gateFallbackToRbac` | `true` | A Gate ability whose name contains a scope (e.g. `users.edit`) with no registered closure/policy falls back to `User::can()`. Set `false` to keep Gate and RBAC fully independent. |
+| `AuthOAuth` provider option `'allowUnverifiedEmailLink'` | unset (`false`) | Per provider in `$providers`. When a social account's e-mail matches an existing local (password) account, auto-linking only happens if the provider asserts the e-mail is verified. Providers that cannot assert verification (Facebook, GitHub) refuse the merge unless this is `true`; refusal throws `AuthenticationException` with `lang('Auth.oauthEmailUnverified')`. |
+
+### New explicit OAuth account-linking flow
+
+A logged-in user can deliberately link an additional provider via:
+
+| Method | HTTP route | Route name | Controller |
+|--------|-----------|------------|------------|
+| `GET` | `oauth/link/(:segment)` | `oauth-link` | `OauthController::link($provider)` |
+
+The route requires an authenticated user, stashes the current user (session key `oauth_link_user_id`), and the shared callback links the provider to the **current** user — no e-mail merge and no verified-email requirement, because the user is authenticated and acting deliberately. Linking a social account already bound to a different local user is refused with `lang('Auth.oauthAlreadyLinked')`.
+
+### Filter argument changes
+
+| Filter | New argument form | Effect |
+|--------|-------------------|--------|
+| `rates` | `rates:<limit>,<period>` | Overrides the global limit/time for that route. `<period>` is a number of seconds or a named unit: `SECOND`, `MINUTE`, `HOUR`, `DAY`, `WEEK`. A configured endpoint DB row still overrides. (The registered alias is `rates`.) |
+| `password-confirm` | `password-confirm:<seconds>` | Requires a password confirmation no older than `<seconds>` for that route, regardless of the global `AuthSecurity::$passwordConfirmationLifetime` ("sudo mode" for the most sensitive routes). |
+| `gate` | `gate:users.edit` | Honors the Gate → RBAC fallback (`$gateFallbackToRbac`), so `gate:users.edit` and `permission:users.edit` can share semantics. |
 
 ---
 

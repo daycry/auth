@@ -49,7 +49,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `auth:totp reset -e <email>`
   - `auth:audit [--since=24h] [--user=<email>] [--type=<event>]`
 
+#### Token revocation & session integrity
+- **JWT access-token revocation via `token_version`** — new `users.token_version` column (int, default `0`; migration `2026-05-08-000001_add_jwt_token_version_to_users`).
+  - `JwtController` now mints the access-token payload as `{uid, tv}`, where `tv` is the user's current `token_version`. Legacy scalar payloads (a bare user id) are still accepted, with the `tv` check skipped.
+  - The `JWT` authenticator's `check()` rejects any token whose embedded `tv` does not match the user's current `token_version`, returning `lang('Auth.revokedToken')`.
+  - New `User::revokeIssuedTokens()` bumps `token_version` atomically (`set('token_version', 'token_version + 1', false)`), invalidating **all** outstanding access tokens — your "log out everywhere" primitive. Called automatically by `Bannable::ban()` and `Services\PasswordChangeRecorder::record()` (password reset/change).
+  - `JwtController` now routes refresh / logout / issue through `service('jwtTokenRepository')`: refresh is one-time-use rotation, logout soft-revokes the refresh token.
+- **Explicit OAuth account linking flow** — new authenticated route `GET oauth/link/(:segment) -> OauthController::link/$1` (route name `oauth-link`). Requires an authenticated user, stashes the current user (session key `oauth_link_user_id`), and links the provider to the **current** user on callback — no e-mail merge and no verified-email requirement, since the user is acting deliberately. Linking a social account already bound to a different local user is refused with `lang('Auth.oauthAlreadyLinked')`.
+- **`auth:purge` maintenance command** — new `php spark auth:purge [--days <n>]` (group: `Auth`). Purges expired remember-me tokens (`auth_remember_tokens`) and terminated device sessions older than `--days` (default `30`). Intended to run on a schedule (cron / `daycry/jobs`) instead of the probabilistic on-login purge.
+
 ### Security
+
+- **Bearer-token fingerprint logging** — `AccessToken` and `JWT` credentials written to the login-attempt log (`auth_logins.identifier`) are now stored as a non-reversible `hash('sha256', token)` fingerprint, never the raw bearer token. Session logins still log the email/username identifier (which is not a secret).
+- **Remember-me expiry enforced at validation time** — `RememberMe::checkRememberMeToken()` now rejects an expired cookie outright; an expired remember-me cookie can no longer authenticate regardless of purge timing.
+- **Remember-me theft detection** — when a token's selector matches but the validator does **not**, `RememberMe` purges **all** of that user's remember-me tokens (`RememberModel::purgeRememberTokensByUserId()`), writes an `AuditLogger::EVENT_SUSPICIOUS_LOGIN` (`'login.suspicious'`) entry, and fires `Events::trigger('remember-me-theft', $userId, $selector)`.
+- **TOTP / backup-code lockout** — `Actions\Totp2FA::verify()` (via `User::verifyTotpCode()`) is now subject to the same per-user lockout as password login: `UserLockoutManager::recordFailedAttempt()` on a wrong code, `isLockedOut()` blocks, `resetOnSuccess()` clears the counter on success. Governed by the existing `AuthSecurity::$userMaxAttempts` / `$userLockoutTime`.
+- **TOTP anti-replay** — a TOTP code is now single-use within its acceptance window. `TOTP::verifyAndGetTimestep()` returns the matched time-step, which is recorded in the TOTP secret identity's `extra` JSON; any code at or below the stored step is rejected. (`TOTP::verify()` behaviour is unchanged.)
+- **OAuth verified-email guard for auto-linking** — when a social account's e-mail matches an existing local (password) account, auto-linking now only occurs if the provider asserts the e-mail is verified (OIDC `email_verified` / Google `verified_email`). Providers that cannot assert verification (Facebook, GitHub) refuse the merge — throwing `AuthenticationException` with `lang('Auth.oauthEmailUnverified')` — unless the per-provider `allowUnverifiedEmailLink` option is set.
+- **Device-session revocation now invalidates the live session** — when `Auth::$sessionConfig['trackDeviceSessions']` is `true`, every authenticated request verifies that the current PHP session maps to a non-terminated `auth_device_sessions` row (`DeviceSessionModel::isSessionActive()`). A remotely-revoked or concurrent-limit-evicted session is now forced to re-authenticate. (Previously "revoke" only flipped a DB column while the cookie kept working.)
+- **Magic-link & password-reset tokens stored hashed at rest** — `TokenEmailSender` stores `hash('sha256', token)` and `UserIdentityModel::getIdentityBySecret()` hashes the looked-up value; only the raw token is e-mailed, and single-use + expiry are enforced by the controllers. **Upgrade note:** any unconsumed magic-link / password-reset tokens issued before upgrade become invalid (users simply request a new link). This is a storage-format change in `auth_users_identities.secret` for those ephemeral types only — no destructive schema change.
 
 - **Atomic per-user lockout counter** — `UserLockoutManager::recordFailedAttempt()` now uses a SQL increment expression (`failed_login_count = failed_login_count + 1`) and re-reads the post-increment value before deciding whether to lock the account. The previous read-modify-write pattern could lose concurrent failed-attempt updates, allowing more attempts than `userMaxAttempts` before lockout under load.
 - **Timing-safe OAuth state comparison** — `OauthManager::handleCallback()` now compares the callback `state` against the session-stored value via `hash_equals()` instead of `!==`. Empty states and missing session values are also rejected explicitly. The check is followed by an empty-`code` guard.
@@ -62,12 +80,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`auth()` facade now throws on missing methods** — `Daycry\Auth\Auth::__call()` throws `\BadMethodCallException` when the resolved authenticator does not implement the called method, instead of silently returning `null`. Methods available on every authenticator (Session / AccessToken / JWT): `attempt`, `check`, `getLogCredentials`, `getUser`, `loggedIn`, `login`, `loginById`, `logout`, `recordActiveDate`. Session-only methods: `checkAction`, `completeLogin`, `forget`, `getAction`, `getPendingMessage`, `getPendingUser`, `hasAction`, `isAnonymous`, `isPending`, `remember`, `startLogin`, `startUpAction`.
+- **`User::can()` OR-semantics and wildcard fix** — `can(...string $permissions)` no longer aborts for group-less users when evaluating the variadic OR list, and scope wildcards (`posts.*`) now apply to **directly-assigned user** permissions as well as group permissions. So `$user->addPermission('posts.*')` followed by `$user->can('posts.create')` now returns `true`. Matching (`*`, exact, `scope.*`) is now uniform across user-level and group-level permissions.
+- **Gate -> RBAC bridge** — a Gate ability whose name contains a scope (e.g. `users.edit`) with no registered closure/policy now falls back to `User::can()` when `AuthSecurity::$gateFallbackToRbac` is `true`, so `gate:users.edit` and `permission:users.edit` can share semantics. The `gate` filter honours this fallback.
+- **Group/permission pivot persistence extracted to a repository** — transactional persistence of group/permission pivot rows now lives in `Daycry\Auth\Authorization\GroupPermissionRepository` (resolvable via `service('groupPermissionRepository')`). The `User` entity no longer opens DB transactions itself.
+- **Token repositories are resolvable, overridable services** — `service('accessTokenRepository')`, `service('jwtTokenRepository')`, and `service('oauthTokenRepository')`.
+- **`rates` filter honours per-route arguments** — `rates:<limit>,<period>` overrides the global limit/time for that route. `<period>` is a number of seconds or a named unit: `SECOND`, `MINUTE`, `HOUR`, `DAY`, `WEEK`. A configured endpoint DB row still overrides the per-route argument. (The registered alias is `rates`, not `auth-rates`.)
+- **`password-confirm` filter honours a per-route lifetime** — `password-confirm:<seconds>` requires a password confirmation no older than `<seconds>` for that route, regardless of the global `AuthSecurity::$passwordConfirmationLifetime` ("sudo mode" for the most sensitive routes).
+- **`BaseControllerTrait` end-of-request bookkeeping hardened** — moved into a public, idempotent `finalizeRequest()` wrapped in `try`/`catch`, so a logging failure can never become an uncatchable shutdown fatal. It can be called from an after-filter for deterministic timing.
+- **UUID v7 generation now via `michalsn/codeigniter4-uuid`** — `service('uuid')->uuid7()->toRfc4122()` (declared in `composer.json` `require`; `symfony/uid` now arrives transitively). Used by `UserModel`, `DeviceSessionModel`, and the UUID backfill migration.
 - **`AccessToken` authenticator now routes lookups through `AccessTokenRepository`** — uses a lazy-initialised repository getter instead of calling the deprecated `UserIdentityModel::getAccessTokenByRawToken()`. The repository owns the canonical query.
 - **PwnedValidator HTTP timeouts** — new `AuthSecurity::$pwnedPasswordsConnectTimeout` (default 1.0s) and `$pwnedPasswordsTimeout` (default 3.0s) settings prevent registration / password-change flows from blocking when the HaveIBeenPwned API is slow.
 - **TOTP verification window is configurable** — new `AuthSecurity::$totpWindow` (default 1 = ±30s, RFC 6238 default) replaces the hardcoded value. `User::verifyTotpCode($code)` resolves it from settings; pass an explicit `$window` to override.
 - **`tests/_support/TestCase.php`** — added correctly-spelled `injectMockAttributes()`, `injectMockAttributesSecurity()`, `injectMockAttributesOAuth()`. The previous typo variants (`inkect*`) remain as deprecated aliases until v6.
 - **DB failures in `DeviceSessionRecorder` are logged but no longer propagate** — device session tracking is non-critical and must not break login/logout.
 - **JWT decode failures now log a `warning`-level message** — previously the exception was caught silently and only the error message was returned in the `Result`.
+
+#### Configuration
+
+New and changed settings on `Daycry\Auth\Config\AuthSecurity`:
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `$activeDateThrottle` *(new)* | `60` | Minimum seconds between `users.last_active` writes on the authenticated hot path. `0` = write every request (legacy behaviour). |
+| `$gateFallbackToRbac` *(new)* | `true` | A Gate ability containing a scope (`users.edit`) with no registered closure/policy falls back to `User::can()`. Set `false` to keep Gate and RBAC fully independent. |
+| `$rememberMePurgeChance` *(changed)* | `0` (was `20`) | Expired remember-me tokens are now rejected at validation time regardless of this value; the inline probabilistic purge is now table maintenance only. Schedule `php spark auth:purge` instead. |
+| `$userMaxAttempts` / `$userLockoutTime` *(scope expanded)* | `5` / `3600` | Per-user lockout — now **also** applied to TOTP / backup-code verification. |
+| `$passwordConfirmationLifetime` *(scope expanded)* | (existing) | Sudo-mode window — now overridable per route via the `password-confirm:<seconds>` filter argument. |
+
+New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `allowUnverifiedEmailLink` | unset (`false`) | When the social account's e-mail matches an existing local (password) account, auto-linking is normally only performed if the provider asserts the e-mail is verified. Set `true` per provider to allow the merge even for providers that cannot assert verification (Facebook, GitHub). |
+
+### Fixed
+
+- **`User::can()` aborted the OR-check for group-less users** — the variadic OR list short-circuited incorrectly when the user belonged to no group; it now evaluates directly-assigned permissions for every term in the list.
+- **`User::can()` ignored scope wildcards on directly-assigned permissions** — a directly-assigned `posts.*` permission did not satisfy `can('posts.create')`; wildcard matching is now uniform across user-level and group-level permissions.
+- **`auth()` facade swallowed unknown method calls** — calling a method the active authenticator does not implement returned `null` silently; it now throws `\BadMethodCallException`.
+- **Device-session "revoke" did not end the live session** — revoking a session only flipped a DB column while the existing cookie continued to authenticate; revoked / evicted sessions are now forced to re-authenticate.
+
+### Migration
+
+- **`2026-05-08-000001_add_jwt_token_version_to_users`** — adds `users.token_version` (int, default `0`).
+- **Token storage format change (no schema migration)** — magic-link and password-reset tokens are now stored SHA-256-hashed in `auth_users_identities.secret`. Any unconsumed tokens issued before upgrade become invalid; affected users simply request a new link.
+
+### Tooling
+
+- Fixed `deduplicate` script paths.
+- Corrected `.gitattributes` (`deptrac.yaml`, `phpstan-baseline.neon`, and the `phpcpd` phar now `export-ignore`).
+- CI composer cache keyed on `composer.json`.
+- `composer.json`: minimum PHP raised to `^8.2`.
 
 ### Documentation
 

@@ -17,9 +17,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Interfaces\JWTAdapterInterface;
-use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Validation\ValidationRules;
 
 /**
@@ -98,9 +96,8 @@ class JwtController extends BaseAuthController
             ]);
         }
 
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-        $identity      = $identityModel->getJwtRefreshToken($userId, $refreshToken);
+        $repository = service('jwtTokenRepository');
+        $identity   = $repository->getRefreshToken($userId, $refreshToken);
 
         if ($identity === null) {
             return $this->response->setStatusCode(401)->setJSON([
@@ -109,7 +106,7 @@ class JwtController extends BaseAuthController
         }
 
         // Revoke the used refresh token (rotation — one-time use)
-        $identityModel->revokeIdentityById((int) $identity->id);
+        $repository->softRevokeRefreshToken((int) $identity->id, $userId, 'rotation');
 
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
@@ -136,17 +133,11 @@ class JwtController extends BaseAuthController
         $refreshToken = (string) $this->request->getPost('refresh_token');
 
         if ($userId > 0 && $refreshToken !== '') {
-            /** @var UserIdentityModel $identityModel */
-            $identityModel = model(UserIdentityModel::class);
-            $identity      = $identityModel->getJwtRefreshToken($userId, $refreshToken);
+            $repository = service('jwtTokenRepository');
+            $identity   = $repository->getRefreshToken($userId, $refreshToken);
 
             if ($identity !== null) {
-                $identityModel->revokeIdentityById((int) $identity->id);
-
-                (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, [
-                    'identity_id' => (int) $identity->id,
-                    'reason'      => 'logout',
-                ]);
+                $repository->softRevokeRefreshToken((int) $identity->id, $userId, 'logout');
             }
         }
 
@@ -165,11 +156,16 @@ class JwtController extends BaseAuthController
      */
     private function buildTokenResponse(object $user): array
     {
-        // Generate access token via the configured JWT adapter
+        // Generate access token via the configured JWT adapter. The payload
+        // embeds the user's current token_version so the token can be revoked
+        // wholesale (ban / password change) without a per-token denylist.
         $adapterClass = setting('Auth.jwtAdapter');
         /** @var JWTAdapterInterface $adapter */
         $adapter     = new $adapterClass();
-        $accessToken = $adapter->encode($user->id);
+        $accessToken = $adapter->encode([
+            'uid' => $user->id,
+            'tv'  => (int) ($user->token_version ?? 0),
+        ]);
 
         // Generate and persist a new refresh token
         $rawRefresh = bin2hex(random_bytes(32));
@@ -177,9 +173,7 @@ class JwtController extends BaseAuthController
             ->addSeconds((int) setting('AuthSecurity.jwtRefreshLifetime'))
             ->format('Y-m-d H:i:s');
 
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-        $identityModel->createJwtRefreshToken((int) $user->id, $rawRefresh, $expiresAt);
+        service('jwtTokenRepository')->createRefreshToken((int) $user->id, $rawRefresh, $expiresAt);
 
         return [
             'access_token'  => $accessToken,

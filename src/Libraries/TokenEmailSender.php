@@ -58,14 +58,17 @@ class TokenEmailSender
         // Delete any previous identities of this type
         $identityModel->deleteIdentitiesByType($user, $identityType);
 
-        // Generate the token and save it as an identity
+        // Generate the token and save it as an identity. The RAW token is
+        // emailed to the user, but only its non-reversible SHA-256 hash is
+        // persisted — so a database/backup leak never yields a directly-usable
+        // login/reset token. @see UserIdentityModel::getIdentityBySecret()
         helper('text');
         $token = random_string('crypto', 20);
 
         $identityModel->insert([
             'user_id' => $user->id,
             'type'    => $identityType,
-            'secret'  => $token,
+            'secret'  => hash('sha256', $token),
             'expires' => Time::now()->addSeconds($lifetime)->format('Y-m-d H:i:s'),
         ]);
 
@@ -76,8 +79,10 @@ class TokenEmailSender
         $userAgent = (string) $request->getUserAgent();
         $date      = Time::now()->toDateTimeString();
 
-        // Build view data
+        // Build view data. `$user` is provided so email templates can address
+        // the recipient (the magic-link email renders $user->username).
         $viewData = array_merge([
+            'user'      => $user,
             'token'     => $token,
             'ipAddress' => $ipAddress,
             'userAgent' => $userAgent,

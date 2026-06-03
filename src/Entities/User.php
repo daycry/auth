@@ -16,6 +16,7 @@ namespace Daycry\Auth\Entities;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Traits\Activatable;
 use Daycry\Auth\Traits\Authorizable;
 use Daycry\Auth\Traits\Bannable;
@@ -180,5 +181,22 @@ class User extends Entity
         }
 
         return $this->password_hash;
+    }
+
+    /**
+     * Revokes every JWT access token already issued to this user by bumping the
+     * `token_version` counter (atomically). Tokens minted under the previous
+     * version fail validation. Use for "log out everywhere" and is called
+     * automatically on ban and password change.
+     */
+    public function revokeIssuedTokens(): void
+    {
+        model(UserModel::class)->builder()
+            ->where('id', $this->id)
+            ->set('token_version', 'token_version + 1', false)
+            ->update();
+
+        // Reflect the bump on the in-memory entity.
+        $this->token_version = (int) ($this->token_version ?? 0) + 1;
     }
 }

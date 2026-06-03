@@ -92,6 +92,53 @@ final class PasswordConfirmFilterTest extends FilterTestCase
         $result->assertStatus(302);
     }
 
+    public function testPerRouteLifetimeArgumentOverridesGlobal(): void
+    {
+        // Global lifetime is generous...
+        $this->injectMockAttributesSecurity(['passwordConfirmationLifetime' => 3600]);
+
+        // ...but this route demands confirmation within the last 60 seconds.
+        $routes = service('routes');
+        $routes->get('sudo-route', static function (): void {
+            echo 'Sudo';
+        }, ['filter' => 'password-confirm:60']);
+        Services::injectMock('routes', $routes);
+
+        $user = fake(UserModel::class);
+
+        // Confirmed 120s ago: fresh enough for the global 3600 but STALE for the
+        // route's 60s argument → must re-challenge.
+        $result = $this->withSession([
+            'user'                  => ['id' => $user->id],
+            'password_confirmed_at' => time() - 120,
+        ])->get('sudo-route');
+
+        $result->assertStatus(302);
+    }
+
+    public function testPerRouteLifetimeArgumentAllowsWithinWindow(): void
+    {
+        $this->injectMockAttributesSecurity(['passwordConfirmationLifetime' => 0]);
+
+        $routes = service('routes');
+        $routes->get('sudo-route-ok', static function (): void {
+            echo 'Sudo';
+        }, ['filter' => 'password-confirm:600']);
+        Services::injectMock('routes', $routes);
+
+        $user = fake(UserModel::class);
+
+        // Confirmed 120s ago is within the route's 600s window → allowed, even
+        // though the global lifetime is 0 (always-require).
+        $result = $this->withSession([
+            'user'                  => ['id' => $user->id],
+            'password_confirmed_at' => time() - 120,
+        ])->get('sudo-route-ok');
+
+        $result->assertStatus(200);
+        $result->assertSee('Sudo');
+    }
+
     public function testZeroLifetimeAlwaysRequiresConfirmation(): void
     {
         $this->injectMockAttributesSecurity(['passwordConfirmationLifetime' => 0]);

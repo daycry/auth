@@ -30,6 +30,7 @@ parameters:
 			- Daycry\Auth\Config
 		additionalServices:
 			- Daycry\Auth\Config\Services
+			- Michalsn\CodeIgniterUuid\Config\Services
 	strictRules:
 		allRules: false
 		disallowedLooseComparison: true

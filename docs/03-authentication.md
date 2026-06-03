@@ -4,11 +4,15 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 
 ## 📋 Index
 
+- [The `auth()` Facade](#the-auth-facade)
 - [Session Authenticator](#session-authenticator)
+- [Remember Me — Expiry & Theft Detection](#remember-me--expiry--theft-detection)
 - [Per-User Account Lockout](#per-user-account-lockout)
 - [Compromised-Password Recheck on Login](#compromised-password-recheck-on-login)
+- [Login-Attempt Log & Token Fingerprints](#login-attempt-log--token-fingerprints)
 - [Access Token Authenticator](#access-token-authenticator)
 - [JWT Authenticator](#jwt-authenticator)
+- [JWT Access-Token Revocation](#jwt-access-token-revocation)
 - [JWT Refresh Tokens](#jwt-refresh-tokens)
 - [Magic Link Authentication](#magic-link-authentication)
 - [Guest Authenticator](#guest-authenticator)
@@ -18,6 +22,65 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 - [Switching Between Authenticators](#switching-between-authenticators)
 - [Custom Authenticators](#custom-authenticators)
 - [Why HTTP Digest Auth is not supported](#why-http-digest-auth-is-not-supported)
+
+---
+
+## The `auth()` Facade
+
+`auth($alias)` returns the `Daycry\Auth\Auth` facade, which proxies most calls to the **active authenticator** via `__call()`. Two things are important to know:
+
+### Unknown methods throw `BadMethodCallException`
+
+If the resolved authenticator does not implement the method you call, the facade now throws `\BadMethodCallException` (previously it silently returned `null`):
+
+```php
+use BadMethodCallException;
+
+try {
+    // `remember()` only exists on the Session authenticator
+    auth('jwt')->remember(true);
+} catch (BadMethodCallException $e) {
+    // Method Daycry\Auth\Authentication\Authenticators\JWT::remember()
+    // does not exist on the "jwt" authenticator.
+}
+```
+
+This matters for security: a Session-only method called through a stateless authenticator (or a simple typo) used to be misread as a falsy "not logged in" result. It now surfaces immediately.
+
+### Common vs. Session-only methods
+
+**Common methods** are defined by `AuthenticatorInterface` and are available on **every** authenticator (`session`, `access_token`, `jwt`, `guest`):
+
+| Method | Signature |
+|---|---|
+| `attempt` | `attempt(array $credentials): Result` |
+| `check` | `check(array $credentials): Result` |
+| `getLogCredentials` | `getLogCredentials(array $credentials): mixed` |
+| `getUser` | `getUser(): ?User` |
+| `loggedIn` | `loggedIn(): bool` |
+| `login` | `login(User $user, bool $actions = true): void` |
+| `loginById` | `loginById(int\|string $userId): void` |
+| `logout` | `logout(): void` |
+| `recordActiveDate` | `recordActiveDate(): void` |
+
+**Session-only methods** — calling these through a stateless authenticator (`access_token`, `jwt`, `guest`) throws `BadMethodCallException`:
+
+| Method | Signature |
+|---|---|
+| `checkAction` | `checkAction(UserIdentity $identity, string $token): bool` |
+| `completeLogin` | `completeLogin(User $user): void` |
+| `forget` | `forget(?User $user = null): void` |
+| `getAction` | `getAction(): ?ActionInterface` |
+| `getPendingMessage` | `getPendingMessage(): string` |
+| `getPendingUser` | `getPendingUser(): ?User` |
+| `hasAction` | `hasAction(int\|string\|null $userId = null): bool` |
+| `isAnonymous` | `isAnonymous(): bool` |
+| `isPending` | `isPending(): bool` |
+| `remember` | `remember(bool $shouldRemember = true): self` |
+| `startLogin` | `startLogin(User $user): void` |
+| `startUpAction` | `startUpAction(string $type, User $user): bool` |
+
+> `auth()->user()` and `auth()->id()` are defined directly on the facade (not proxied) and are safe to call on any authenticator — they return `null` rather than throwing when nobody is logged in.
 
 ---
 
@@ -54,7 +117,7 @@ $user = auth()->user();
 
 // Programmatic login (skip credential check)
 auth()->login($user);
-auth()->login($user, remember: true); // With "remember me"
+auth()->remember(true)->login($user); // With "remember me"
 
 // Login by user ID
 auth()->loginById(42);
@@ -84,12 +147,53 @@ public array $sessionConfig = [
 
 ### Remember Me
 
-When a user logs in with `remember: true`, a long-lived cookie is set. On future visits, even after the session expires, the user is automatically recognized and logged back in.
+When a user logs in with remember-me enabled, a long-lived cookie is set. On future visits, even after the session expires, the user is automatically recognized and logged back in. Enable it with the fluent `remember()` method **before** calling `attempt()` (or `login()`):
 
 ```php
 $remember = (bool) $this->request->getPost('remember');
-auth()->attempt($credentials, $remember);
+auth()->remember($remember)->attempt($credentials);
 ```
+
+> Note: `attempt()` takes only `$credentials` and `login()` only `($user, $actions)` — there is no `$remember` parameter on either. Persistent login is controlled exclusively by `remember()`. Expired remember-me cookies are rejected at validation time, so they cannot log a user back in (see the next section).
+
+---
+
+## Remember Me — Expiry & Theft Detection
+
+The remember-me service (`Daycry\Auth\Authentication\Services\RememberMe`) follows the [Paragonie split-token design](https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence): the cookie value is `selector:validator`. The `selector` indexes the database row; the `validator` is compared with `hash_equals()` against a stored SHA-256 hash.
+
+### Expiry is enforced at validation time
+
+`checkRememberMeToken()` rejects an expired token **regardless of whether a purge has run**:
+
+```php
+if (Time::parse($token->expires)->getTimestamp() <= Time::now()->getTimestamp()) {
+    return false; // expired cookie can no longer authenticate
+}
+```
+
+This is why `AuthSecurity::$rememberMePurgeChance` now defaults to `0` (was `20`): the probabilistic on-login purge is **table maintenance only** and is never the security control. Schedule cleanup with `php spark auth:purge` instead of relying on the inline purge.
+
+### Theft detection
+
+If a request presents a cookie whose `selector` matches a stored row but whose `validator` does **not**, the cookie was most likely stolen or guessed. The service treats this as a likely theft (`handlePossibleTheft()`):
+
+1. **Purges every remember-me token for that user** — `RememberModel::purgeRememberTokensByUserId($userId)`. Both the legitimate user and the attacker are logged out of persistent login and must re-authenticate.
+2. **Writes an audit entry** — `AuditLogger::record(AuditLogger::EVENT_SUSPICIOUS_LOGIN, ...)`, where `EVENT_SUSPICIOUS_LOGIN = 'login.suspicious'`. The metadata records `reason => 'remember_me_validator_mismatch'` and the offending `selector`.
+3. **Fires an event** — `Events::trigger('remember-me-theft', $userId, $selector)` so your app can alert the user or trigger further hardening.
+
+```php
+// app/Config/Events.php
+use CodeIgniter\Events\Events;
+
+Events::on('remember-me-theft', static function (int $userId, string $selector): void {
+    // e.g. email the user: "We detected an invalid persistent-login token and
+    //      signed you out of all remembered devices as a precaution."
+    log_message('critical', "Remember-me theft suspected for user {$userId} (selector {$selector})");
+});
+```
+
+> See [Audit & Compliance](13-audit-and-compliance.md) for how `login.suspicious` appears in the audit log.
 
 ---
 
@@ -155,6 +259,30 @@ The recheck is wrapped in `try/catch`. Timeouts, network errors, and 5xx respons
 
 ---
 
+## Login-Attempt Log & Token Fingerprints
+
+Every login attempt is recorded in `auth_logins`. What gets stored in the `identifier` column depends on the authenticator, and **no raw bearer credential is ever written to the log**:
+
+| Authenticator | `auth_logins.identifier` contains |
+|---|---|
+| Session | The email / username identifier (not a secret) |
+| Access Token | `hash('sha256', $token)` — a non-reversible fingerprint |
+| JWT | `hash('sha256', $token)` — a non-reversible fingerprint |
+
+For the stateless authenticators the value comes from `getLogCredentials()`:
+
+```php
+// AccessToken::getLogCredentials() and JWT::getLogCredentials()
+return $token === '' ? '' : hash('sha256', $token);
+```
+
+- For **access tokens** the fingerprint is the same SHA-256 the token is stored under, so a log entry can still be correlated to the issued token row without being usable to authenticate.
+- For **JWTs** the full signed token is a usable bearer credential until it expires; only its SHA-256 fingerprint is logged.
+
+Session login still logs the plaintext email/username identifier because that is not a secret — it identifies *who* attempted to log in, which is exactly what the login log is for.
+
+---
+
 ## Access Token Authenticator
 
 **Best for**: REST APIs, mobile apps, machine-to-machine integrations.
@@ -208,7 +336,7 @@ GET /api/users?token=your_raw_token_here
 
 ```php
 // app/Config/Routes.php
-$routes->group('api', ['filter' => 'tokens'], static function ($routes) {
+$routes->group('api', ['filter' => 'auth:access_token'], static function ($routes) {
     $routes->get('users', 'API\UsersController::index');
     $routes->get('profile', 'API\ProfileController::show');
 });
@@ -260,8 +388,8 @@ Each soft-revocation writes an `EVENT_TOKEN_REVOKED` entry to the audit log auto
 Personal access tokens carry a list of scopes (stored in the `extra` column, mapped via the `scopes` datamap). The `token-scope:` filter validates them on a per-route basis:
 
 ```php
-$routes->get('api/posts',  'Posts::index',  ['filter' => 'tokens,token-scope:posts.read']);
-$routes->post('api/posts', 'Posts::create', ['filter' => 'tokens,token-scope:posts.read,posts.write']);
+$routes->get('api/posts',  'Posts::index',  ['filter' => 'auth:access_token,token-scope:posts.read']);
+$routes->post('api/posts', 'Posts::create', ['filter' => 'auth:access_token,token-scope:posts.read,posts.write']);
 ```
 
 The `*` wildcard scope satisfies any check. See [Filters — Token Scope Filter](04-filters.md#3-token-scope-filter-token-scope) for details.
@@ -308,7 +436,7 @@ public int    $allowedClockSkew = 60;        // Tolerance in seconds
 
 ```php
 // app/Config/Routes.php
-$routes->group('api', ['filter' => 'jwt'], static function ($routes) {
+$routes->group('api', ['filter' => 'auth:jwt'], static function ($routes) {
     $routes->get('profile', 'API\ProfileController::show');
     $routes->get('posts',   'API\PostsController::index');
 });
@@ -323,9 +451,63 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 
 ---
 
+## JWT Access-Token Revocation
+
+JWT access tokens are stateless and self-contained, so they cannot be deleted from a server-side store. To support a "log out everywhere" / instant-invalidation capability, the package versions all of a user's access tokens with a counter.
+
+### `users.token_version`
+
+A new integer column `token_version` (default `0`) is added by migration `2026-05-08-000001_add_jwt_token_version_to_users`.
+
+`JwtController` mints the access-token payload as `{uid, tv}`, where `tv` is the user's current `token_version` at mint time:
+
+```php
+// JwtController::buildTokenResponse()
+$accessToken = $adapter->encode([
+    'uid' => $user->id,
+    'tv'  => (int) ($user->token_version ?? 0),
+]);
+```
+
+On every request, the JWT authenticator's `check()` reads the embedded `tv` and compares it to the user's current `token_version`. If they differ, the token is rejected with `lang('Auth.revokedToken')` ("The token has been revoked."):
+
+```php
+// JWT::check()
+if ($tokenVersion !== null && (int) ($user->token_version ?? 0) !== $tokenVersion) {
+    return new Result([
+        'success' => false,
+        'reason'  => lang('Auth.revokedToken'),
+    ]);
+}
+```
+
+> **Legacy tokens** whose payload is a bare scalar user id (no `tv`) are still accepted — the version check is skipped when `tv` is absent. This keeps tokens minted before the upgrade valid until they expire.
+
+### `revokeIssuedTokens()` — invalidate everything outstanding
+
+`User::revokeIssuedTokens()` atomically bumps the user's `token_version`. Because every previously-issued access token carries the *old* `tv`, they all fail the next `check()` immediately:
+
+```php
+$user = auth()->user();
+$user->revokeIssuedTokens(); // "log out everywhere" — every existing JWT access token is now invalid
+```
+
+It is also called **automatically** in two places, so you usually don't need to call it yourself:
+
+| Trigger | Where |
+|---|---|
+| Banning a user | `Bannable::ban()` |
+| Password reset / change | `Services\PasswordChangeRecorder::record()` |
+
+This means banning a user or having them change their password invalidates all of their live JWT access tokens, not just future ones.
+
+> **Scope note**: `revokeIssuedTokens()` invalidates JWT **access tokens** via the `tv` check. Refresh tokens are revoked separately (soft-revocation on logout — see below). Personal access tokens have their own revocation flow (see [Soft Revocation](#soft-revocation)).
+
+---
+
 ## JWT Refresh Tokens
 
-The built-in `JwtController` provides stateless login with automatic refresh token rotation. Each refresh token is one-time use — a new one is issued with every refresh.
+The built-in `JwtController` provides stateless login with automatic refresh token rotation. Each refresh token is one-time use — a new one is issued with every refresh. Login, refresh, and logout all route their refresh-token persistence through `service('jwtTokenRepository')`; logout soft-revokes the refresh token (`JwtTokenRepository::softRevokeRefreshToken()`) rather than hard-deleting it.
 
 ### Register the JWT Routes
 
@@ -561,7 +743,7 @@ public array $aliases = [
 ];
 
 // app/Config/Routes.php — apply to all authenticated routes
-$routes->group('dashboard', ['filter' => 'session,force-reset'], static function ($routes) {
+$routes->group('dashboard', ['filter' => 'auth:session,force-reset'], static function ($routes) {
     $routes->get('/', 'Dashboard::index');
 });
 ```
@@ -597,10 +779,10 @@ See [Logging & Monitoring](07-logging.md) for more event examples.
 
 ```php
 // Web users use sessions
-$routes->group('dashboard', ['filter' => 'session'], ...);
+$routes->group('dashboard', ['filter' => 'auth:session'], ...);
 
 // API clients use JWT
-$routes->group('api', ['filter' => 'jwt'], ...);
+$routes->group('api', ['filter' => 'auth:jwt'], ...);
 
 // Try all methods in order (chain filter)
 $routes->group('flexible', ['filter' => 'chain'], ...);

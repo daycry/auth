@@ -68,14 +68,39 @@ final class UserIdentityModelTest extends DatabaseTestCase
     {
         $user = $this->makeUser();
 
+        // Ephemeral tokens are stored as a SHA-256 hash, never the raw value.
         $this->identityModel->insert([
             'user_id' => $user->id,
             'type'    => IdentityType::MAGIC_LINK->value,
-            'secret'  => 'abc-123',
+            'secret'  => hash('sha256', 'abc-123'),
         ]);
 
         $found = $this->identityModel->getIdentityBySecret(IdentityType::MAGIC_LINK->value, 'abc-123');
         $this->assertInstanceOf(UserIdentity::class, $found);
+    }
+
+    public function testGetIdentityBySecretMatchesHashedStoredSecretOnly(): void
+    {
+        $user = $this->makeUser();
+        $raw  = 'raw-magic-token';
+
+        $this->identityModel->insert([
+            'user_id' => $user->id,
+            'type'    => IdentityType::MAGIC_LINK->value,
+            'secret'  => hash('sha256', $raw),
+        ]);
+
+        // Looking up by the RAW token finds the row (the model hashes the input).
+        $this->assertInstanceOf(
+            UserIdentity::class,
+            $this->identityModel->getIdentityBySecret(IdentityType::MAGIC_LINK->value, $raw),
+        );
+
+        // Looking up by the already-hashed value must NOT match (no double hashing).
+        $this->assertNotInstanceOf(
+            UserIdentity::class,
+            $this->identityModel->getIdentityBySecret(IdentityType::MAGIC_LINK->value, hash('sha256', $raw)),
+        );
     }
 
     public function testGetIdentitiesByUserIdsReturnsRowsForMultipleUsers(): void

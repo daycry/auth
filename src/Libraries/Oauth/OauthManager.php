@@ -232,19 +232,21 @@ class OauthManager
      *   - Azure                      : claim('email') / claim('unique_name')
      *   - GenericProvider & others   : toArray() fallback
      *
-     * @return array{id: string, email: string|null, name: string|null}
+     * @return array{id: string, email: string|null, name: string|null, email_verified: bool}
      */
     protected function extractUserData(ResourceOwnerInterface $resourceOwner): array
     {
-        $id    = (string) $resourceOwner->getId();
-        $email = null;
-        $name  = null;
+        $id            = (string) $resourceOwner->getId();
+        $email         = null;
+        $name          = null;
+        $emailVerified = false;
 
         if ($this->providerName === 'azure') {
             // Azure resource-owner uses claim() for user attributes
             /** @var AzureResourceOwner $resourceOwner */
-            $email = $resourceOwner->claim('email') ?: $resourceOwner->claim('unique_name');
-            $name  = $resourceOwner->claim('name');
+            $email         = $resourceOwner->claim('email') ?: $resourceOwner->claim('unique_name');
+            $name          = $resourceOwner->claim('name');
+            $emailVerified = self::isClaimTrue($resourceOwner->claim('email_verified'));
         } else {
             // Standard League providers implement getEmail() / getName()
             if (method_exists($resourceOwner, 'getEmail')) {
@@ -255,15 +257,29 @@ class OauthManager
                 $name = $resourceOwner->getName();
             }
 
-            // toArray() fallback for GenericProvider or providers without typed methods
-            if ($email === null || $name === null) {
-                $data = $resourceOwner->toArray();
-                $email ??= $data['email'] ?? null;
-                $name ??= $data['name'] ?? $data['login'] ?? null;
-            }
+            // toArray() exposes the raw claims for GenericProvider/OIDC providers
+            // and carries the verified-email signal we need below.
+            $data = $resourceOwner->toArray();
+            $email ??= $data['email'] ?? null;
+            $name ??= $data['name'] ?? $data['login'] ?? null;
+            // OIDC standard `email_verified` (Google, generic OIDC) and the
+            // legacy Google `verified_email` field.
+            $emailVerified = self::isClaimTrue($data['email_verified'] ?? $data['verified_email'] ?? null);
         }
 
-        return ['id' => $id, 'email' => $email, 'name' => $name];
+        return ['id' => $id, 'email' => $email, 'name' => $name, 'email_verified' => $emailVerified];
+    }
+
+    /**
+     * Normalises a verified-email claim that providers express inconsistently
+     * (bool true, int 1, or the strings "1"/"true") into a strict boolean.
+     */
+    private static function isClaimTrue(mixed $value): bool
+    {
+        return $value === true
+            || $value === 1
+            || $value === '1'
+            || (is_string($value) && strtolower($value) === 'true');
     }
 
     /**
@@ -275,10 +291,11 @@ class OauthManager
     {
         $repo = $this->getRepository();
 
-        $data     = $this->extractUserData($userProfile);
-        $socialId = $data['id'];
-        $email    = $data['email'];
-        $name     = $data['name'];
+        $data          = $this->extractUserData($userProfile);
+        $socialId      = $data['id'];
+        $email         = $data['email'];
+        $name          = $data['name'];
+        $emailVerified = $data['email_verified'];
 
         if (empty($email)) {
             throw new AuthenticationException(lang('Auth.emailNotFoundInOauth'));
@@ -301,6 +318,17 @@ class OauthManager
 
         $extraJson = json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
+        // Explicit linking mode: an authenticated user is attaching this provider
+        // to their own account (initiated via OauthController::link). This skips
+        // the e-mail-merge path entirely and does not require a verified e-mail,
+        // because the user is already authenticated and acting deliberately.
+        $linkUserId = (int) (session('oauth_link_user_id') ?? 0);
+        session()->remove('oauth_link_user_id');
+
+        if ($linkUserId > 0) {
+            return $this->linkProviderToUser($linkUserId, $socialId, $name, $email, $extraJson, $token);
+        }
+
         $identity = $repo->findByProviderAndSocialId($this->providerName, $socialId);
 
         $user = null;
@@ -322,7 +350,18 @@ class OauthManager
             $provider = auth()->getProvider();
             $user     = $provider->findByCredentials(['email' => $email]);
 
-            if (! $user instanceof User) {
+            if ($user instanceof User) {
+                // Linking a social identity to an EXISTING local account. Require
+                // the provider to assert the e-mail is verified — otherwise an
+                // attacker who registers a social account with the victim's e-mail
+                // would be silently logged in as the victim (unverified-email
+                // account takeover). Operators may opt in per provider.
+                $allowUnverified = (bool) ($this->config->providers[$this->providerName]['allowUnverifiedEmailLink'] ?? false);
+
+                if (! $emailVerified && ! $allowUnverified) {
+                    throw new AuthenticationException(lang('Auth.oauthEmailUnverified'));
+                }
+            } else {
                 $username = explode('@', $email)[0] . '_' . bin2hex(random_bytes(3));
                 $user     = new User([
                     'username' => $username,
@@ -335,6 +374,54 @@ class OauthManager
             }
 
             $repo->createOAuthIdentity((int) $user->id, $this->providerName, [
+                'name'    => $name ?? $email,
+                'secret'  => $socialId,
+                'secret2' => $token->getToken(),
+                'extra'   => $extraJson,
+                'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
+            ]);
+        }
+
+        auth()->login($user);
+
+        return $user;
+    }
+
+    /**
+     * Links the current provider's social identity to an already-authenticated
+     * user (explicit linking). Refuses when the social account is already bound
+     * to a different local user.
+     */
+    private function linkProviderToUser(int $userId, string $socialId, ?string $name, string $email, string $extraJson, AccessTokenInterface $token): User
+    {
+        $repo     = $this->getRepository();
+        $provider = auth()->getProvider();
+
+        $user = $provider->findById($userId);
+
+        if (! $user instanceof User) {
+            throw new AuthenticationException(lang('Auth.invalidUser'));
+        }
+
+        $existing = $repo->findByProviderAndSocialId($this->providerName, $socialId);
+
+        if ($existing instanceof UserIdentity) {
+            if ((int) $existing->user_id !== $userId) {
+                // Social account already linked to a different local user.
+                throw new AuthenticationException(lang('Auth.oauthAlreadyLinked'));
+            }
+
+            // Already linked to this user — refresh the stored token/profile.
+            $existing->secret2 = $token->getToken();
+            $existing->extra   = $extraJson;
+
+            if ($token->getExpires()) {
+                $existing->expires = Time::createFromTimestamp($token->getExpires());
+            }
+
+            $repo->updateOAuthIdentity($existing);
+        } else {
+            $repo->createOAuthIdentity($userId, $this->providerName, [
                 'name'    => $name ?? $email,
                 'secret'  => $socialId,
                 'secret2' => $token->getToken(),

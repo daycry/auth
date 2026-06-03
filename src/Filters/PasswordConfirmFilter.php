@@ -36,7 +36,10 @@ use CodeIgniter\HTTP\ResponseInterface;
 class PasswordConfirmFilter implements FilterInterface
 {
     /**
-     * @param array|null $arguments Unused — settings drive behaviour.
+     * @param array|null $arguments Optional per-route lifetime override in
+     *                              seconds, e.g. `password-confirm:60` requires
+     *                              a confirmation no older than 60 seconds for
+     *                              that route regardless of the global setting.
      */
     public function before(RequestInterface $request, $arguments = null)
     {
@@ -45,6 +48,12 @@ class PasswordConfirmFilter implements FilterInterface
         }
 
         $lifetime = (int) (setting('AuthSecurity.passwordConfirmationLifetime') ?? 0);
+
+        // A per-route argument overrides the global lifetime, letting more
+        // sensitive routes demand a fresher confirmation ("sudo mode").
+        if (is_array($arguments) && isset($arguments[0]) && is_numeric($arguments[0])) {
+            $lifetime = (int) $arguments[0];
+        }
 
         // 0 means "always require fresh confirmation" — only the
         // confirmation endpoint itself can satisfy it, so any other

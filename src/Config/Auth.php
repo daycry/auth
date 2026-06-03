@@ -478,6 +478,12 @@ class Auth extends BaseConfig
                 'OauthController::callback/$1',
                 'oauth-callback',
             ],
+            [
+                'get',
+                'oauth/link/(:segment)', // Link a provider to the logged-in user
+                'OauthController::link/$1',
+                'oauth-link',
+            ],
         ],
         'password-reset' => [
             [

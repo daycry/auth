@@ -14,14 +14,18 @@ declare(strict_types=1);
 namespace Tests\Authentication\Actions;
 
 use CodeIgniter\Config\Factories;
+use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\I18n\Time;
 use CodeIgniter\Test\Mock\MockEvents;
 use Config\Services;
+use Daycry\Auth\Auth as AuthService;
 use Daycry\Auth\Authentication\Actions\Totp2FA;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Enums\TotpState;
+use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
@@ -52,6 +56,11 @@ final class Totp2FATest extends DatabaseTestCase
 
         $events = new MockEvents();
         Services::injectMock('events', $events);
+
+        // Register the library routes so views using url_to('auth-action-*') render.
+        $routes = Services::routes();
+        (new AuthService(config('Auth')))->routes($routes);
+        Services::injectMock('routes', $routes);
 
         $this->user->email = 'foo@example.com';
         model(UserModel::class)->save($this->user);
@@ -373,5 +382,126 @@ final class Totp2FATest extends DatabaseTestCase
     {
         $action = new Totp2FA();
         $this->assertSame('totp', $action->getType());
+    }
+
+    // -----------------------------------------------------------------------
+    // verify(): code checking, brute-force throttling, backup codes
+    // -----------------------------------------------------------------------
+
+    /**
+     * Enrols + confirms TOTP for the user, inserts the pending login marker
+     * and puts the session into the TOTP-pending state, then returns the raw
+     * base32 secret so tests can generate valid codes.
+     */
+    private function setUpConfirmedTotpPendingSession(): string
+    {
+        $this->user->enableTotp('TestApp');
+        $this->user->confirmTotp();
+
+        model(UserIdentityModel::class)->insert([
+            'user_id' => $this->user->id,
+            'type'    => IdentityType::TOTP->value,
+            'name'    => 'totp_pending',
+            'secret'  => 'totp',
+        ]);
+
+        $_SESSION['user'] = [
+            'id'                  => $this->user->id,
+            'auth_action'         => Totp2FA::class,
+            'auth_action_message' => lang('Auth.needTotp'),
+        ];
+
+        return (string) $this->user->getTotpSecret();
+    }
+
+    private function postToken(string $token): IncomingRequest
+    {
+        /** @var IncomingRequest $request */
+        $request = service('request');
+        $request->setGlobal('post', ['token' => $token]);
+
+        return $request;
+    }
+
+    public function testVerifyWithWrongCodeRecordsFailedAttempt(): void
+    {
+        $this->setUpConfirmedTotpPendingSession();
+
+        $action = new Totp2FA();
+        $action->verify($this->postToken('000000'));
+
+        // The failed second-factor attempt must be counted (brute-force throttle).
+        $this->seeInDatabase($this->tables['users'], [
+            'id'                 => $this->user->id,
+            'failed_login_count' => 1,
+        ]);
+
+        // Login must NOT complete on a wrong code — the pending marker remains.
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $this->user->id,
+            'type'    => IdentityType::TOTP->value,
+        ]);
+    }
+
+    public function testVerifyDoesNotCompleteLoginWhenAccountIsLockedOut(): void
+    {
+        $secret = $this->setUpConfirmedTotpPendingSession();
+
+        // Simulate an account already locked by repeated failures.
+        model(UserModel::class)->update($this->user->id, [
+            'failed_login_count' => 5,
+            'locked_until'       => Time::now()->addMinutes(30)->format('Y-m-d H:i:s'),
+        ]);
+
+        $action = new Totp2FA();
+        $action->verify($this->postToken(TOTP::getCode($secret)));
+
+        // Even a valid code must not log the user in while locked out.
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $this->user->id,
+            'type'    => IdentityType::TOTP->value,
+        ]);
+
+        // Lockout short-circuits before verification, so no extra failure is recorded.
+        $this->seeInDatabase($this->tables['users'], [
+            'id'                 => $this->user->id,
+            'failed_login_count' => 5,
+        ]);
+    }
+
+    public function testTotpCodeCannotBeReplayed(): void
+    {
+        $this->user->enableTotp('TestApp');
+        $this->user->confirmTotp();
+
+        $code = TOTP::getCode((string) $this->user->getTotpSecret());
+
+        // First use is accepted...
+        $this->assertTrue($this->user->verifyTotpCode($code));
+        // ...the same code (same time-step) must be rejected on reuse.
+        $this->assertFalse($this->user->verifyTotpCode($code), 'A consumed TOTP code must not be accepted again');
+    }
+
+    public function testVerifyWithCorrectCodeCompletesLoginAndResetsCounter(): void
+    {
+        $secret = $this->setUpConfirmedTotpPendingSession();
+
+        // A couple of prior failed attempts that must be cleared on success.
+        model(UserModel::class)->update($this->user->id, ['failed_login_count' => 2]);
+
+        $action = new Totp2FA();
+        $action->verify($this->postToken(TOTP::getCode($secret)));
+
+        // Pending marker removed → login completed.
+        $this->dontSeeInDatabase($this->tables['identities'], [
+            'user_id' => $this->user->id,
+            'type'    => IdentityType::TOTP->value,
+        ]);
+
+        // Failure counter reset on a successful second factor.
+        $this->seeInDatabase($this->tables['users'], [
+            'id'                 => $this->user->id,
+            'failed_login_count' => 0,
+        ]);
     }
 }

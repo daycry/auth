@@ -7,10 +7,11 @@
 /.gitignore             export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /composer-unused.php    export-ignore
-/deptrac.yml            export-ignore
+/deptrac.yaml           export-ignore
 /infection.json.dist    export-ignore
 /mkdocs.yml             export-ignore
-/phpstan-baseline.php   export-ignore
+/phpcpd-6.0.3.phar      export-ignore
+/phpstan-baseline.neon  export-ignore
 /phpstan.neon.dist      export-ignore
 /phpunit.xml.dist       export-ignore
 /psalm_autoload.php     export-ignore
