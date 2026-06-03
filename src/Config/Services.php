@@ -24,6 +24,8 @@ use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\JwtTokenRepository;
 use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Models\WebAuthnCredentialModel;
+use Daycry\Auth\Models\WebAuthnCredentialRepository;
 use Symfony\Component\Serializer\SerializerInterface;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
@@ -183,6 +185,21 @@ class Services extends BaseService
         $factory->setAllowedOrigins(self::webAuthnAllowedOrigins());
 
         return AuthenticatorAssertionResponseValidator::create($factory->requestCeremony());
+    }
+
+    /**
+     * WebAuthn credential persistence seam. Override to swap storage.
+     */
+    public static function webAuthnCredentialRepository(bool $getShared = true): WebAuthnCredentialRepository
+    {
+        if ($getShared) {
+            return self::getSharedInstance('webAuthnCredentialRepository');
+        }
+
+        return new WebAuthnCredentialRepository(
+            model(WebAuthnCredentialModel::class),
+            self::webAuthnSerializer(),
+        );
     }
 
     /**
