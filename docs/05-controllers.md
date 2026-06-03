@@ -192,7 +192,6 @@ class MagicLinkController extends BaseMagicLinkController
 
 ---
 
-(passwordresetcontroller)=
 ## PasswordResetController
 
 Provides the complete password reset flow for users who have forgotten their password.

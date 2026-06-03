@@ -393,7 +393,7 @@ $routes->get('api/posts',  'Posts::index',  ['filter' => 'auth:access_token,toke
 $routes->post('api/posts', 'Posts::create', ['filter' => 'auth:access_token,token-scope:posts.read,posts.write']);
 ```
 
-The `*` wildcard scope satisfies any check. See {ref}`Filters — Token Scope Filter <token-scope-filter-token-scope>` for details.
+The `*` wildcard scope satisfies any check. See [Filters — Token Scope Filter](04-filters.md#4-token-scope-filter-token-scope) for details.
 
 ### Admin CLI
 
@@ -404,7 +404,7 @@ php spark auth:tokens revoke -e alice@example.com
 php spark auth:tokens revoke -e alice@example.com --type=access_token
 ```
 
-See {ref}`CLI — auth:tokens <auth-tokens>` for the full reference.
+See [CLI — auth:tokens](14-cli-commands.md#authtokens) for the full reference.
 
 ---
 
@@ -872,7 +872,7 @@ public array $authenticators = [
 
 ## Why HTTP Digest Auth is not supported
 
-`daycry/auth` implements **Basic Auth** ([`BasicAuthFilter`](../src/Filters/BasicAuthFilter.php)) but **not HTTP Digest Auth** (RFC 2617 / RFC 7616). This is a deliberate architectural decision, not an oversight. The reasons:
+`daycry/auth` implements **Basic Auth** ([`BasicAuthFilter`](https://github.com/daycry/auth/blob/development/src/Filters/BasicAuthFilter.php)) but **not HTTP Digest Auth** (RFC 2617 / RFC 7616). This is a deliberate architectural decision, not an oversight. The reasons:
 
 ### 1. Incompatible with bcrypt / argon2
 
@@ -906,7 +906,7 @@ If you are running this library in production you already need TLS — and once 
 | Social login | [OAuth 2.0](09-oauth.md) |
 | Passwordless | [Magic Link](#magic-link-authentication) or [WebAuthn / Passkeys](15-webauthn.md) |
 | Phishing-resistant MFA | [WebAuthn / Passkeys](15-webauthn.md) |
-| HTTP-level basic auth | [`BasicAuthFilter`](../src/Filters/BasicAuthFilter.php) over TLS |
+| HTTP-level basic auth | [`BasicAuthFilter`](https://github.com/daycry/auth/blob/development/src/Filters/BasicAuthFilter.php) over TLS |
 
 ### If your use case really requires Digest
 
@@ -917,7 +917,7 @@ Rare cases (legacy embedded clients, specific compliance requirements, etc.):
    - Migration: new table `users_digest_ha1 (user_id, realm, ha1, created_at)`.
    - Endpoint: `POST /digest/enable` that accepts the user's plaintext password, computes HA1 server-side, and stores it. Per-user opt-in only.
    - Filter: a custom `DigestAuthFilter` that resolves credentials via that table, with a server-side nonce store (e.g. `Services::cache()`, TTL ~5 min) and replay protection via the `nc` (nonce-count) parameter.
-   - Authenticator: extend [`Base`](../src/Authentication/Authenticators/Base.php) with a `check()` that compares the request `response` field against `MD5(HA1:nonce:nc:cnonce:qop:HA2)`.
+   - Authenticator: extend [`Base`](https://github.com/daycry/auth/blob/development/src/Authentication/Authenticators/Base.php) with a `check()` that compares the request `response` field against `MD5(HA1:nonce:nc:cnonce:qop:HA2)`.
    - Support **at minimum** `qop=auth` and SHA-256 in addition to MD5.
    - Document the database leakage risk (HA1 is not a strong hash).
 
