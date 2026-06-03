@@ -15,6 +15,7 @@ namespace Tests\WebAuthn;
 
 use Symfony\Component\Serializer\SerializerInterface;
 use Tests\Support\TestCase;
+use Tests\Support\WebAuthn\SuppressesWebauthnDeprecations;
 use Webauthn\AuthenticatorAssertionResponseValidator;
 use Webauthn\AuthenticatorAttestationResponseValidator;
 use Webauthn\PublicKeyCredentialCreationOptions;
@@ -26,25 +27,17 @@ use Webauthn\PublicKeyCredentialUserEntity;
  */
 final class WebAuthnServicesTest extends TestCase
 {
+    use SuppressesWebauthnDeprecations;
+
     protected function setUp(): void
     {
         parent::setUp();
-
-        // web-auth/webauthn-lib v5.3 deprecates the (still required) RP-entity
-        // $name parameter. Under CODEIGNITER_SCREAM_DEPRECATIONS=1 CodeIgniter
-        // promotes every E_USER_DEPRECATED to an ErrorException, so silence the
-        // library's own internal deprecations for the duration of these tests.
-        set_error_handler(
-            static fn (int $severity, string $message, string $file = ''): bool => str_contains($file, 'web-auth' . DIRECTORY_SEPARATOR . 'webauthn-lib')
-                || str_contains($message, 'web-auth/webauthn-lib'),
-            E_USER_DEPRECATED,
-        );
+        $this->suppressWebauthnDeprecations();
     }
 
     protected function tearDown(): void
     {
-        restore_error_handler();
-
+        $this->restoreWebauthnDeprecations();
         parent::tearDown();
     }
 
