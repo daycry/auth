@@ -1051,6 +1051,12 @@ parameters:
 			path: src/Entities/User.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\WebAuthnCredentialModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Entities/User.php
+
+		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
 			count: 9
