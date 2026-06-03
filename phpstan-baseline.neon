@@ -1309,6 +1309,12 @@ parameters:
 			path: src/Libraries/TokenEmailSender.php
 
 		-
+			rawMessage: 'Property Daycry\Auth\Libraries\WebAuthn\WebAuthnManager::$assertionValidator is never read, only written.'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Libraries/WebAuthn/WebAuthnManager.php
+
+		-
 			rawMessage: '''
 				Call to deprecated method generateAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
 				Use AccessTokenRepository::generateAccessToken() instead.
@@ -2228,6 +2234,12 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: tests/WebAuthn/VirtualAuthenticatorTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\WebAuthnCredential'' and Daycry\Auth\Entities\WebAuthnCredential will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnManagerRegistrationTest.php
 
 		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Symfony\\Component\\Serializer\\SerializerInterface'' and Symfony\Component\Serializer\SerializerInterface will always evaluate to true.'

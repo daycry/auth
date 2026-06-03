@@ -34,6 +34,11 @@ return [
     'expiredJWT'     => 'The token has expired.',
     'beforeValidJWT' => 'The token is not yet available.',
 
+    // WebAuthn / Passkeys
+    'webauthnMaxCredentials'     => 'You have reached the maximum number of registered passkeys.',
+    'webauthnChallengeExpired'   => 'The passkey challenge has expired. Please try again.',
+    'webauthnVerificationFailed' => 'Passkey verification failed.',
+
     'email'           => 'Email Address',
     'username'        => 'Username',
     'password'        => 'Password',

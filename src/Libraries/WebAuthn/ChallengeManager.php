@@ -24,6 +24,7 @@ use CodeIgniter\I18n\Time;
 class ChallengeManager
 {
     private const SESSION_KEY = '_webauthn_ceremony';
+    private const LABEL_KEY   = '_webauthn_label';
 
     /**
      * @param '2fa'|'login'|'register' $type
@@ -66,5 +67,19 @@ class ChallengeManager
         }
 
         return $entry;
+    }
+
+    public function stashLabel(?string $label): void
+    {
+        session()->set(self::LABEL_KEY, $label);
+    }
+
+    public function pullLabel(): ?string
+    {
+        /** @var string|null $label */
+        $label = session()->get(self::LABEL_KEY);
+        session()->remove(self::LABEL_KEY);
+
+        return $label;
     }
 }

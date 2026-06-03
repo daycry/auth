@@ -20,6 +20,8 @@ use Daycry\Auth\Authorization\Gate;
 use Daycry\Auth\Authorization\GroupPermissionRepository;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Libraries\Logger;
+use Daycry\Auth\Libraries\WebAuthn\ChallengeManager;
+use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
 use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\JwtTokenRepository;
 use Daycry\Auth\Models\OAuthTokenRepository;
@@ -199,6 +201,24 @@ class Services extends BaseService
         return new WebAuthnCredentialRepository(
             model(WebAuthnCredentialModel::class),
             self::webAuthnSerializer(),
+        );
+    }
+
+    /**
+     * WebAuthn ceremony orchestrator.
+     */
+    public static function webAuthnManager(bool $getShared = true): WebAuthnManager
+    {
+        if ($getShared) {
+            return self::getSharedInstance('webAuthnManager');
+        }
+
+        return new WebAuthnManager(
+            self::webAuthnCredentialRepository(),
+            new ChallengeManager(),
+            self::webAuthnSerializer(),
+            self::webAuthnAttestationValidator(),
+            self::webAuthnAssertionValidator(),
         );
     }
 
