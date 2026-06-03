@@ -25,7 +25,8 @@
         "league/oauth2-github": "^3.0",
         "league/oauth2-google": "^4.0 || ^5.0",
         "michalsn/codeigniter4-uuid": "^2.0",
-        "thenetworg/oauth2-azure": "^2"
+        "thenetworg/oauth2-azure": "^2",
+        "web-auth/webauthn-lib": "^5.3"
     },
     "require-dev":
     {
