@@ -5,7 +5,7 @@
 <!-- Tests & coverage -->
 [![Tests](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
 [![Coverage Status](https://coveralls.io/repos/github/daycry/auth/badge.svg?branch=main)](https://coveralls.io/github/daycry/auth?branch=main)
-[![Documentation Status](https://readthedocs.org/projects/authentication-for-codeigniter-4/badge/?version=latest)](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/?badge=latest)
+[![Documentation](https://github.com/daycry/auth/actions/workflows/docs.yml/badge.svg)](https://daycry.github.io/auth/)
 
 <!-- Static analysis & quality gates -->
 [![PHPStan](https://github.com/daycry/auth/actions/workflows/phpstan.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpstan.yml)
@@ -193,21 +193,22 @@ user_id=42&refresh_token=a3f8c2d1...
 
 Full documentation is available at:
 
-**[https://authentication-for-codeigniter-4.readthedocs.io/](https://authentication-for-codeigniter-4.readthedocs.io/)**
+**[https://daycry.github.io/auth/](https://daycry.github.io/auth/)**
 
 | Section | Description |
 |---------|-------------|
-| [Quick Start](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/01-quick-start.html) | Install and set up in minutes |
-| [Configuration](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/02-configuration.html) | Every config option explained |
-| [Authentication](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/03-authentication.html) | All auth methods + JWT refresh + password reset |
-| [Filters](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/04-filters.html) | Route protection filters |
-| [Controllers](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/05-controllers.html) | All included controllers |
-| [Authorization](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/06-authorization.html) | Groups, permissions, RBAC |
-| [Logging & Events](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/07-logging.html) | CI4 Events, DB logs, lockout |
-| [Testing](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/08-testing.html) | Testing auth in your app |
-| [OAuth 2.0](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/09-oauth.html) | Google, GitHub, Facebook, Azure |
-| [TOTP 2FA](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/10-totp-2fa.html) | Authenticator app integration |
-| [Device Sessions](https://authentication-for-codeigniter-4.readthedocs.io/en/latest/11-device-sessions.html) | Active session management |
+| [Quick Start](https://daycry.github.io/auth/01-quick-start/) | Install and set up in minutes |
+| [Configuration](https://daycry.github.io/auth/02-configuration/) | Every config option explained |
+| [Authentication](https://daycry.github.io/auth/03-authentication/) | All auth methods + JWT refresh + password reset |
+| [Filters](https://daycry.github.io/auth/04-filters/) | Route protection filters |
+| [Controllers](https://daycry.github.io/auth/05-controllers/) | All included controllers |
+| [Authorization](https://daycry.github.io/auth/06-authorization/) | Groups, permissions, RBAC |
+| [Logging & Events](https://daycry.github.io/auth/07-logging/) | CI4 Events, DB logs, lockout |
+| [Testing](https://daycry.github.io/auth/08-testing/) | Testing auth in your app |
+| [OAuth 2.0](https://daycry.github.io/auth/09-oauth/) | Google, GitHub, Facebook, Azure |
+| [TOTP 2FA](https://daycry.github.io/auth/10-totp-2fa/) | Authenticator app integration |
+| [WebAuthn / Passkeys](https://daycry.github.io/auth/15-webauthn/) | Passwordless login + passkey 2FA |
+| [Device Sessions](https://daycry.github.io/auth/11-device-sessions/) | Active session management |
 
 ---
 
