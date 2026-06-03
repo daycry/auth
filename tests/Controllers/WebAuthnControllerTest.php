@@ -95,6 +95,49 @@ final class WebAuthnControllerTest extends DatabaseTestCase
         $loginVerify->assertJSONFragment(['status' => 'ok']);
     }
 
+    public function testDuplicateRegistrationReturns409(): void
+    {
+        $user = fake(UserModel::class);
+
+        // First enrolment succeeds.
+        $optionsResult = $this->withSession(['user' => ['id' => $user->id]])
+            ->post('webauthn/register/options', ['name' => 'Key']);
+        $optionsResult->assertStatus(200);
+        $options = json_decode($optionsResult->getJSON(), true);
+
+        $authn        = new VirtualAuthenticator('example.com', 'https://example.com');
+        $registerJson = $authn->register(json_encode($options, JSON_THROW_ON_ERROR));
+
+        $verify = $this->withSession($_SESSION)
+            ->withBodyFormat('json')
+            ->post('webauthn/register/verify', ['credential' => json_decode($registerJson, true)]);
+        $verify->assertStatus(201);
+
+        // Second enrolment of the SAME credential (same authenticator instance,
+        // fresh options) must be rejected cleanly — a 409 conflict, not a leaked
+        // raw DatabaseException.
+        $optionsResult2 = $this->withSession(['user' => ['id' => $user->id]])
+            ->post('webauthn/register/options', ['name' => 'Key again']);
+        $optionsResult2->assertStatus(200);
+        $options2 = json_decode($optionsResult2->getJSON(), true);
+
+        $registerJson2 = $authn->register(json_encode($options2, JSON_THROW_ON_ERROR));
+
+        $verify2 = $this->withSession($_SESSION)
+            ->withBodyFormat('json')
+            ->post('webauthn/register/verify', ['credential' => json_decode($registerJson2, true)]);
+
+        $verify2->assertStatus(409);
+        $verify2->assertJSONFragment(['status' => 'error', 'error' => 'conflict']);
+
+        // The generic, user-facing message — never a SQL/exception string.
+        $payload = json_decode($verify2->getJSON(), true);
+        $this->assertSame(lang('Auth.webauthnDuplicate'), $payload['message']);
+        $this->assertStringNotContainsStringIgnoringCase('exception', (string) $payload['message']);
+        $this->assertStringNotContainsStringIgnoringCase('SQLSTATE', (string) $payload['message']);
+        $this->assertStringNotContainsStringIgnoringCase('UNIQUE', (string) $payload['message']);
+    }
+
     public function testEndpoints404WhenDisabled(): void
     {
         setting('AuthSecurity.webauthnEnabled', false);

@@ -67,6 +67,17 @@ class WebAuthnCredentialModel extends Model
     }
 
     /**
+     * Whether a row with this credential id exists, regardless of revoked
+     * state. The UNIQUE constraint on credential_id ignores revoked_at, so a
+     * pre-insert duplicate check must consider revoked rows too.
+     */
+    public function existsByCredentialId(string $credentialId): bool
+    {
+        return $this->where('credential_id', $credentialId)
+            ->countAllResults() > 0;
+    }
+
+    /**
      * @return list<WebAuthnCredential>
      */
     public function activeForUser(int|string $userId): array

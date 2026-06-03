@@ -16,6 +16,7 @@ namespace Daycry\Auth\Libraries\WebAuthn;
 use Cose\Algorithms;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\WebAuthnCredential;
+use Daycry\Auth\Exceptions\WebAuthnDuplicateCredentialException;
 use Daycry\Auth\Exceptions\WebAuthnException;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Models\WebAuthnCredentialRepository;
@@ -117,6 +118,14 @@ class WebAuthnManager
             }
 
             $record = $this->attestationValidator->check($credential->response, $options, $this->rpId());
+
+            // Reject a credential that is already stored before attempting the
+            // insert, so the caller gets a clean conflict instead of a raw
+            // UNIQUE-constraint DatabaseException leaking out. The UNIQUE index
+            // on credential_id ignores revoked_at, so this checks all rows.
+            if ($this->repository->existsByCredentialId($record)) {
+                throw new WebAuthnDuplicateCredentialException(lang('Auth.webauthnDuplicate'));
+            }
         } catch (WebAuthnException $e) {
             throw $e;
         } catch (Throwable $e) {

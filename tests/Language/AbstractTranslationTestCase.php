@@ -320,6 +320,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             'Auth.webauthnNamePlaceholder',
             'Auth.webauthnAdd',
             'Auth.webauthnRegistered',
+            'Auth.webauthnDuplicate',
             'Auth.webauthn2faTitle',
             'Auth.webauthn2faPrompt',
             'Auth.webauthn2faStart',

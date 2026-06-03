@@ -47,6 +47,7 @@ return [
     'webauthnNamePlaceholder'    => 'Name this passkey (e.g. My laptop)',
     'webauthnAdd'                => 'Add passkey',
     'webauthnRegistered'         => 'Passkey registered.',
+    'webauthnDuplicate'          => 'That passkey is already registered.',
     'webauthn2faTitle'           => 'Two-factor verification',
     'webauthn2faPrompt'          => 'Verify your identity with your passkey.',
     'webauthn2faStart'           => 'Use passkey',

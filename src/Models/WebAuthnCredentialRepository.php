@@ -42,6 +42,17 @@ class WebAuthnCredentialRepository
         return $this->model->firstActiveByCredentialId($credentialIdBase64Url);
     }
 
+    /**
+     * Whether the given credential record is already persisted (by its
+     * credential id, computed exactly as {@see store()} does). Considers ALL
+     * rows including revoked ones, mirroring the UNIQUE constraint which
+     * ignores revoked_at.
+     */
+    public function existsByCredentialId(CredentialRecord $record): bool
+    {
+        return $this->model->existsByCredentialId($this->b64url($record->publicKeyCredentialId));
+    }
+
     public function findRecordByCredentialId(string $credentialIdBase64Url): ?CredentialRecord
     {
         $row = $this->model->firstActiveByCredentialId($credentialIdBase64Url);

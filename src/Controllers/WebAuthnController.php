@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\HTTP\ResponseInterface;
+use Daycry\Auth\Exceptions\WebAuthnDuplicateCredentialException;
 use Daycry\Auth\Exceptions\WebAuthnException;
 use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
 
@@ -85,6 +86,8 @@ class WebAuthnController extends BaseAuthController
 
         try {
             $entity = $this->manager()->finishRegistration(auth()->user(), $json);
+        } catch (WebAuthnDuplicateCredentialException $e) {
+            return $this->error($e->getMessage(), 409, 'conflict');
         } catch (WebAuthnException $e) {
             return $this->error($e->getMessage(), 422, 'unprocessable');
         }
