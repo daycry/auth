@@ -393,7 +393,7 @@ $routes->get('api/posts',  'Posts::index',  ['filter' => 'auth:access_token,toke
 $routes->post('api/posts', 'Posts::create', ['filter' => 'auth:access_token,token-scope:posts.read,posts.write']);
 ```
 
-The `*` wildcard scope satisfies any check. See [Filters — Token Scope Filter](04-filters.md#3-token-scope-filter-token-scope) for details.
+The `*` wildcard scope satisfies any check. See {ref}`Filters — Token Scope Filter <token-scope-filter-token-scope>` for details.
 
 ### Admin CLI
 
@@ -404,7 +404,7 @@ php spark auth:tokens revoke -e alice@example.com
 php spark auth:tokens revoke -e alice@example.com --type=access_token
 ```
 
-See [CLI — `auth:tokens`](14-cli-commands.md#auth-tokens) for the full reference.
+See {ref}`CLI — auth:tokens <auth-tokens>` for the full reference.
 
 ---
 
@@ -534,7 +534,7 @@ public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity
 
 ### Login
 
-```http
+```text
 POST /auth/jwt/login
 Content-Type: application/x-www-form-urlencoded
 
@@ -554,7 +554,7 @@ email=user@example.com&password=secret
 
 ### Refresh an Expired Access Token
 
-```http
+```text
 POST /auth/jwt/refresh
 Content-Type: application/x-www-form-urlencoded
 
@@ -576,7 +576,7 @@ user_id=42&refresh_token=a3f8c2d1e4b7...
 
 ### Logout (Revoke Refresh Token)
 
-```http
+```text
 POST /auth/jwt/logout
 Content-Type: application/x-www-form-urlencoded
 

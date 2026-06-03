@@ -8,7 +8,7 @@ Filters are the cornerstone of security in Daycry Auth. This complete guide will
 - [👥 Authorization Filters](#-authorization-filters)
 - [🔗 Chain Filters](#-chain-filters)
 - [📊 Control Filters](#-control-filters)
-- [🛠️ Advanced Configuration](#️-advanced-configuration)
+- [🛠️ Advanced Configuration](#advanced-configuration)
 - [🎯 Practical Examples](#-practical-examples)
 
 ## 🔧 Initial Setup
@@ -417,6 +417,7 @@ RBAC fallback.
 `buildDeniedResponse()` and redirects to `Auth::permissionDeniedRedirect()` (or returns a
 `403` JSON body for API requests).
 
+(token-scope-filter-token-scope)=
 ### 4. **Token Scope Filter** (`token-scope`)
 
 Validates that the **access token** used to authenticate the request grants every scope listed in the filter argument. Only meaningful after a token-based authenticator has run (`tokens`, `jwt`, or `chain`).

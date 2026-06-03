@@ -219,7 +219,7 @@ public int $maxSimilarity = 50;
 public int $passwordResetLifetime = HOUR; // Default: 1 hour
 ```
 
-The reset flow is handled by `PasswordResetController`. Users request a reset link, receive it by email, and click it within this window. See [Controllers](05-controllers.md#password-reset-controller) for the full setup.
+The reset flow is handled by `PasswordResetController`. Users request a reset link, receive it by email, and click it within this window. See [Controllers](05-controllers.md#passwordresetcontroller) for the full setup.
 
 ---
 

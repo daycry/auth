@@ -4,19 +4,20 @@ Testing is crucial for maintaining the reliability and security of your authenti
 
 ## 📋 Table of Contents
 
-- [🏃‍♂️ Quick Start](#️-quick-start)
+- [🏃‍♂️ Quick Start](#quick-start)
 - [🧪 Test Categories](#-test-categories)
 - [🔧 Test Setup](#-test-setup)
-- [🛡️ Testing Authentication](#️-testing-authentication)
+- [🛡️ Testing Authentication](#testing-authentication)
 - [👥 Testing Authorization](#-testing-authorization)
-- [🎛️ Testing Controllers](#️-testing-controllers)
+- [🎛️ Testing Controllers](#testing-controllers)
 - [🔍 Testing Filters](#-testing-filters)
 - [📊 Testing Models](#-testing-models)
-- [🏗️ Testing Traits](#️-testing-traits)
+- [🏗️ Testing Traits](#testing-traits)
 - [🔑 Testing WebAuthn](#-testing-webauthn)
 - [🎯 Testing Best Practices](#-testing-best-practices)
 - [🚀 Contributing Tests](#-contributing-tests)
 
+(quick-start)=
 ## 🏃‍♂️ Quick Start
 
 ### Running Tests
@@ -147,6 +148,7 @@ Each call replaces only the specified keys; unspecified keys keep their defaults
 
 > The previous typo'd names (`inkectMockAttributes*`) still work as deprecated aliases for backward-compatibility but will be removed in v6 — migrate any custom tests to the spelled-correctly variants.
 
+(testing-authentication)=
 ## 🛡️ Testing Authentication
 
 ### Login Tests
@@ -281,6 +283,7 @@ class AuthorizationTest extends DatabaseTestCase
 }
 ```
 
+(testing-controllers)=
 ## 🎛️ Testing Controllers
 
 ### Controller Test Example
@@ -434,6 +437,7 @@ class UserModelTest extends DatabaseTestCase
 }
 ```
 
+(testing-traits)=
 ## 🏗️ Testing Traits
 
 ### Testing BaseControllerTrait

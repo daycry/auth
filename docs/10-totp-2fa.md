@@ -472,7 +472,7 @@ This:
 1. Calls `$user->disableTotp()` — removes the TOTP secret + every backup code.
 2. Writes an `EVENT_TOTP_ADMIN_RESET` audit entry with `metadata.initiator = cli`.
 
-The user re-enrolls TOTP from scratch the next time they visit `/security/totp/setup`. See [CLI Commands — `auth:totp`](14-cli-commands.md#auth-totp) for full options.
+The user re-enrolls TOTP from scratch the next time they visit `/security/totp/setup`. See {ref}`CLI Commands — auth:totp <auth-totp>` for full options.
 
 ---
 

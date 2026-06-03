@@ -1,6 +1,6 @@
 # 🔄 Migration Guide
 
-This document summarises breaking changes between major versions and how to upgrade. For the full per-release changelog, see [`CHANGELOG.md`](../CHANGELOG.md).
+This document summarises breaking changes between major versions and how to upgrade. For the full per-release changelog, see [`CHANGELOG.md`](https://github.com/daycry/auth/blob/development/CHANGELOG.md).
 
 ## 📋 Index
 
@@ -142,7 +142,7 @@ Each of these defaults to "off / unchanged" — adopt only what fits your securi
 | Suspicious login alerts | `AuthSecurity::$suspiciousLoginAlerts = true` + listener | [Audit & Compliance](13-audit-and-compliance.md#suspicious-login-detection) |
 | Password history (no reuse) | `AuthSecurity::$passwordHistorySize = 5` + add `HistoryValidator` | [Audit & Compliance](13-audit-and-compliance.md#password-history-no-reuse) |
 | Password rotation policy | `AuthSecurity::$passwordMaxAge = 90 * DAY` + apply `password-age` filter | [Audit & Compliance](13-audit-and-compliance.md#password-rotation-policy) |
-| API token scope enforcement | Apply `token-scope:` filter on routes | [Filters — Token Scope](04-filters.md#3-token-scope-filter-token-scope) |
+| API token scope enforcement | Apply `token-scope:` filter on routes | {ref}`Filters — Token Scope <token-scope-filter-token-scope>` |
 | Login activity feed | Wire `UserSecurityController::loginActivity` route | [Controllers — `loginActivity()`](05-controllers.md#loginactivity) |
 
 ### What runs automatically (no action needed)
