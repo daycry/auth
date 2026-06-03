@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace Tests\Controllers;
 
+use Config\Services;
+use Daycry\Auth\Auth as AuthService;
 use Tests\Support\TestCase;
 
 /**
@@ -20,6 +22,16 @@ use Tests\Support\TestCase;
  */
 final class WebAuthnViewsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Register the library routes so views using url_to('login') render.
+        $routes = Services::routes();
+        (new AuthService(config('Auth')))->routes($routes);
+        Services::injectMock('routes', $routes);
+    }
+
     public function testSetupViewRendersCeremonyEndpoints(): void
     {
         $html = view(setting('Auth.views')['webauthn_setup'], ['credentials' => []]);
@@ -47,5 +59,25 @@ final class WebAuthnViewsTest extends TestCase
 
         $this->assertStringContainsString('webauthn/2fa/options', $html);
         $this->assertStringContainsString('auth/a/verify', $html);
+    }
+
+    public function testLoginViewShowsPasskeyButtonWhenEnabled(): void
+    {
+        setting('AuthSecurity.webauthnEnabled', true);
+
+        $html = view(setting('Auth.views')['login']);
+
+        $this->assertStringContainsString('id="webauthn-login"', $html);
+        $this->assertStringContainsString('window.AuthWebAuthn.login', $html);
+    }
+
+    public function testLoginViewHidesPasskeyButtonWhenDisabled(): void
+    {
+        setting('AuthSecurity.webauthnEnabled', false);
+
+        $html = view(setting('Auth.views')['login']);
+
+        $this->assertStringNotContainsString('id="webauthn-login"', $html);
+        $this->assertStringNotContainsString('window.AuthWebAuthn.login', $html);
     }
 }
