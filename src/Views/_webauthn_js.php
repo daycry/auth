@@ -1,6 +1,15 @@
 <script>
 // Minimal base64url <-> ArrayBuffer helpers + ceremony wrappers (vanilla JS).
 window.AuthWebAuthn = (function () {
+    // CI4 CSRF: send the token on every state-changing request and rotate the
+    // cached hash whenever the server returns a fresh one (CI4 regenerates the
+    // token per request when csrf.regenerate is enabled).
+    const CSRF_HEADER = '<?= csrf_header() ?>';
+    let CSRF_HASH = '<?= csrf_hash() ?>';
+    const refreshCsrf = (json) => {
+        if (json && typeof json.token === 'string') { CSRF_HASH = json.token; }
+        return json;
+    };
     const b64urlToBuf = (s) => {
         s = s.replace(/-/g, '+').replace(/_/g, '/');
         const bin = atob(s.padEnd(Math.ceil(s.length / 4) * 4, '='));
@@ -16,10 +25,16 @@ window.AuthWebAuthn = (function () {
     };
     const post = (url, body) => fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            [CSRF_HEADER]: CSRF_HASH,
+        },
         credentials: 'same-origin',
         body: body ? JSON.stringify(body) : null,
     });
+    // Parse a JSON response and rotate the cached CSRF hash if a fresh token is present.
+    const postJson = async (url, body) => refreshCsrf(await (await post(url, body)).json());
     const decodeCreation = (o) => {
         o.challenge = b64urlToBuf(o.challenge);
         o.user.id = b64urlToBuf(o.user.id);
@@ -51,21 +66,27 @@ window.AuthWebAuthn = (function () {
     });
     return {
         async register(name) {
-            const opts = await (await post('<?= site_url('webauthn/register/options') ?>', { name })).json();
+            // postJson refreshes CSRF_HASH from the options response so the
+            // follow-up verify POST carries the rotated token.
+            const opts = await postJson('<?= site_url('webauthn/register/options') ?>', { name });
             const cred = await navigator.credentials.create({ publicKey: decodeCreation(opts) });
             return post('<?= site_url('webauthn/register/verify') ?>', { name, credential: encodeAttestation(cred) });
         },
         async login(email) {
-            const opts = await (await post('<?= site_url('webauthn/login/options') ?>', { email })).json();
+            const opts = await postJson('<?= site_url('webauthn/login/options') ?>', { email });
             const cred = await navigator.credentials.get({ publicKey: decodeRequest(opts) });
             return post('<?= site_url('webauthn/login/verify') ?>', { credential: encodeAssertion(cred) });
         },
         async assert(optionsUrl) {
-            const opts = await (await post(optionsUrl, {})).json();
+            const opts = await postJson(optionsUrl, {});
             const cred = await navigator.credentials.get({ publicKey: decodeRequest(opts) });
             return encodeAssertion(cred);
         },
-        bufToB64url, b64urlToBuf,
+        post, postJson, bufToB64url, b64urlToBuf,
+        // Expose CSRF accessors so views with their own <form> can sync the
+        // hidden csrf_field() after a ceremony POST rotates the token.
+        csrfHeader: () => CSRF_HEADER,
+        csrfHash: () => CSRF_HASH,
     };
 })();
 </script>

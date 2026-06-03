@@ -14,6 +14,10 @@ document.getElementById('webauthn-2fa-start').addEventListener('click', async ()
     try {
         const assertion = await window.AuthWebAuthn.assert('<?= site_url('webauthn/2fa/options') ?>');
         document.getElementById('webauthn-credential').value = JSON.stringify(assertion);
+        // The options POST rotated the CSRF token; sync the form's hidden
+        // csrf_field() so the final form submit is accepted.
+        const csrfInput = document.querySelector('#webauthn-2fa-form input[name="<?= csrf_token() ?>"]');
+        if (csrfInput) { csrfInput.value = window.AuthWebAuthn.csrfHash(); }
         document.getElementById('webauthn-2fa-form').submit();
     } catch (e) { alert(e.message); }
 });

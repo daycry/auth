@@ -49,7 +49,25 @@ class WebAuthnController extends BaseAuthController
             'status'  => 'error',
             'error'   => $code,
             'message' => $message,
+            'token'   => csrf_hash(),
         ]);
+    }
+
+    /**
+     * Adds the freshly-rotated CSRF token to a JSON payload so the reference
+     * ceremony JS can carry it into the follow-up request (CI4 regenerates the
+     * token per request when csrf.regenerate is enabled). Harmless for the
+     * WebAuthn option objects: the browser ignores unknown top-level keys.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private function withToken(array $payload): array
+    {
+        $payload['token'] = csrf_hash();
+
+        return $payload;
     }
 
     public function registerOptions(): ResponseInterface
@@ -67,7 +85,7 @@ class WebAuthnController extends BaseAuthController
             return $this->error($e->getMessage(), 409, 'conflict');
         }
 
-        return $this->response->setJSON($options);
+        return $this->response->setJSON($this->withToken($options));
     }
 
     public function registerVerify(): ResponseInterface
@@ -92,10 +110,10 @@ class WebAuthnController extends BaseAuthController
             return $this->error($e->getMessage(), 422, 'unprocessable');
         }
 
-        return $this->response->setStatusCode(201)->setJSON([
+        return $this->response->setStatusCode(201)->setJSON($this->withToken([
             'status'     => 'ok',
             'credential' => ['uuid' => $entity->uuid, 'name' => $entity->name],
-        ]);
+        ]));
     }
 
     public function loginOptions(): ResponseInterface
@@ -106,7 +124,7 @@ class WebAuthnController extends BaseAuthController
 
         $options = $this->manager()->startLogin($this->request->getPost('email') ?: null);
 
-        return $this->response->setJSON($options);
+        return $this->response->setJSON($this->withToken($options));
     }
 
     public function loginVerify(): ResponseInterface
@@ -130,10 +148,10 @@ class WebAuthnController extends BaseAuthController
         // the session directly without re-running the 'login' Action pipeline.
         auth()->login($user, false);
 
-        return $this->response->setJSON([
+        return $this->response->setJSON($this->withToken([
             'status'   => 'ok',
             'redirect' => config('Auth')->loginRedirect(),
-        ]);
+        ]));
     }
 
     public function twoFactorOptions(): ResponseInterface
@@ -147,7 +165,7 @@ class WebAuthnController extends BaseAuthController
             return $this->error(lang('Auth.webauthnVerificationFailed'), 422, 'unprocessable');
         }
 
-        return $this->response->setJSON($this->manager()->startTwoFactor($pending));
+        return $this->response->setJSON($this->withToken($this->manager()->startTwoFactor($pending)));
     }
 
     public function deleteCredential(string $uuid): ResponseInterface
@@ -161,7 +179,7 @@ class WebAuthnController extends BaseAuthController
 
         $ok = auth()->user()->revokeWebAuthnCredential($uuid);
 
-        return $this->response->setStatusCode($ok ? 200 : 404)->setJSON(['status' => $ok ? 'ok' : 'not_found']);
+        return $this->response->setStatusCode($ok ? 200 : 404)->setJSON($this->withToken(['status' => $ok ? 'ok' : 'not_found']));
     }
 
     /**

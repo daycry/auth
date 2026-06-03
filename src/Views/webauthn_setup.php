@@ -31,7 +31,8 @@ document.getElementById('webauthn-add').addEventListener('click', async () => {
 document.querySelectorAll('.webauthn-delete').forEach((btn) => {
     btn.addEventListener('click', async () => {
         const uuid = btn.getAttribute('data-uuid');
-        await fetch('<?= site_url('webauthn/credentials') ?>/' + uuid + '/delete', { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        // Use the shared helper so the CSRF token (and rotation) is handled.
+        await window.AuthWebAuthn.post('<?= site_url('webauthn/credentials') ?>/' + uuid + '/delete');
         location.reload();
     });
 });
