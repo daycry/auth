@@ -17,9 +17,11 @@ use Cose\Algorithms;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\WebAuthnCredential;
 use Daycry\Auth\Exceptions\WebAuthnException;
+use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Models\WebAuthnCredentialRepository;
 use Symfony\Component\Serializer\SerializerInterface;
 use Throwable;
+use Webauthn\AuthenticatorAssertionResponse;
 use Webauthn\AuthenticatorAssertionResponseValidator;
 use Webauthn\AuthenticatorAttestationResponse;
 use Webauthn\AuthenticatorAttestationResponseValidator;
@@ -27,6 +29,7 @@ use Webauthn\AuthenticatorSelectionCriteria;
 use Webauthn\PublicKeyCredential;
 use Webauthn\PublicKeyCredentialCreationOptions;
 use Webauthn\PublicKeyCredentialParameters;
+use Webauthn\PublicKeyCredentialRequestOptions;
 use Webauthn\PublicKeyCredentialRpEntity;
 use Webauthn\PublicKeyCredentialUserEntity;
 
@@ -123,5 +126,133 @@ class WebAuthnManager
         }
 
         return $this->repository->store($user->id, $record, $this->challenges->pullLabel());
+    }
+
+    /**
+     * @return array<string, mixed> request options ready for JSON
+     */
+    public function startLogin(?string $email): array
+    {
+        $allow = [];
+        if ($email !== null && $email !== '') {
+            $user = model(UserModel::class)->findByCredentials(['email' => $email]);
+            if ($user !== null) {
+                $allow = $this->repository->descriptorsForUser($user->id); // empty stays usernameless / anti-enumeration
+            }
+        }
+
+        $options = PublicKeyCredentialRequestOptions::create(
+            random_bytes(32),
+            $this->rpId(),
+            $allow,
+            (string) setting('AuthSecurity.webauthnUserVerification'),
+            (int) setting('AuthSecurity.webauthnTimeout'),
+        );
+
+        $json = $this->serializer->serialize($options, 'json');
+        $this->challenges->store('login', $json);
+
+        return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    public function finishLogin(string $browserJson): User
+    {
+        $entry = $this->challenges->pull('login');
+        if ($entry === null) {
+            throw new WebAuthnException(lang('Auth.webauthnChallengeExpired'));
+        }
+
+        return $this->verifyAssertion($entry['options'], $browserJson, null);
+    }
+
+    /**
+     * @return array<string, mixed> request options scoped to the pending user
+     */
+    public function startTwoFactor(User $pendingUser): array
+    {
+        $options = PublicKeyCredentialRequestOptions::create(
+            random_bytes(32),
+            $this->rpId(),
+            $this->repository->descriptorsForUser($pendingUser->id),
+            (string) setting('AuthSecurity.webauthnUserVerification'),
+            (int) setting('AuthSecurity.webauthnTimeout'),
+        );
+
+        $json = $this->serializer->serialize($options, 'json');
+        $this->challenges->store('2fa', $json, $pendingUser->id);
+
+        return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    public function finishTwoFactor(User $pendingUser, string $browserJson): bool
+    {
+        $entry = $this->challenges->pull('2fa', $pendingUser->id);
+        if ($entry === null) {
+            return false;
+        }
+
+        try {
+            $resolved = $this->verifyAssertion($entry['options'], $browserJson, $pendingUser->id);
+
+            return (string) $resolved->id === (string) $pendingUser->id;
+        } catch (WebAuthnException) {
+            return false;
+        }
+    }
+
+    /**
+     * Shared assertion verification. Looks up the credential by rawId, runs the
+     * library check (signature, challenge, origin, rpIdHash, UV, counter),
+     * persists the advanced counter, and returns the owning user.
+     *
+     * @param int|string|null $requireUserId when set, the credential must belong to this user
+     */
+    private function verifyAssertion(string $optionsJson, string $browserJson, int|string|null $requireUserId): User
+    {
+        try {
+            /** @var PublicKeyCredentialRequestOptions $options */
+            $options    = $this->serializer->deserialize($optionsJson, PublicKeyCredentialRequestOptions::class, 'json');
+            $credential = $this->serializer->deserialize($browserJson, PublicKeyCredential::class, 'json');
+
+            if (! $credential->response instanceof AuthenticatorAssertionResponse) {
+                throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));
+            }
+
+            $credentialId = rtrim(strtr(base64_encode($credential->rawId), '+/', '-_'), '=');
+            $userId       = $this->repository->userIdForCredentialId($credentialId);
+
+            if ($userId === null || ($requireUserId !== null && (string) $userId !== (string) $requireUserId)) {
+                throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));
+            }
+
+            $record = $this->repository->findRecordByCredentialId($credentialId);
+            if ($record === null) {
+                throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));
+            }
+
+            $updated = $this->assertionValidator->check(
+                $record,
+                $credential->response,
+                $options,
+                $this->rpId(),
+                $record->userHandle,
+            );
+        } catch (WebAuthnException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            log_message('warning', 'WebAuthn assertion failed: {m}', ['m' => $e->getMessage()]);
+
+            throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));
+        }
+
+        $this->repository->updateCounter($updated);
+
+        /** @var User|null $user */
+        $user = model(UserModel::class)->find($userId);
+        if ($user === null) {
+            throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));
+        }
+
+        return $user;
     }
 }

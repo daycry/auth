@@ -1309,9 +1309,9 @@ parameters:
 			path: src/Libraries/TokenEmailSender.php
 
 		-
-			rawMessage: 'Property Daycry\Auth\Libraries\WebAuthn\WebAuthnManager::$assertionValidator is never read, only written.'
-			identifier: property.onlyWritten
-			count: 1
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
 			path: src/Libraries/WebAuthn/WebAuthnManager.php
 
 		-
