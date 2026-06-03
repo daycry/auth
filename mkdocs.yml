@@ -1,0 +1,133 @@
+site_name: Daycry Auth
+site_description: Authentication & Authorization library for CodeIgniter 4 — Session, Access Token, JWT, OAuth, TOTP, WebAuthn/Passkeys, RBAC.
+site_author: Daycry
+site_url: https://daycry.github.io/auth/
+copyright: Copyright &copy; 2025 Daycry
+
+repo_url: https://github.com/daycry/auth
+repo_name: daycry/auth
+edit_uri: edit/development/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  logo: images/logo.svg
+  favicon: images/logo.svg
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tooltips
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+# Validate internal links AND anchors so `mkdocs build --strict` fails on any
+# broken reference (the build-time link oracle).
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+# Internal planning docs and the GitHub folder README are not part of the site.
+exclude_docs: |
+  superpowers/
+  README.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/daycry/auth
+    - icon: fontawesome/brands/php
+      link: https://packagist.org/packages/daycry/auth
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: 01-quick-start.md
+      - Configuration: 02-configuration.md
+  - Authentication:
+      - Overview: 03-authentication.md
+      - OAuth 2.0 / Social: 09-oauth.md
+      - TOTP 2FA: 10-totp-2fa.md
+      - WebAuthn / Passkeys: 15-webauthn.md
+      - Device Sessions: 11-device-sessions.md
+  - Controllers & Filters:
+      - Filters: 04-filters.md
+      - Controllers: 05-controllers.md
+  - Authorization & Logging:
+      - Authorization: 06-authorization.md
+      - Logging: 07-logging.md
+  - Compliance & Operations:
+      - Audit & Compliance: 13-audit-and-compliance.md
+      - CLI Commands: 14-cli-commands.md
+  - Reference:
+      - Testing: 08-testing.md
+      - Migration: 12-migration.md

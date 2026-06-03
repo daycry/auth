@@ -417,7 +417,6 @@ RBAC fallback.
 `buildDeniedResponse()` and redirects to `Auth::permissionDeniedRedirect()` (or returns a
 `403` JSON body for API requests).
 
-(token-scope-filter-token-scope)=
 ### 4. **Token Scope Filter** (`token-scope`)
 
 Validates that the **access token** used to authenticate the request grants every scope listed in the filter argument. Only meaningful after a token-based authenticator has run (`tokens`, `jwt`, or `chain`).

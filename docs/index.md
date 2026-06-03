@@ -2,57 +2,6 @@
 
 Welcome to the complete documentation for **Daycry Auth**, a comprehensive authentication and authorization library for CodeIgniter 4.
 
-```{toctree}
-:maxdepth: 2
-:caption: Getting Started
-
-01-quick-start
-02-configuration
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: Authentication
-
-03-authentication
-09-oauth
-10-totp-2fa
-15-webauthn
-11-device-sessions
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: Controllers & Filters
-
-04-filters
-05-controllers
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: Authorization & Logging
-
-06-authorization
-07-logging
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: Compliance & Operations
-
-13-audit-and-compliance
-14-cli-commands
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: Testing & Reference
-
-08-testing
-12-migration
-```
-
 ## Main Features
 
 ### Authentication
@@ -119,6 +68,9 @@ Google, GitHub, Facebook, Microsoft Azure — and any OIDC provider. Profile fie
 
 ### [TOTP Two-Factor Authentication](10-totp-2fa.md)
 Time-based OTP with authenticator apps, brute-force lockout, and single-use anti-replay codes.
+
+### [WebAuthn / Passkeys](15-webauthn.md)
+Passwordless login (usernameless/discoverable) and passkey 2FA, phishing-resistant, opt-in per user.
 
 ### [Device Sessions](11-device-sessions.md)
 Track and manage active logins across devices, with enforced revocation that forces re-authentication.
