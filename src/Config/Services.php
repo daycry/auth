@@ -24,6 +24,13 @@ use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\JwtTokenRepository;
 use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
+use Symfony\Component\Serializer\SerializerInterface;
+use Webauthn\AttestationStatement\AttestationStatementSupportManager;
+use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
+use Webauthn\AuthenticatorAssertionResponseValidator;
+use Webauthn\AuthenticatorAttestationResponseValidator;
+use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
+use Webauthn\Denormalizer\WebauthnSerializerFactory;
 
 class Services extends BaseService
 {
@@ -130,5 +137,66 @@ class Services extends BaseService
         helper('checkEndpoint');
 
         return new Logger(checkEndpoint());
+    }
+
+    /**
+     * Symfony serializer configured for web-auth/webauthn-lib (options,
+     * CredentialRecord and PublicKeyCredential (de)serialization).
+     */
+    public static function webAuthnSerializer(bool $getShared = true): SerializerInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('webAuthnSerializer');
+        }
+
+        $attestationSupport = AttestationStatementSupportManager::create();
+        $attestationSupport->add(NoneAttestationStatementSupport::create());
+
+        return (new WebauthnSerializerFactory($attestationSupport))->create();
+    }
+
+    /**
+     * Validator for registration (attestation) ceremonies.
+     */
+    public static function webAuthnAttestationValidator(bool $getShared = true): AuthenticatorAttestationResponseValidator
+    {
+        if ($getShared) {
+            return self::getSharedInstance('webAuthnAttestationValidator');
+        }
+
+        $factory = new CeremonyStepManagerFactory();
+        $factory->setAllowedOrigins(self::webAuthnAllowedOrigins());
+
+        return AuthenticatorAttestationResponseValidator::create($factory->creationCeremony());
+    }
+
+    /**
+     * Validator for login (assertion) ceremonies.
+     */
+    public static function webAuthnAssertionValidator(bool $getShared = true): AuthenticatorAssertionResponseValidator
+    {
+        if ($getShared) {
+            return self::getSharedInstance('webAuthnAssertionValidator');
+        }
+
+        $factory = new CeremonyStepManagerFactory();
+        $factory->setAllowedOrigins(self::webAuthnAllowedOrigins());
+
+        return AuthenticatorAssertionResponseValidator::create($factory->requestCeremony());
+    }
+
+    /**
+     * Returns the list of origins accepted during a ceremony.
+     *
+     * @return list<string>
+     */
+    private static function webAuthnAllowedOrigins(): array
+    {
+        $origins = (array) (setting('AuthSecurity.webauthnAllowedOrigins') ?? []);
+        if ($origins === []) {
+            $origins = [rtrim(base_url(), '/')];
+        }
+
+        return array_values(array_map('strval', $origins));
     }
 }
