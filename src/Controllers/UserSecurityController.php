@@ -64,9 +64,11 @@ class UserSecurityController extends BaseAuthController
         $currentSid = session_id();
 
         return $this->view(setting('Auth.views')['security_overview'], [
-            'sessions'    => $sessions,
-            'currentSid'  => $currentSid,
-            'totpEnabled' => $user->hasTotpEnabled(),
+            'sessions'            => $sessions,
+            'currentSid'          => $currentSid,
+            'totpEnabled'         => $user->hasTotpEnabled(),
+            'webAuthnCredentials' => $user->webAuthnCredentials(),
+            'webauthnEnabled'     => (bool) (setting('AuthSecurity.webauthnEnabled') ?? false),
         ]);
     }
 
