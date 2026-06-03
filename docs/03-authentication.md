@@ -15,6 +15,7 @@ Daycry Auth supports multiple authentication methods. This guide explains how to
 - [JWT Access-Token Revocation](#jwt-access-token-revocation)
 - [JWT Refresh Tokens](#jwt-refresh-tokens)
 - [Magic Link Authentication](#magic-link-authentication)
+- [WebAuthn / Passkeys](#webauthn--passkeys)
 - [Guest Authenticator](#guest-authenticator)
 - [Password Reset](#password-reset)
 - [Force Password Reset](#force-password-reset)
@@ -654,6 +655,19 @@ $routes->get('login/verify-magic-link', 'MagicLinkController::verify',     ['as'
 
 ---
 
+## WebAuthn / Passkeys
+
+**Best for**: Phishing-resistant, passwordless sign-in (Face ID / Touch ID / Windows Hello / security keys), and a strong opt-in second factor.
+
+Passkeys authenticate with public-key cryptography instead of a shared secret. The private key never leaves the device; the server stores only the public key, so a database breach exposes nothing replayable. Credentials are bound to your domain, making passkeys **phishing-resistant by design**. The feature is **opt-in per user** behind the global `AuthSecurity::$webauthnEnabled` flag (default `false`), and supports two integration models:
+
+- **Passwordless login** (usernameless / discoverable) — the user signs in with just a passkey. A passkey verified with user verification is already multi-factor (possession + inherence), so a successful assertion **completes the session directly** via `auth()->login($user, false)` and does **not** re-run the `login` Action pipeline.
+- **Passkey as a second factor** — presented *after* the password through the post-auth Action system, using `Webauthn2FA` (mutually exclusive with `Totp2FA`, since only one `login` action is supported).
+
+The ceremonies run over JSON endpoints exposed by `WebAuthnController` (registered only when the flag is on). See [WebAuthn / Passkeys](15-webauthn.md) for configuration, enrollment, login/2FA flows, the `HasWebAuthn` trait, and the full set of security invariants.
+
+---
+
 ## Guest Authenticator
 
 **Best for**: Routes that work for both authenticated users and anonymous visitors.
@@ -890,7 +904,8 @@ If you are running this library in production you already need TLS — and once 
 | Server-to-server API auth | [Access Token (Bearer)](#access-token-authenticator) or [JWT](#jwt-authenticator) |
 | Web login with sessions | [Session](#session-authenticator) |
 | Social login | [OAuth 2.0](09-oauth.md) |
-| Passwordless | [Magic Link](#magic-link-authentication) |
+| Passwordless | [Magic Link](#magic-link-authentication) or [WebAuthn / Passkeys](15-webauthn.md) |
+| Phishing-resistant MFA | [WebAuthn / Passkeys](15-webauthn.md) |
 | HTTP-level basic auth | [`BasicAuthFilter`](../src/Filters/BasicAuthFilter.php) over TLS |
 
 ### If your use case really requires Digest
@@ -914,5 +929,6 @@ The decision **not to merge this into `daycry/auth` core** is intentional — ke
 - [Filters](04-filters.md) — Protect routes with authentication filters
 - [Controllers](05-controllers.md) — Password reset and force reset controllers
 - [TOTP 2FA](10-totp-2fa.md) — Time-based one-time passwords
+- [WebAuthn / Passkeys](15-webauthn.md) — Passwordless login and passkey 2FA
 - [Device Sessions](11-device-sessions.md) — Track active logins
 - [Logging & Monitoring](07-logging.md) — Events and logs

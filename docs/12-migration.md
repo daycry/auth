@@ -14,21 +14,22 @@ This document summarises breaking changes between major versions and how to upgr
 
 ## Upgrading to this release — token-version revocation & hashed ephemeral tokens
 
-This release ships one additive migration and several **behavioural** changes that upgraders must be aware of. There are **no destructive schema changes** — the only schema delta is the additive `users.token_version` column.
+This release ships two additive migrations and several **behavioural** changes that upgraders must be aware of. There are **no destructive schema changes** — the schema deltas are the additive `users.token_version` column and the new `auth_webauthn_credentials` table.
 
 ### Required steps
 
-1. **Run migrations** — one new migration ships with this release:
+1. **Run migrations** — two new migrations ship with this release:
 
    | Migration | Adds |
    |-----------|------|
    | `2026-05-08-000001_add_jwt_token_version_to_users` | `users.token_version` (`int`, `NOT NULL`, default `0`) |
+   | `2026-06-03-000001_create_webauthn_credentials` | `auth_webauthn_credentials` — the dedicated WebAuthn / passkey credential table |
 
    ```bash
    php spark migrate --all
    ```
 
-   The column backs JWT access-token revocation (see below). `down()` simply drops the column.
+   `2026-05-08-000001` backs JWT access-token revocation (see below); its `down()` simply drops the column. `2026-06-03-000001` creates the passkey table; it is only *used* when `AuthSecurity::$webauthnEnabled` is `true`, but the table is created regardless so enabling the flag later requires no further migration. See [WebAuthn / Passkeys — Storage](15-webauthn.md#storage).
 
 2. **Schedule `php spark auth:purge`** — `AuthSecurity::$rememberMePurgeChance` now defaults to **`0`** (was `20`). Expired remember-me tokens are now rejected at validation time regardless, so the old probabilistic on-login purge is pure table maintenance. Move that maintenance to a scheduled command instead:
 

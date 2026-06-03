@@ -13,6 +13,7 @@ This guide covers all controllers included with Daycry Auth, including the new p
 - [ForcePasswordResetController](#forcepasswordresetcontroller)
 - [JwtController](#jwtcontroller)
 - [OauthController](#oauthcontroller)
+- [WebAuthnController](#webauthncontroller)
 - [UserSecurityController](#usersecuritycontroller)
 - [Creating Custom Controllers](#creating-custom-controllers)
 - [Best Practices](#best-practices)
@@ -493,11 +494,32 @@ class OauthController extends BaseOauthController
 
 ---
 
+## WebAuthnController
+
+Exposes the WebAuthn / passkey ceremonies as **JSON endpoints**. The routes are auto-registered from `Config/Auth.php::$routes['webauthn']` **only when `AuthSecurity::$webauthnEnabled` is `true`**; the controller additionally re-checks the flag and returns `404` when the feature is disabled (defense in depth).
+
+| Method | Route | Action | Access |
+|--------|-------|--------|--------|
+| `POST` | `webauthn/register/options` | enrollment: creation options | auth required |
+| `POST` | `webauthn/register/verify` | enrollment: verify attestation | auth required |
+| `POST` | `webauthn/login/options` | passwordless: request options | public |
+| `POST` | `webauthn/login/verify` | passwordless: verify assertion | public |
+| `POST` | `webauthn/2fa/options` | 2FA: request options for the pending user | pending login |
+| `POST` | `webauthn/credentials/{uuid}/delete` | revoke a passkey | auth required |
+
+Every endpoint returns JSON (`{status, ...}` on success, or `{status:"error", error, message}` with a 4xx code). A successful passwordless `login/verify` establishes the session and returns `{status:"ok", redirect}`. The 2FA verify step is handled by the `Webauthn2FA` action through the shared `ActionController` verify endpoint, not by `WebAuthnController`.
+
+This is a JSON API controller — you typically do not extend it; an SPA can call the endpoints directly, while the bundled `webauthn_setup` / `webauthn_2fa_verify` views drive the browser ceremonies. See [WebAuthn / Passkeys — Routes & JSON Endpoints](15-webauthn.md#routes--json-endpoints) for the full request/response contracts and error codes.
+
+---
+
 ## UserSecurityController
 
 Provides self-service security management for logged-in users: change password, change email, manage device sessions, and unlink OAuth providers.
 
 **All routes require an active session** (`filter: session`).
+
+> When WebAuthn is enabled, the user's registered passkeys are listed inside the existing `security_overview` view rendered by this controller — the enrollment / deletion ceremonies themselves run against the JSON endpoints of [`WebAuthnController`](#webauthncontroller). See [WebAuthn / Passkeys](15-webauthn.md#frontend--javascript).
 
 ### Register the Routes
 
