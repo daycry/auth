@@ -39,7 +39,7 @@ of *other* users' credentials.
 |---|---|---|
 | Integration model | Passwordless **and** 2FA | Same credential storage; max coverage. |
 | Storage | Dedicated table `auth_webauthn_credentials` | Matches existing dedicated-table pattern (`device_sessions`, `totp_backup_codes`, `password_history`); `sign_count`/`credential_id` need an indexed column, not JSON. |
-| Crypto library | `web-auth/webauthn-lib` (Spomky-Labs) | Conformance-tested, most complete. **Risk:** pulls symfony deps — must resolve cleanly on a clean CI4 app (validated as plan step 0). |
+| Crypto library | `web-auth/webauthn-lib:^5.3` (Spomky-Labs) | Conformance-tested. v5 API: `Webauthn\CredentialRecord` + `CeremonyStepManagerFactory`, no repository interface, `string $host` (no PSR-7). **Risk:** pulls `symfony/serializer`+`uid`+`clock`+`spomky-labs/cbor-php`+`web-auth/cose-lib` — must resolve cleanly on a clean CI4 app (validated as plan step 0). |
 | Architecture | Mirror the OAuth pattern | `OauthManager`/`OauthController`/`OAuthTokenRepository` end in a Session login; WebAuthn is the same shape. No new chain authenticator. |
 | Frontend | Reference views + vanilla JS over JSON endpoints | Consistent with the library's batteries-included, overridable views; SPAs can call the JSON endpoints directly. |
 
@@ -54,16 +54,15 @@ New files (each follows an existing sibling pattern):
 
 ```
 src/
-├── Authentication/
-│   ├── Actions/Webauthn2FA.php           # 2FA action            (≈ Totp2FA)
-│   └── WebAuthn/
-│       ├── WebAuthnManager.php           # orchestrates ceremonies (≈ OauthManager)
-│       └── ChallengeManager.php          # per-ceremony challenge: single-use + TTL (session-backed)
-├── Controllers/WebAuthnController.php     # ceremony endpoints (JSON)
+├── Authentication/Actions/Webauthn2FA.php  # 2FA action            (≈ Totp2FA)
+├── Libraries/WebAuthn/
+│   ├── WebAuthnManager.php                # orchestrates ceremonies (≈ Libraries/Oauth/OauthManager)
+│   └── ChallengeManager.php               # per-ceremony challenge: single-use + TTL (session-backed)
+├── Controllers/WebAuthnController.php      # ceremony endpoints (JSON)
 ├── Entities/WebAuthnCredential.php
 ├── Models/
 │   ├── WebAuthnCredentialModel.php        # CRUD + UUID v7        (≈ DeviceSessionModel)
-│   └── WebAuthnCredentialRepository.php   # implements the lib's credential-source repo interface (≈ OAuthTokenRepository)
+│   └── WebAuthnCredentialRepository.php   # row <-> CredentialRecord persistence seam (≈ OAuthTokenRepository; implements NO lib interface)
 ├── Traits/HasWebAuthn.php                 # User: webAuthnCredentials(), revoke…()  (≈ HasTotp)
 ├── Database/Migrations/2026-06-03-000001_create_webauthn_credentials.php  # date = creation day
 └── Views/
@@ -72,11 +71,16 @@ src/
     └── _webauthn_js.php                   # shared base64url/ceremony JS partial
 ```
 
-`WebAuthnCredentialRepository` implements the credential-source repository
-interface required by `web-auth/webauthn-lib` (exact interface name pinned when
-the dependency is resolved), backed by `WebAuthnCredentialModel`. It is the
-bridge between the crypto library and persistence. Layering for deptrac:
-`Controller → Manager → Repository → Model`; no `Entity → DB`.
+`WebAuthnCredentialRepository` is the persistence seam that maps table rows to
+`web-auth/webauthn-lib`'s `Webauthn\CredentialRecord` and back (via the library's
+serializer), backed by `WebAuthnCredentialModel`. **v5 of the library requires no
+repository interface** in pure-PHP mode — the validators take and return
+`CredentialRecord` directly — so this class mirrors `OAuthTokenRepository` (a plain
+CRUD wrapper implementing no external interface). The manager and challenge helper
+live under `src/Libraries/WebAuthn/` (deptrac **Library** layer), exactly like
+`src/Libraries/Oauth/`. Layering: `Controller → Library(Manager) →
+Model(Repository)` — all already-allowed edges, so **no new deptrac layers or
+rules are required**.
 
 ## Data schema
 
@@ -89,7 +93,7 @@ New table **`auth_webauthn_credentials`** (configurable via
 | `uuid` | UUID v7 | external reference, consistent with other tables |
 | `user_id` | BIGINT UNSIGNED, FK→users, **index** | one user → many credentials |
 | `credential_id` | VARCHAR(512), **UNIQUE** | `rawId` base64url; lookup key on every assertion |
-| `credential` | TEXT/JSON | **source of truth**: serialized `PublicKeyCredentialSource` (all crypto reads this) |
+| `credential` | TEXT/JSON | **source of truth**: serialized `Webauthn\CredentialRecord` (all crypto reads this) |
 | `user_handle` | VARCHAR(255) | opaque WebAuthn user handle = `users.uuid` (non-PII); usernameless lookup |
 | `name` | VARCHAR(255), nullable | user label ("Juan's iPhone") |
 | `sign_count` | INT UNSIGNED | denormalized mirror for display/audit |
