@@ -22,7 +22,7 @@ Time-based One-Time Passwords (TOTP) add a powerful second layer of security to 
 
 ## How It Works
 
-```
+```text
 User enters email + password
         ↓
 Credentials verified ✅
@@ -333,7 +333,7 @@ Backup codes let a user authenticate when their authenticator app is unavailable
 
 `Totp2FA::verifyCodeForUser()` first attempts to verify the input as a TOTP code. If that fails, it tries to consume a backup code:
 
-```
+```text
 User submits "abc123def4"
         ↓
 TOTP::verify(...) → false (not a 6-digit code)

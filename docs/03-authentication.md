@@ -329,7 +329,7 @@ X-API-KEY: your_raw_token_here
 
 Or via query string:
 
-```
+```text
 GET /api/users?token=your_raw_token_here
 ```
 

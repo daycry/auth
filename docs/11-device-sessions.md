@@ -65,7 +65,7 @@ With `trackDeviceSessions` set to `true`, every successful login call to `Sessio
 
 Device sessions require the `auth_device_sessions` table, which is created by the migration at:
 
-```
+```text
 src/Database/Migrations/2026-02-26-000002_create_device_sessions.php
 ```
 

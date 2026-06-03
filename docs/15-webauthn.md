@@ -43,7 +43,7 @@ So: **enabling the flag lets users who want a passkey configure one. It never ob
 WebAuthn replaces the shared secret (a password) with an asymmetric key pair generated and held by the authenticator. Authentication is a signed challenge–response, so there is no replayable secret and a database breach exposes only useless public keys.
 
 **Passwordless login:**
-```
+```text
 User clicks "Sign in with a passkey"
         ↓
 Server issues a random challenge (request options)
@@ -98,7 +98,7 @@ setting('AuthSecurity.webauthnRelyingPartyName', 'My App');
 
 Registered automatically by `auth()->routes($routes)` **only when `webauthnEnabled` is true** (the controller also re-checks and 404s — defense in depth):
 
-```
+```text
 POST  webauthn/register/options              # enrolment: get creation options   (auth required)
 POST  webauthn/register/verify               # enrolment: verify attestation       (auth required)
 POST  webauthn/login/options                 # passwordless: get request options   (public)
