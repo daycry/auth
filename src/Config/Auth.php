@@ -17,6 +17,7 @@ use CodeIgniter\Config\BaseConfig;
 use Daycry\Auth\Authentication\Actions\Email2FA;
 use Daycry\Auth\Authentication\Actions\EmailActivator;
 use Daycry\Auth\Authentication\Actions\Totp2FA;
+use Daycry\Auth\Authentication\Actions\Webauthn2FA;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Authentication\Authenticators\JWT;
 use Daycry\Auth\Authentication\Authenticators\Session;
@@ -212,6 +213,7 @@ class Auth extends BaseConfig
      * Available action classes:
      * - Email2FA::class       — sends a 6-digit code by email (login)
      * - Totp2FA::class        — validates an RFC 6238 TOTP code (login)
+     * - Webauthn2FA::class    — validates a WebAuthn/passkey assertion (login)
      * - EmailActivator::class — requires email confirmation before login (register)
      *
      * Only one action per event is supported.

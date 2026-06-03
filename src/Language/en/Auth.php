@@ -40,6 +40,7 @@ return [
     'webauthnVerificationFailed' => 'Passkey verification failed.',
     'webauthnDisabled'           => 'Passkey sign-in is not available.',
     'notLoggedIn'                => 'You must be logged in to do that.',
+    'needWebauthn'               => 'Please verify with your passkey.',
 
     'email'           => 'Email Address',
     'username'        => 'Username',
