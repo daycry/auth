@@ -59,7 +59,7 @@ final class WebAuthnCredentialModelTest extends DatabaseTestCase
         $this->seedCredential((int) $user->id, 'cred-revoked', '2020-01-01 00:00:00');
 
         $this->assertInstanceOf(WebAuthnCredential::class, $model->firstActiveByCredentialId('cred-active'));
-        $this->assertNull($model->firstActiveByCredentialId('cred-revoked'));
+        $this->assertNotInstanceOf(WebAuthnCredential::class, $model->firstActiveByCredentialId('cred-revoked'));
     }
 
     public function testActiveForUserAndCount(): void

@@ -234,6 +234,6 @@ class Services extends BaseService
             $origins = [rtrim(base_url(), '/')];
         }
 
-        return array_values(array_map('strval', $origins));
+        return array_values(array_map(strval(...), $origins));
     }
 }

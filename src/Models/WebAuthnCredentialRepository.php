@@ -113,7 +113,7 @@ class WebAuthnCredentialRepository
 
     public function revokeByUuid(int|string $userId, string $uuid): bool
     {
-        $row = $this->model->where('user_id', $userId)->where('uuid', $uuid)->where('revoked_at', null)->first();
+        $row = $this->model->where('user_id', $userId)->where('uuid', $uuid)->where('revoked_at')->first();
         if ($row === null) {
             return false;
         }

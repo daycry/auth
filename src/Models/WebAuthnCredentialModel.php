@@ -60,7 +60,7 @@ class WebAuthnCredentialModel extends Model
     {
         /** @var WebAuthnCredential|null $row */
         $row = $this->where('credential_id', $credentialId)
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->first();
 
         return $row;
@@ -73,7 +73,7 @@ class WebAuthnCredentialModel extends Model
     {
         /** @var list<WebAuthnCredential> $rows */
         $rows = $this->where('user_id', $userId)
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->orderBy('id', 'ASC')
             ->findAll();
 
@@ -83,7 +83,7 @@ class WebAuthnCredentialModel extends Model
     public function countActiveForUser(int|string $userId): int
     {
         return $this->where('user_id', $userId)
-            ->where('revoked_at', null)
+            ->where('revoked_at')
             ->countAllResults();
     }
 }

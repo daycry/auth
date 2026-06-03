@@ -44,31 +44,31 @@ final class VirtualAuthenticator
     /**
      * PEM-encoded EC private key (prime256v1).
      */
-    private string $privateKeyPem;
+    private readonly string $privateKeyPem;
 
     /**
      * Raw 32-byte X coordinate of the public key.
      */
-    private string $x;
+    private readonly string $x;
 
     /**
      * Raw 32-byte Y coordinate of the public key.
      */
-    private string $y;
+    private readonly string $y;
 
     /**
      * Raw credential id bytes.
      */
-    private string $credentialIdRaw;
+    private readonly string $credentialIdRaw;
 
     /**
      * 16-byte AAGUID (zeros for "none").
      */
-    private string $aaguid;
+    private readonly string $aaguid;
 
     private int $signCount = 0;
 
-    public function __construct(private string $rpId, private string $origin)
+    public function __construct(private readonly string $rpId, private readonly string $origin)
     {
         $config = $this->opensslConfig();
         $args   = [

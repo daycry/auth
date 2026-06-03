@@ -52,7 +52,7 @@ class WebAuthnManager
     {
         $id = setting('AuthSecurity.webauthnRelyingPartyId');
 
-        return is_string($id) && $id !== '' ? $id : (parse_url((string) base_url(), PHP_URL_HOST) ?: 'localhost');
+        return is_string($id) && $id !== '' ? $id : (parse_url(base_url(), PHP_URL_HOST) ?: 'localhost');
     }
 
     /**

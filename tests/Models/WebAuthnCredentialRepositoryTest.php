@@ -89,7 +89,7 @@ final class WebAuthnCredentialRepositoryTest extends DatabaseTestCase
         $entity = $repo->store((int) $user->id, $record, null);
 
         $this->assertTrue($repo->revokeByUuid((int) $user->id, (string) $entity->uuid));
-        $this->assertNull($repo->findRecordByCredentialId($entity->credential_id));
+        $this->assertNotInstanceOf(CredentialRecord::class, $repo->findRecordByCredentialId($entity->credential_id));
         $this->assertSame(0, $repo->countActiveForUser((int) $user->id));
     }
 }
