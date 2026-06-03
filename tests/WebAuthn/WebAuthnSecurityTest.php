@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\WebAuthn;
 
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\WebAuthnCredential;
 use Daycry\Auth\Exceptions\WebAuthnException;
 use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
 use Daycry\Auth\Models\UserModel;
@@ -196,7 +197,7 @@ final class WebAuthnSecurityTest extends DatabaseTestCase
         // (the validator compares against the counter rebuilt from this JSON).
         $model = model(WebAuthnCredentialModel::class);
         $row   = $model->where('user_id', $user->id)->first();
-        $this->assertNotNull($row);
+        $this->assertInstanceOf(WebAuthnCredential::class, $row);
 
         $credential            = json_decode($row->credential, true, 512, JSON_THROW_ON_ERROR);
         $credential['counter'] = 100;
