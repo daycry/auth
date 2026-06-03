@@ -42,7 +42,7 @@ trait BaseControllerTrait
     protected AttemptHandler $attemptHandler;
     protected ExceptionHandler $exceptionHandler;
     protected array $args;
-    protected mixed $content = null;
+    protected mixed $content         = null;
     protected bool $requestFinalized = false;
 
     /**

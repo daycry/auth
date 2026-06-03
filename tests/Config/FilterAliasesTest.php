@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Config;
 
+use Config\Filters;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\TestCase;
 
@@ -24,6 +25,26 @@ use Tests\Support\TestCase;
  */
 final class FilterAliasesTest extends TestCase
 {
+    #[DataProvider('provideDocumentedAliasResolvesToExistingClass')]
+    public function testDocumentedAliasResolvesToExistingClass(string $alias): void
+    {
+        /** @var Filters $filtersConfig */
+        $filtersConfig = config('Filters');
+
+        $this->assertArrayHasKey(
+            $alias,
+            $filtersConfig->aliases,
+            "Filter alias '{$alias}' must be auto-registered by Registrar.",
+        );
+
+        $class = $filtersConfig->aliases[$alias];
+
+        $this->assertTrue(
+            class_exists($class),
+            "Filter class for alias '{$alias}' must exist: {$class}",
+        );
+    }
+
     /**
      * The aliases auto-registered by Registrar::Filters() and documented in
      * docs/04-filters.md. If this list and the Registrar drift, the docs (and
@@ -31,7 +52,7 @@ final class FilterAliasesTest extends TestCase
      *
      * @return iterable<string, array{string}>
      */
-    public static function aliasProvider(): iterable
+    public static function provideDocumentedAliasResolvesToExistingClass(): iterable
     {
         foreach ([
             'auth',
@@ -48,25 +69,5 @@ final class FilterAliasesTest extends TestCase
         ] as $alias) {
             yield $alias => [$alias];
         }
-    }
-
-    #[DataProvider('aliasProvider')]
-    public function testDocumentedAliasResolvesToExistingClass(string $alias): void
-    {
-        /** @var \Config\Filters $filtersConfig */
-        $filtersConfig = config('Filters');
-
-        $this->assertArrayHasKey(
-            $alias,
-            $filtersConfig->aliases,
-            "Filter alias '{$alias}' must be auto-registered by Registrar.",
-        );
-
-        $class = $filtersConfig->aliases[$alias];
-
-        $this->assertTrue(
-            class_exists($class),
-            "Filter class for alias '{$alias}' must exist: {$class}",
-        );
     }
 }

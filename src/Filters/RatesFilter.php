@@ -104,7 +104,7 @@ class RatesFilter implements FilterInterface
         }
 
         if (isset($arguments[1])) {
-            $time = $this->parsePeriod((string) $arguments[1], $time);
+            $time = $this->parsePeriod($arguments[1], $time);
         }
 
         return [$limit, $time];

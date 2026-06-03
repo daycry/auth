@@ -167,7 +167,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
         // Never persist the full signed JWT in the login log — it is a usable
         // bearer credential until it expires. Record a non-reversible SHA-256
         // fingerprint instead so log correlation is preserved without exposure.
-        return $token === '' ? '' : hash('sha256', $token);
+        return $token === '' ? '' : hash('sha256', (string) $token);
     }
 
     /**

@@ -30,29 +30,29 @@ use Daycry\Auth\Interfaces\UserProviderInterface;
  * Common methods (defined by AuthenticatorInterface — available on every
  * authenticator: Session, AccessToken, JWT):
  *
- * @method Result    attempt(array $credentials)
- * @method Result    check(array $credentials)
- * @method mixed     getLogCredentials(array $credentials)
- * @method User|null getUser()
- * @method bool      loggedIn()
- * @method void      login(User $user, bool $actions = true)
- * @method void      loginById(int|string $userId)
- * @method void      logout()
- * @method void      recordActiveDate()
- *
- * Session-only methods (calling these through a stateless authenticator throws):
+ * @method Result               attempt(array $credentials)
+ * @method Result               check(array $credentials)
  * @method bool                 checkAction(UserIdentity $identity, string $token)
  * @method void                 completeLogin(User $user)
  * @method void                 forget(?User $user = null)
  * @method ActionInterface|null getAction()
+ * @method mixed                getLogCredentials(array $credentials)
  * @method string               getPendingMessage()
  * @method User|null            getPendingUser()
+ * @method User|null            getUser()
  * @method bool                 hasAction(int|string|null $userId = null)
  * @method bool                 isAnonymous()
  * @method bool                 isPending()
- * @method self                 remember(bool $shouldRemember = true)
- * @method void                 startLogin(User $user)
- * @method bool                 startUpAction(string $type, User $user)
+ * @method bool                 loggedIn()
+ * @method void                 login(User $user, bool $actions = true)
+ * @method void                 loginById(int|string $userId)
+ * @method void                 logout()
+ * @method void                 recordActiveDate()
+ *
+ * Session-only methods (calling these through a stateless authenticator throws):
+ * @method self remember(bool $shouldRemember = true)
+ * @method void startLogin(User $user)
+ * @method bool startUpAction(string $type, User $user)
  */
 class Auth
 {

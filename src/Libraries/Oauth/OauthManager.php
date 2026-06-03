@@ -397,7 +397,6 @@ class OauthManager
         $repo     = $this->getRepository();
         $provider = auth()->getProvider();
 
-        /** @var User|null $user */
         $user = $provider->findById($userId);
 
         if (! $user instanceof User) {

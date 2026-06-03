@@ -222,7 +222,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
 
         // A login attempt should have always been recorded
         $this->seeInDatabase('auth_logins', [
-            'id_type'    => JWT::ID_TYPE_JWT,
+            'id_type' => JWT::ID_TYPE_JWT,
             // The login log stores a non-reversible fingerprint, never the raw JWT.
             'identifier' => hash('sha256', self::BAD_JWT),
             'success'    => 0,
@@ -320,7 +320,7 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
 
         // A login attempt should have been recorded
         $this->seeInDatabase('auth_logins', [
-            'id_type'    => JWT::ID_TYPE_JWT,
+            'id_type' => JWT::ID_TYPE_JWT,
             // The login log stores a non-reversible fingerprint, never the raw JWT.
             'identifier' => hash('sha256', self::BAD_JWT),
             'success'    => 0,

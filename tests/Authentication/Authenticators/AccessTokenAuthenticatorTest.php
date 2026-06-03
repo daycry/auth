@@ -256,7 +256,7 @@ final class AccessTokenAuthenticatorTest extends DatabaseTestCase
 
         // A failed login attempt should have been recorded by default.
         $this->seeInDatabase($this->tables['logins'], [
-            'id_type'    => AccessToken::ID_TYPE_ACCESS_TOKEN,
+            'id_type' => AccessToken::ID_TYPE_ACCESS_TOKEN,
             // The login log stores a non-reversible fingerprint, never the raw token.
             'identifier' => hash('sha256', 'abc123'),
             'success'    => 0,

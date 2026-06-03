@@ -32,13 +32,12 @@ class GroupPermissionRepository
      * matches $cache: rows not in $cache are removed, and rows in $cache but
      * not yet persisted ($existing) are inserted — all in one transaction.
      *
-     * @param int|string                         $userId
-     * @param string                             $type     'group_id' | 'permission_id'
-     * @param GroupUserModel|PermissionUserModel $model
-     * @param list<int|string>                   $cache    Desired set of ids
-     * @param list<int|string>                   $existing Currently-persisted ids
-     *
-     * @phpstan-param 'group_id'|'permission_id' $type
+     * @param         int|string                         $userId
+     * @param         string                             $type     'group_id' | 'permission_id'
+     * @param         GroupUserModel|PermissionUserModel $model
+     * @param         list<int|string>                   $cache    Desired set of ids
+     * @param         list<int|string>                   $existing Currently-persisted ids
+     * @phpstan-param 'group_id'|'permission_id'         $type
      */
     public function saveUserPivot($userId, string $type, $model, array $cache, array $existing): void
     {

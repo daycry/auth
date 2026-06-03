@@ -33,7 +33,6 @@ final class MagicLinkControllerTest extends DatabaseTestCase
     use FeatureTestTrait;
 
     protected $namespace = 'Daycry\Auth';
-
     private int $userId;
 
     protected function setUp(): void

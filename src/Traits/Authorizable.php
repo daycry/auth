@@ -362,8 +362,8 @@ trait Authorizable
      *  - an exact match (`users.edit`);
      *  - a scope wildcard (`users.*` covers `users.edit`).
      *
-     * @param string        $permission   already-lowercased `scope.action` permission
-     * @param array<string> $grantedNames the granted permission names to check against
+     * @param string       $permission   already-lowercased `scope.action` permission
+     * @param list<string> $grantedNames the granted permission names to check against
      */
     private function permissionMatches(string $permission, array $grantedNames): bool
     {

@@ -173,7 +173,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
         // Record a non-reversible SHA-256 fingerprint instead — this is the same
         // hash the access token is stored under, so logs remain correlatable
         // without being usable to authenticate.
-        return $token === '' ? '' : hash('sha256', $token);
+        return $token === '' ? '' : hash('sha256', (string) $token);
     }
 
     /**
