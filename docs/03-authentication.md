@@ -329,7 +329,7 @@ X-API-KEY: your_raw_token_here
 
 Or via query string:
 
-```text
+```http
 GET /api/users?token=your_raw_token_here
 ```
 
@@ -534,7 +534,7 @@ public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity
 
 ### Login
 
-```text
+```http
 POST /auth/jwt/login
 Content-Type: application/x-www-form-urlencoded
 
@@ -554,7 +554,7 @@ email=user@example.com&password=secret
 
 ### Refresh an Expired Access Token
 
-```text
+```http
 POST /auth/jwt/refresh
 Content-Type: application/x-www-form-urlencoded
 
@@ -576,7 +576,7 @@ user_id=42&refresh_token=a3f8c2d1e4b7...
 
 ### Logout (Revoke Refresh Token)
 
-```text
+```http
 POST /auth/jwt/logout
 Content-Type: application/x-www-form-urlencoded
 

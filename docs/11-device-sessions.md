@@ -494,14 +494,12 @@ class DeviceSessionTest extends DatabaseTestCase
 
 ## Security Tips
 
-```{admonition} Best Practices
-:class: tip
+!!! tip "Best Practices"
 
-- Always use the `uuid` column when referencing sessions in URLs or API responses — never expose the integer `id`.
-- Show the user a "when and from where" summary so they can spot unfamiliar sessions.
-- Consider sending an email notification on new device logins for high-security applications.
-- Pair device sessions with per-user account lockout for defense in depth.
-```
+    - Always use the `uuid` column when referencing sessions in URLs or API responses — never expose the integer `id`.
+    - Show the user a "when and from where" summary so they can spot unfamiliar sessions.
+    - Consider sending an email notification on new device logins for high-security applications.
+    - Pair device sessions with per-user account lockout for defense in depth.
 
 ---
 
