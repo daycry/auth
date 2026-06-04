@@ -64,15 +64,20 @@ class JwtTokenRepository
     /**
      * Soft-revokes a JWT refresh token by setting revoked_at.
      *
-     * @param int      $identityId The identity record primary key
-     * @param int|null $userId     User id for audit (when known by the caller)
+     * @param int         $identityId The identity record primary key
+     * @param int|null    $userId     User id for audit (when known by the caller)
+     * @param string|null $reason     Optional reason recorded in the audit log
      */
-    public function softRevokeRefreshToken(int $identityId, ?int $userId = null): void
+    public function softRevokeRefreshToken(int $identityId, ?int $userId = null, ?string $reason = null): void
     {
         $this->identityModel->revokeIdentityById($identityId);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, [
-            'identity_id' => $identityId,
-        ]);
+        $metadata = ['identity_id' => $identityId];
+
+        if ($reason !== null) {
+            $metadata['reason'] = $reason;
+        }
+
+        (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, $metadata);
     }
 }

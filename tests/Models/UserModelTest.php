@@ -51,6 +51,22 @@ final class UserModelTest extends DatabaseTestCase
         ]);
     }
 
+    public function testGeneratesValidV7UuidOnInsert(): void
+    {
+        $users = $this->createUserModel();
+        $user  = $this->createNewUser();
+        $users->save($user);
+
+        $saved = $users->findByCredentials(['email' => 'foo@bar.com']);
+
+        // A canonical RFC 4122 UUID v7 (version nibble 7, variant 8/9/a/b).
+        $this->assertNotEmpty($saved->uuid);
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+            (string) $saved->uuid,
+        );
+    }
+
     /**
      * @see https://github.com/codeigniter4/shield/issues/546
      */

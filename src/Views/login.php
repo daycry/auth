@@ -57,6 +57,13 @@
                         <button type="submit" class="btn btn-primary btn-block"><?= lang('Auth.login') ?></button>
                     </div>
 
+                    <?php if (setting('AuthSecurity.webauthnEnabled')) : ?>
+                        <div class="d-grid col-12 col-md-8 mx-auto m-3">
+                            <button type="button" id="webauthn-login" class="btn btn-outline-secondary btn-block"><?= lang('Auth.webauthn2faStart') ?></button>
+                        </div>
+                        <p id="webauthn-login-msg" class="text-center text-danger"></p>
+                    <?php endif ?>
+
                     <?php if (setting('AuthSecurity.allowMagicLinkLogins')) : ?>
                         <p class="text-center"><?= lang('Auth.forgotPassword') ?> <a href="<?= url_to('magic-link') ?>"><?= lang('Auth.useMagicLink') ?></a></p>
                     <?php endif ?>
@@ -69,5 +76,29 @@
             </div>
         </div>
     </div>
+
+    <?php if (setting('AuthSecurity.webauthnEnabled')) : ?>
+        <?= $this->include('\Daycry\Auth\Views\_webauthn_js') ?>
+        <script>
+        document.getElementById('webauthn-login').addEventListener('click', async () => {
+            const msg = document.getElementById('webauthn-login-msg');
+            msg.textContent = '';
+            try {
+                // Usernameless (discoverable) sign-in: the optional email field
+                // narrows allowCredentials when present, but is not required.
+                const email = document.getElementById('floatingEmailInput').value || null;
+                const res = await window.AuthWebAuthn.login(email);
+                const data = await res.json();
+                if (res.ok && data.redirect) {
+                    window.location = data.redirect;
+                } else {
+                    msg.textContent = data.message || '<?= lang('Auth.webauthnVerificationFailed') ?>';
+                }
+            } catch (e) {
+                msg.textContent = e.message;
+            }
+        });
+        </script>
+    <?php endif ?>
 
 <?= $this->endSection() ?>

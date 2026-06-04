@@ -15,7 +15,6 @@ namespace Daycry\Auth\Commands;
 
 use CodeIgniter\CLI\CLI;
 use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Throwable;
@@ -108,7 +107,7 @@ class TokensCommand extends BaseCommand
 
         try {
             if ($type === 'all' || $type === 'access_token') {
-                $repo = new AccessTokenRepository(model(UserIdentityModel::class));
+                $repo = service('accessTokenRepository');
                 $repo->softRevokeAllAccessTokens($user);
                 $this->write('Revoked all access tokens for user ' . $user->id, 'green');
             }

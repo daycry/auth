@@ -99,6 +99,21 @@ class RememberModel extends BaseModel
     }
 
     /**
+     * Removes all persistent login tokens for a user identified by id.
+     *
+     * Used by the theft-detection response, where only the row's `user_id`
+     * (not a full User entity) is available.
+     *
+     * @param int|string $userId
+     */
+    public function purgeRememberTokensByUserId($userId): void
+    {
+        $return = $this->where('user_id', $userId)->delete();
+
+        $this->checkQueryReturn($return);
+    }
+
+    /**
      * Purges the 'auth_remember_tokens' table of any records that are past
      * their expiration date already.
      */

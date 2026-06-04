@@ -218,6 +218,30 @@ class AuthSecurity extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Gate → RBAC fallback
+     * --------------------------------------------------------------------
+     * When true, a Gate ability that looks like an RBAC permission (contains a
+     * scope, e.g. `users.edit`) and has no registered closure or policy falls
+     * back to the user's RBAC permissions via User::can(). This makes the
+     * `gate:` and `permission:` filters share semantics. Set false to keep the
+     * Gate and RBAC systems fully independent.
+     */
+    public bool $gateFallbackToRbac = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * users.last_active Throttle
+     * --------------------------------------------------------------------
+     * Minimum number of seconds between two consecutive `last_active` writes
+     * for the same user (see $recordActiveDate). Avoids one users-table
+     * UPDATE per request on the authenticated hot path.
+     *
+     * 0 disables throttling (writes on every request, the legacy behaviour).
+     */
+    public int $activeDateThrottle = 60;
+
+    /**
+     * --------------------------------------------------------------------
      * Allow Magic Link Logins
      * --------------------------------------------------------------------
      * If true, will allow the use of "magic links" sent via the email
@@ -315,10 +339,16 @@ class AuthSecurity extends BaseConfig
      * --------------------------------------------------------------------
      * Remember-Me Purge Chance
      * --------------------------------------------------------------------
-     * Probability (1–100) that old remember-me tokens are purged on login.
-     * Higher values mean more frequent purging. 0 = never purge automatically.
+     * Probability (1–100) that expired remember-me tokens are purged inline
+     * on login. 0 = never purge on the request path (the default).
+     *
+     * Purging is table maintenance, not a security control — expiry is always
+     * enforced when a token is validated (see RememberMe::checkRememberMeToken()),
+     * so an unpurged expired token can never authenticate. Prefer scheduling the
+     * `php spark auth:purge` command instead of paying purge latency (and a
+     * full-table scan) on a fraction of interactive logins.
      */
-    public int $rememberMePurgeChance = 20;
+    public int $rememberMePurgeChance = 0;
 
     /**
      * --------------------------------------------------------------------
@@ -407,4 +437,63 @@ class AuthSecurity extends BaseConfig
      * 3 hours = matches Laravel Fortify's default.
      */
     public int $passwordConfirmationLifetime = 3 * HOUR;
+
+    /**
+     * --------------------------------------------------------------------
+     * WebAuthn / Passkeys — availability
+     * --------------------------------------------------------------------
+     * Global availability flag. When false the feature does not exist:
+     * Auth::routes() registers no WebAuthn routes and every endpoint 404s.
+     * When true, users may opt in to enrolling a passkey. Obligatoriness
+     * (enforcement) is a separate, not-yet-implemented axis.
+     */
+    public bool $webauthnEnabled = false;
+
+    /**
+     * --------------------------------------------------------------------
+     * Relying Party identity
+     * --------------------------------------------------------------------
+     * The rpId is the domain credentials are bound to (origin binding /
+     * anti-phishing). null => derived from the current request host.
+     * The name is shown by the browser in the passkey prompt.
+     */
+    public ?string $webauthnRelyingPartyId = null;
+
+    public string $webauthnRelyingPartyName = 'Daycry Auth';
+
+    /**
+     * --------------------------------------------------------------------
+     * Allowed origins
+     * --------------------------------------------------------------------
+     * Origins accepted during ceremony verification. Empty => derived from
+     * base_url(). Add extra subdomains / native-app origins here.
+     *
+     * @var list<string>
+     */
+    public array $webauthnAllowedOrigins = [];
+
+    /**
+     * --------------------------------------------------------------------
+     * Ceremony parameters
+     * --------------------------------------------------------------------
+     * userVerification / residentKey: 'required' | 'preferred' | 'discouraged'.
+     * Recommend 'required' for passwordless. attestation: 'none' | 'indirect'
+     * | 'direct'. authenticatorAttachment: null (both) | 'platform' |
+     * 'cross-platform'. Timeout in ms; challenge TTL in seconds (single-use).
+     */
+    public string $webauthnUserVerification = 'preferred';
+
+    public string $webauthnResidentKey              = 'preferred';
+    public string $webauthnAttestationConveyance    = 'none';
+    public ?string $webauthnAuthenticatorAttachment = null;
+    public int $webauthnTimeout                     = 60000;
+    public int $webauthnChallengeTtl                = 120;
+
+    /**
+     * --------------------------------------------------------------------
+     * Per-user credential cap
+     * --------------------------------------------------------------------
+     * Maximum number of active passkeys a single user may register.
+     */
+    public int $webauthnMaxCredentialsPerUser = 10;
 }

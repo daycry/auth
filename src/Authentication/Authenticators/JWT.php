@@ -104,7 +104,19 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
             ]);
         }
 
-        $userId = $this->payload ?? null;
+        // The payload is either a bare scalar user id (legacy tokens) or an
+        // array/object carrying {uid, tv} where `tv` is the token_version the
+        // token was minted under.
+        $payload      = $this->payload ?? null;
+        $tokenVersion = null;
+
+        if (is_array($payload) || is_object($payload)) {
+            $data         = (array) $payload;
+            $userId       = $data['uid'] ?? null;
+            $tokenVersion = array_key_exists('tv', $data) ? (int) $data['tv'] : null;
+        } else {
+            $userId = $payload;
+        }
 
         if ($userId === null) {
             return new Result([
@@ -120,6 +132,15 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
             return new Result([
                 'success' => false,
                 'reason'  => lang('Auth.invalidUser'),
+            ]);
+        }
+
+        // Access-token revocation: a token minted under an older token_version
+        // (before a ban / password change / explicit revocation) is rejected.
+        if ($tokenVersion !== null && (int) ($user->token_version ?? 0) !== $tokenVersion) {
+            return new Result([
+                'success' => false,
+                'reason'  => lang('Auth.revokedToken'),
             ]);
         }
 
@@ -141,7 +162,12 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
     {
         $this->authType = self::ID_TYPE_JWT;
 
-        return $credentials['token'] ?? '';
+        $token = $credentials['token'] ?? '';
+
+        // Never persist the full signed JWT in the login log — it is a usable
+        // bearer credential until it expires. Record a non-reversible SHA-256
+        // fingerprint instead so log correlation is preserved without exposure.
+        return $token === '' ? '' : hash('sha256', (string) $token);
     }
 
     /**

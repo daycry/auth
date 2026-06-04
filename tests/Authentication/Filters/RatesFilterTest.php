@@ -101,4 +101,27 @@ final class RatesFilterTest extends FilterTestCase
         $result = $this->get('protected-route');
         $result->assertStatus(200);
     }
+
+    public function testFilterHonorsPerRouteLimitArgument(): void
+    {
+        // Global limit is deliberately generous...
+        setting('AuthSecurity.requestLimit', 100);
+        setting('AuthSecurity.timeLimit', 60);
+        setting('AuthSecurity.limitMethod', 'ROUTED_URL');
+
+        // ...but the route declares a tight per-route limit of 1 / MINUTE.
+        $routes = service('routes');
+        $routes->get('rates-arg-route', static function (): void {
+            echo 'Limited';
+        }, ['filter' => 'rates:1,MINUTE']);
+        Services::injectMock('routes', $routes);
+
+        // First hit allowed.
+        $this->get('rates-arg-route')->assertStatus(200);
+
+        // Second hit must be throttled because the ROUTE argument (1) overrides
+        // the generous global limit (100). Without argument parsing this would
+        // incorrectly return 200.
+        $this->get('rates-arg-route')->assertStatus(429);
+    }
 }

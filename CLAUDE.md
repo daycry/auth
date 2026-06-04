@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`daycry/auth` is a comprehensive Authentication/Authorization library for CodeIgniter 4 (PHP 8.1+). It provides multiple authentication methods (Session, Access Token, JWT, OAuth) and an RBAC authorization system. Full documentation lives in `docs/`.
+`daycry/auth` is a comprehensive Authentication/Authorization library for CodeIgniter 4 (PHP 8.2+). It provides multiple authentication methods (Session, Access Token, JWT, OAuth) and an RBAC authorization system. Full documentation lives in `docs/`.
 
 ## Commands
 
@@ -53,11 +53,14 @@ composer ci
 
 - All PHP files must start with `declare(strict_types=1);`
 - All classes and methods must have DocBlocks with types
-- Code must pass PHPStan level 5 (`phpstan.neon.dist`). The baseline (`phpstan-baseline.neon`) suppresses ~573 known pre-existing errors from CI4 tooling. **Regenerate the baseline after fixing real errors** — never add suppressions manually.
+- Code must pass PHPStan level 5 (`phpstan.neon.dist`). The baseline (`phpstan-baseline.neon`) suppresses a set of known pre-existing errors from CI4 tooling (mostly `model()`/factory and test-mock false positives). **Regenerate the baseline after fixing real errors** — never add suppressions manually.
 - Namespace root: `Daycry\Auth`
 - `model(ClassName::class)` calls are flagged by the PHPStan CI4 plugin (they go to the baseline). Inside traits, centralize them in a private getter method rather than repeating them per method.
 - Use `setting('AuthSecurity.totpIssuer')` / `setting('Auth.views')` etc. (the `setting()` helper) rather than `config('Auth')->...` for settings that can be overridden at runtime.
-- Notable `AuthSecurity` properties: `$rememberMePurgeChance` (int, default 20) — probability of remember-me token purge; `$pwnedPasswordsApiUrl` (string) — configurable HaveIBeenPwned API URL.
+- Notable `AuthSecurity` properties: `$rememberMePurgeChance` (int, default 0 — expiry is enforced at validation time, so the inline purge is maintenance only; schedule `php spark auth:purge`); `$activeDateThrottle` (int, default 60 — throttles `users.last_active` writes); `$gateFallbackToRbac` (bool, default true — Gate abilities containing a `.` fall back to `User::can()`); `$pwnedPasswordsApiUrl` (string) — configurable HaveIBeenPwned API URL.
+- JWT access-token revocation: `users.token_version` (migration `2026-05-08-000001`) is embedded in the access-token payload (`{uid, tv}`, legacy scalar still accepted) and re-checked on every JWT auth; `User::revokeIssuedTokens()` bumps it and is called by `Bannable::ban()` and `PasswordChangeRecorder::record()`.
+- Token repositories and RBAC persistence are resolvable services (`service('accessTokenRepository'|'jwtTokenRepository'|'oauthTokenRepository'|'groupPermissionRepository')`); the latter holds the transactional pivot persistence extracted from the `Authorizable` trait. UUID v7 generation goes through `service('uuid')->uuid7()` (`michalsn/codeigniter4-uuid`).
+- WebAuthn/Passkeys (`web-auth/webauthn-lib:^5.3`): opt-in passwordless login + passkey 2FA. Global availability flag `AuthSecurity.$webauthnEnabled` (default false → `Auth::routes()` registers no `webauthn` routes and the controller 404s). Credentials live in the dedicated `auth_webauthn_credentials` table (migration `2026-06-03-000001`), stored as the serialized v5 `Webauthn\CredentialRecord` plus denormalized columns. Mirrors the OAuth pattern: `WebAuthnManager` + `ChallengeManager` in `src/Libraries/WebAuthn/` (deptrac Library layer — no new layers), `WebAuthnController` (JSON ceremonies), `WebAuthnCredentialRepository` (row ↔ `CredentialRecord`, implements no lib interface). Services: `webAuthnManager`, `webAuthnCredentialRepository`, `webAuthnSerializer`, `webAuthnAttestationValidator`, `webAuthnAssertionValidator`. The `HasWebAuthn` trait adds `webAuthnCredentials()`/`hasWebAuthnCredentials()`/`revokeWebAuthnCredential()` to `User`. 2FA via the `Webauthn2FA` Action (mutually exclusive with `Totp2FA` as the `login` action). Passwordless verify ends in `auth()->login($user, false)`. Tests use `Tests\Support\WebAuthn\VirtualAuthenticator` (signs real ceremonies the genuine validators accept) + the `SuppressesWebauthnDeprecations` trait (the lib fires an RP-name `E_USER_DEPRECATED` that `CODEIGNITER_SCREAM_DEPRECATIONS=1` turns fatal). See `docs/15-webauthn.md`.
 
 ## Architecture
 

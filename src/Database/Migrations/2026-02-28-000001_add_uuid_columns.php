@@ -16,7 +16,6 @@ namespace Daycry\Auth\Database\Migrations;
 use CodeIgniter\Database\Forge;
 use CodeIgniter\Database\Migration;
 use Daycry\Auth\Config\Auth;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * Adds a `uuid` column (UUID v7, unique) to the users and device_sessions tables.
@@ -88,7 +87,7 @@ class AddUuidColumns extends Migration
             foreach ($rows as $row) {
                 $batch[] = [
                     'id'   => $row['id'],
-                    'uuid' => Uuid::v7()->toRfc4122(),
+                    'uuid' => service('uuid')->uuid7()->toRfc4122(),
                 ];
             }
 

@@ -215,6 +215,51 @@ trait HasTotp
 
         $window ??= (int) (setting('AuthSecurity.totpWindow') ?? 1);
 
-        return TOTP::verify($secret, $code, $window);
+        $timestep = TOTP::verifyAndGetTimestep($secret, $code, $window);
+
+        if ($timestep === null) {
+            return false;
+        }
+
+        // Anti-replay: reject a code from a time-step already consumed, so a
+        // valid code cannot be reused within its acceptance window.
+        $identity = $this->getTotpIdentity();
+        $lastUsed = $this->lastUsedTotpTimestep($identity);
+
+        if ($lastUsed !== null && $timestep <= $lastUsed) {
+            return false;
+        }
+
+        $this->storeLastUsedTotpTimestep($identity, $timestep);
+
+        return true;
+    }
+
+    /**
+     * Reads the last consumed TOTP time-step from the secret identity's
+     * `extra` JSON, or null when none has been recorded yet.
+     */
+    private function lastUsedTotpTimestep(?UserIdentity $identity): ?int
+    {
+        if (! $identity instanceof UserIdentity || $identity->extra === null || $identity->extra === '') {
+            return null;
+        }
+
+        $data = json_decode((string) $identity->extra, true);
+
+        return is_array($data) && isset($data['last_timestep']) ? (int) $data['last_timestep'] : null;
+    }
+
+    /**
+     * Persists the last consumed TOTP time-step on the secret identity.
+     */
+    private function storeLastUsedTotpTimestep(?UserIdentity $identity, int $timestep): void
+    {
+        if (! $identity instanceof UserIdentity) {
+            return;
+        }
+
+        $identity->extra = json_encode(['last_timestep' => $timestep]);
+        $this->totpIdentityModel()->save($identity);
     }
 }

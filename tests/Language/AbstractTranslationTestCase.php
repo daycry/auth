@@ -243,6 +243,8 @@ abstract class AbstractTranslationTestCase extends TestCase
             'Auth.unknownOauthProvider',
             'Auth.invalidOauthState',
             'Auth.emailNotFoundInOauth',
+            'Auth.oauthEmailUnverified',
+            'Auth.oauthAlreadyLinked',
             // Password Reset — newly added, pending community translation
             'Auth.passwordResetTitle',
             'Auth.passwordResetIntro',
@@ -305,6 +307,23 @@ abstract class AbstractTranslationTestCase extends TestCase
             'Auth.invalidRefreshToken',
             'Auth.refreshTokenRevoked',
             'Auth.revokedToken',
+            // WebAuthn / Passkeys — newly added, pending community translation
+            'Auth.notLoggedIn',
+            'Auth.needWebauthn',
+            'Auth.webauthnMaxCredentials',
+            'Auth.webauthnChallengeExpired',
+            'Auth.webauthnVerificationFailed',
+            'Auth.webauthnDisabled',
+            'Auth.webauthnSetupTitle',
+            'Auth.webauthnUnnamed',
+            'Auth.webauthnDelete',
+            'Auth.webauthnNamePlaceholder',
+            'Auth.webauthnAdd',
+            'Auth.webauthnRegistered',
+            'Auth.webauthnDuplicate',
+            'Auth.webauthn2faTitle',
+            'Auth.webauthn2faPrompt',
+            'Auth.webauthn2faStart',
         ];
 
         $excludedKeys  = array_unique(array_merge($excludedKeyTranslations, $this->excludedLocaleKeyTranslations));

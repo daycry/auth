@@ -14,6 +14,8 @@ Both are stored in the database and can be assigned freely to any user.
 - [Permissions](#permissions)
 - [Permission Inheritance](#permission-inheritance)
 - [Gates & Policies](#gates--policies)
+- [Gate → RBAC Bridge](#gate--rbac-bridge)
+- [Resolvable Repository Services](#resolvable-repository-services)
 - [Authorization in Controllers](#authorization-in-controllers)
 - [Authorization in Views](#authorization-in-views)
 - [Route Filters](#route-filters)
@@ -37,14 +39,11 @@ $user->getGroups();                         // array of group names
 $user->can('posts.create');                 // bool
 $user->addPermission('posts.edit');         // void
 $user->removePermission('posts.edit');      // void
-$user->getPermissions();                    // array of permission names
-
-// Shortcuts (throws AuthorizationException on failure)
-$user->authorize('posts.delete');
+$user->getPermissions();                    // ?array of permission names
 
 // Multiple groups / permissions
 $user->inGroup('admin', 'moderator');       // true if in ANY of them
-$user->hasAnyPermission('posts.edit', 'posts.delete'); // true if has ANY
+$user->can('posts.edit', 'posts.delete');   // true if user has ANY of them (OR)
 ```
 
 ---
@@ -119,7 +118,7 @@ $adminUsers = model(\Daycry\Auth\Models\UserModel::class)
 
 Permissions follow a `resource.action` convention:
 
-```
+```text
 posts.create
 posts.edit
 posts.delete
@@ -145,16 +144,23 @@ if (! $user->can('users.delete')) {
     return redirect()->back()->with('error', 'You cannot delete users.');
 }
 
-// Check multiple permissions (true if the user has ALL of them)
+// can() is variadic with OR-semantics — true if the user has ANY of them
+if ($user->can('posts.edit', 'posts.delete')) {
+    // User can edit OR delete
+}
+
+// Need ALL of several permissions? Chain individual checks with &&
 if ($user->can('posts.create') && $user->can('posts.publish')) {
     // User can create AND publish
 }
-
-// Check if user has ANY of several permissions
-if ($user->hasAnyPermission('posts.edit', 'posts.delete')) {
-    // Can edit or delete
-}
 ```
+
+> **OR-semantics & group-less users**: `can(string ...$permissions)` returns `true`
+> as soon as **any one** of the listed permissions is granted. The check no longer
+> aborts early for users who belong to no groups — a group-less user with a
+> matching **direct** permission is still authorized. Each permission must contain
+> a scope and action (e.g. `posts.create`); passing a string without a `.` throws
+> a `LogicException`.
 
 ### Assigning and Removing Permissions
 
@@ -191,7 +197,7 @@ $editorGroup->addPermission('posts.edit');
 
 ## Permission Inheritance
 
-```
+```text
 User
  ├── Direct permissions: [posts.delete]
  └── Groups:
@@ -205,13 +211,24 @@ Effective permissions: [posts.delete, posts.create, posts.edit, posts.feature]
 
 ### Wildcard Permissions
 
+`can()` resolves three forms of grant, and matching is **uniform across
+user-level (direct) and group-level (inherited) permissions** — a wildcard
+works the same whether it was assigned directly to the user or to one of their
+groups:
+
+| Granted permission | Matches | Notes |
+|--------------------|---------|-------|
+| `*` (global wildcard) | every permission | superadmin |
+| `posts.*` (scope wildcard) | every `posts.<action>` | per-resource grant |
+| `posts.create` (exact) | only `posts.create` | exact match |
+
 Use `*` as a wildcard:
 
 ```php
-// Grant access to all "posts" permissions
+// Grant access to all "posts" permissions — works for DIRECT user permissions too
 $user->addPermission('posts.*');
 
-$user->can('posts.create'); // true
+$user->can('posts.create'); // true  (scope wildcard expands to posts.create)
 $user->can('posts.edit');   // true
 $user->can('posts.delete'); // true
 $user->can('users.view');   // false (different resource)
@@ -224,6 +241,11 @@ $user->addPermission('*');
 $user->can('posts.delete'); // true
 $user->can('users.view');   // true
 ```
+
+> **Note**: A scope wildcard assigned **directly** to a user (e.g.
+> `$user->addPermission('posts.*')`) now correctly grants `posts.create`,
+> `posts.edit`, etc. Earlier versions only expanded scope wildcards that were
+> inherited from a group; direct wildcards required an exact-string match.
 
 ---
 
@@ -373,6 +395,96 @@ public function update(int $id)
 
 ---
 
+## Gate → RBAC Bridge
+
+The Gate and the RBAC permission system can share semantics, so you don't have to
+re-implement static role checks as Gate closures. When a Gate check is dispatched
+and the ability:
+
+1. has **no** registered closure (`define()`), **and**
+2. matches **no** policy method, **and**
+3. **contains a scope** (a `.`, e.g. `users.edit`)
+
+…the Gate falls back to `User::can($ability)` against the authenticated user's
+RBAC permissions. This is why `gate:users.edit` and `permission:users.edit` can
+resolve to the same decision.
+
+### Configuration
+
+```php
+// app/Config/AuthSecurity.php
+public bool $gateFallbackToRbac = true;
+```
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `$gateFallbackToRbac` | `true` | A Gate ability containing a scope (e.g. `users.edit`) with no registered closure/policy falls back to `User::can()`. Set `false` to keep the Gate and RBAC systems fully independent. |
+
+The fallback only fires for scoped abilities (those containing a `.`). Bare
+ability names (`update`, `dashboard.access` with no closure/policy) are **not**
+bridged — they resolve to `null` (deny). The setting is read at check time via
+`setting('AuthSecurity.gateFallbackToRbac')`.
+
+```php
+// With $gateFallbackToRbac = true (default):
+service('gate')->allows('users.edit');     // === auth()->user()->can('users.edit')
+$routes->get('admin/users', 'Users::index', ['filter' => 'gate:users.edit']);
+// behaves like ['filter' => 'permission:users.edit']
+
+// With $gateFallbackToRbac = false:
+service('gate')->allows('users.edit');     // false unless a closure/policy is registered
+```
+
+### When to disable it
+
+Disable the bridge (`false`) when you want the Gate to be the **sole** source of
+truth for ability checks and a missing closure/policy should always deny —
+regardless of what RBAC permissions a user holds. This keeps "ability" checks
+(`gate:` / `canDo()`) and "permission" checks (`permission:` / `can()`) as two
+independent layers, which is useful when abilities encode resource-aware rules
+that must never be silently satisfied by a coarse RBAC scope.
+
+---
+
+## Resolvable Repository Services
+
+The transactional persistence of a user's group/permission pivot rows is owned by
+`Daycry\Auth\Authorization\GroupPermissionRepository`. It was extracted from the
+`Authorizable` trait so the `User` entity no longer opens database transactions
+itself — `addGroup()` / `removeGroup()` / `addPermission()` / `removePermission()`
+delegate their pivot writes to this repository.
+
+It is registered as an overridable shared service. Resolve (or rebind) it via the
+`service()` helper:
+
+```php
+service('groupPermissionRepository'); // Daycry\Auth\Authorization\GroupPermissionRepository
+```
+
+The token CRUD repositories are likewise resolvable and overridable services —
+rebind any of them to swap the underlying storage:
+
+| Service | Class | Owns |
+|---------|-------|------|
+| `service('groupPermissionRepository')` | `Authorization\GroupPermissionRepository` | RBAC group/permission pivot rows (`saveUserPivot()`) |
+| `service('accessTokenRepository')` | `Models\AccessTokenRepository` | Access-token CRUD |
+| `service('jwtTokenRepository')` | `Models\JwtTokenRepository` | JWT refresh-token CRUD |
+| `service('oauthTokenRepository')` | `Models\OAuthTokenRepository` | OAuth identity CRUD |
+
+```php
+// Override the binding in app/Config/Services.php to swap RBAC pivot storage:
+public static function groupPermissionRepository(bool $getShared = true)
+{
+    if ($getShared) {
+        return static::getSharedInstance('groupPermissionRepository');
+    }
+
+    return new \App\Authorization\CustomGroupPermissionRepository();
+}
+```
+
+---
+
 ## Authorization in Controllers
 
 ### Pattern 1: Early Return
@@ -402,13 +514,18 @@ class PostController extends BaseController
 
 ### Pattern 2: Exception-Based
 
+Use the Gate's fail-fast `authorize()` — when [`gateFallbackToRbac`](#gate--rbac-bridge)
+is enabled (the default), a scoped ability with no registered closure/policy
+defers to `User::can()`, so `posts.delete` is resolved against the user's RBAC
+permissions and throws `AuthorizationException` on a deny:
+
 ```php
 use Daycry\Auth\Exceptions\AuthorizationException;
 
 public function delete(int $id)
 {
-    // Throws AuthorizationException if not authorized
-    auth()->user()->authorize('posts.delete');
+    // Throws AuthorizationException (HTTP 403) if not authorized
+    service('gate')->authorize('posts.delete');
 
     model(\App\Models\PostModel::class)->delete($id);
     return redirect()->to('posts')->with('message', 'Post deleted.');
@@ -484,35 +601,33 @@ Protect entire route groups using filters — no controller code needed:
 // app/Config/Routes.php
 
 // Require 'admin' group
-$routes->group('admin', ['filter' => 'session,group:admin'], static function ($routes) {
+$routes->group('admin', ['filter' => 'auth:session,group:admin'], static function ($routes) {
     $routes->get('/', 'Admin\DashboardController::index');
     $routes->get('users', 'Admin\UsersController::index');
 });
 
 // Require a specific permission
-$routes->group('posts', ['filter' => 'session,permission:posts.create'], static function ($routes) {
+$routes->group('posts', ['filter' => 'auth:session,permission:posts.create'], static function ($routes) {
     $routes->get('new', 'PostController::new');
     $routes->post('create', 'PostController::create');
 });
 
 // Multiple groups (user must be in AT LEAST ONE)
-$routes->get('moderation', 'ModerationController::index', ['filter' => 'session,group:admin,moderator']);
+$routes->get('moderation', 'ModerationController::index', ['filter' => 'auth:session,group:admin,moderator']);
 
 // Multiple permissions (user must have ALL)
 $routes->post('posts/publish/(:num)', 'PostController::publish/$1',
-    ['filter' => 'session,permission:posts.publish,posts.edit']);
+    ['filter' => 'auth:session,permission:posts.publish,posts.edit']);
 ```
 
-### Register Filter Aliases
+### Filter Aliases
 
-```php
-// app/Config/Filters.php
-public array $aliases = [
-    'session'    => \Daycry\Auth\Filters\AuthSessionFilter::class,
-    'group'      => \Daycry\Auth\Filters\GroupFilter::class,
-    'permission' => \Daycry\Auth\Filters\PermissionFilter::class,
-];
-```
+The `group`, `permission` and `gate` aliases (along with `auth`, `chain`, `rates`,
+`force-reset`, `token-scope`, `password-age`, `password-confirm`) are
+**auto-registered** by `Daycry\Auth\Config\Registrar::Filters()` — you do not
+declare them in `app/Config/Filters.php`. To require an authenticated session,
+use the `auth` filter with the `session` argument (`auth:session`); there is no
+standalone `session` alias. See the [Filters guide](04-filters.md).
 
 ### What Happens on Denial?
 
@@ -536,9 +651,9 @@ public array $redirects = [
 In production, repeated permission checks can generate many database queries. Enable the permission cache to store each user's groups and permissions in the CI4 cache:
 
 ```php
-// app/Config/Auth.php
-public bool $permissionCacheEnabled = true;
-public int  $permissionCacheTTL     = 300; // Seconds (5 minutes)
+// app/Config/AuthSecurity.php
+public bool $permissionCacheEnabled = true; // default: false
+public int  $permissionCacheTTL     = 300;  // Seconds (5 minutes)
 ```
 
 ### Cache Invalidation
@@ -587,7 +702,7 @@ Daycry Auth ships with a Bootstrap 5 admin panel for managing groups and permiss
 
 ```php
 // app/Config/Routes.php
-$routes->group('admin/auth', ['filter' => 'session,group:admin', 'namespace' => 'Daycry\Auth\Controllers\Admin'], static function ($routes) {
+$routes->group('admin/auth', ['filter' => 'auth:session,group:admin', 'namespace' => 'Daycry\Auth\Controllers\Admin'], static function ($routes) {
     $routes->get('/',           'DashboardController::index', ['as' => 'auth-admin']);
     $routes->resource('users',       ['controller' => 'UsersController']);
     $routes->resource('groups',      ['controller' => 'GroupsController']);
@@ -631,7 +746,7 @@ if ($user->inGroup('admin')) { ... } // What if a 'moderator' should also delete
 ### 3. Enable Cache in Production
 
 ```php
-// app/Config/Auth.php
+// app/Config/AuthSecurity.php
 public bool $permissionCacheEnabled = ENVIRONMENT === 'production';
 ```
 
@@ -639,7 +754,7 @@ public bool $permissionCacheEnabled = ENVIRONMENT === 'production';
 
 Use `resource.action` format consistently:
 
-```
+```text
 users.view    users.create    users.edit    users.delete
 posts.view    posts.create    posts.edit    posts.delete    posts.publish
 admin.panel   admin.settings  admin.logs

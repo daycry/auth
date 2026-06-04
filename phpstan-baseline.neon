@@ -273,7 +273,7 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 3
 			path: src/Authentication/Services/DeviceSessionRecorder.php
 
 		-
@@ -568,6 +568,18 @@ parameters:
 			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
+			path: src/Commands/PurgeCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\RememberModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Commands/PurgeCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\DeviceSessionModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
 			path: src/Commands/SessionsCommand.php
 
 		-
@@ -591,7 +603,7 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 1
 			path: src/Commands/TokensCommand.php
 
 		-
@@ -611,6 +623,18 @@ parameters:
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 9
 			path: src/Commands/UserCommand.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 3
+			path: src/Config/Services.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\WebAuthnCredentialModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
+			path: src/Config/Services.php
 
 		-
 			rawMessage: 'Parameter #2 $params (list<string>) of method Daycry\Auth\Controllers\ActionController::_remap() should be contravariant with parameter $params (mixed) of method Daycry\Auth\Controllers\BaseAuthController::_remap()'
@@ -727,46 +751,28 @@ parameters:
 			path: src/Controllers/BaseAuthController.php
 
 		-
-			rawMessage: Right side of && is always true.
-			identifier: booleanAnd.rightAlwaysTrue
-			count: 2
-			path: src/Controllers/BaseAuthController.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
 			path: src/Controllers/ForcePasswordResetController.php
 
 		-
-			rawMessage: '''
-				Call to deprecated method createJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use JwtTokenRepository::createRefreshToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 1
-			path: src/Controllers/JwtController.php
-
-		-
-			rawMessage: '''
-				Call to deprecated method getJwtRefreshToken() of class Daycry\Auth\Models\UserIdentityModel:
-				Use JwtTokenRepository::getRefreshToken() instead.
-			'''
-			identifier: method.deprecated
-			count: 2
-			path: src/Controllers/JwtController.php
-
-		-
-			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
-			identifier: codeigniter.factoriesClassConstFetch
-			count: 3
-			path: src/Controllers/JwtController.php
-
-		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
 			count: 1
 			path: src/Controllers/JwtController.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials of method Daycry\Auth\Authentication\Authenticators\Session::check() expects array{email?: string, username?: string, password?: string}, array given.'
+			identifier: argument.type
+			count: 1
+			path: src/Controllers/JwtController.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials of method Daycry\Auth\Authentication\Authenticators\Session::attempt() expects array{email?: string, username?: string, password?: string}, array given.'
+			identifier: argument.type
+			count: 1
+			path: src/Controllers/LoginController.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
@@ -1035,13 +1041,19 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 4
+			count: 3
 			path: src/Entities/User.php
 
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 2
+			count: 3
+			path: src/Entities/User.php
+
+		-
+			rawMessage: Call to function model with Daycry\Auth\Models\WebAuthnCredentialModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 1
 			path: src/Entities/User.php
 
 		-
@@ -1303,6 +1315,12 @@ parameters:
 			path: src/Libraries/TokenEmailSender.php
 
 		-
+			rawMessage: Call to function model with Daycry\Auth\Models\UserModel::class is discouraged.
+			identifier: codeigniter.factoriesClassConstFetch
+			count: 2
+			path: src/Libraries/WebAuthn/WebAuthnManager.php
+
+		-
 			rawMessage: '''
 				Call to deprecated method generateAccessToken() of class Daycry\Auth\Models\UserIdentityModel:
 				Use AccessTokenRepository::generateAccessToken() instead.
@@ -1513,6 +1531,12 @@ parameters:
 			path: src/Validators/AttemptValidator.php
 
 		-
+			rawMessage: 'Call to an undefined method Daycry\Auth\Auth::thisMethodDefinitelyDoesNotExist().'
+			identifier: method.notFound
+			count: 1
+			path: tests/AuthTest.php
+
+		-
 			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
 			identifier: staticMethod.internal
 			count: 5
@@ -1603,6 +1627,18 @@ parameters:
 			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
 
 		-
+			rawMessage: 'Parameter #1 $credentials of method Daycry\Auth\Authentication\Authenticators\Session::attempt() expects array{email?: string, username?: string, password?: string}, array{status: ''12345'', password: ''secret123''} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
+
+		-
+			rawMessage: 'Parameter #1 $credentials of method Daycry\Auth\Authentication\Authenticators\Session::attempt() expects array{email?: string, username?: string, password?: string}, array{status: ''abcde'', password: ''secret123''} given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
+
+		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\DeviceSession'' and Daycry\Auth\Entities\DeviceSession will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
 			count: 1
@@ -1665,25 +1701,25 @@ parameters:
 		-
 			rawMessage: 'Call to method setCookie() of internal class CodeIgniter\Superglobals from outside its root namespace CodeIgniter.'
 			identifier: method.internalClass
-			count: 3
+			count: 5
 			path: tests/Authentication/Services/RememberMeTest.php
 
 		-
 			rawMessage: 'Call to method unsetCookie() of internal class CodeIgniter\Superglobals from outside its root namespace CodeIgniter.'
 			identifier: method.internalClass
-			count: 4
+			count: 6
 			path: tests/Authentication/Services/RememberMeTest.php
 
 		-
 			rawMessage: Call to unknown service method 'settings'.
 			identifier: codeigniter.unknownServiceMethod
-			count: 11
+			count: 16
 			path: tests/Authentication/Services/RememberMeTest.php
 
 		-
 			rawMessage: 'Cannot call method get() on null.'
 			identifier: method.nonObject
-			count: 11
+			count: 16
 			path: tests/Authentication/Services/RememberMeTest.php
 
 		-
@@ -1721,6 +1757,18 @@ parameters:
 			identifier: staticMethod.internal
 			count: 1
 			path: tests/Commands/GdprCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/PurgeCommandTest.php
+
+		-
+			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::setInputOutput() from outside its root namespace Daycry.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Commands/PurgeCommandTest.php
 
 		-
 			rawMessage: 'Call to internal static method Daycry\Auth\Commands\BaseCommand::resetInputOutput() from outside its root namespace Daycry.'
@@ -1841,6 +1889,12 @@ parameters:
 			identifier: method.alreadyNarrowedType
 			count: 1
 			path: tests/Entities/UserTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertSame() with ''webauthn'' and ''webauthn'' will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Enums/IdentityTypeTest.php
 
 		-
 			rawMessage: 'Call to internal function emailer().'
@@ -1989,7 +2043,7 @@ parameters:
 		-
 			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\OauthManager::setProviderInstance() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
 			identifier: argument.type
-			count: 17
+			count: 21
 			path: tests/Libraries/OauthManagerTest.php
 
 		-
@@ -2068,6 +2122,18 @@ parameters:
 			path: tests/Models/UserIdentityModelTest.php
 
 		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\WebAuthnCredential'' and Daycry\Auth\Entities\WebAuthnCredential will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Models/WebAuthnCredentialModelTest.php
+
+		-
+			rawMessage: 'Parameter #1 $authenticatorAttestationResponse of method Webauthn\AuthenticatorAttestationResponseValidator::check() expects Webauthn\AuthenticatorAttestationResponse, Webauthn\AuthenticatorResponse given.'
+			identifier: argument.type
+			count: 1
+			path: tests/Models/WebAuthnCredentialRepositoryTest.php
+
+		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Models\AttemptModel::countAll().'
 			identifier: method.notFound
 			count: 1
@@ -2110,24 +2176,6 @@ parameters:
 			path: tests/Services/RequestLoggerTest.php
 
 		-
-			rawMessage: 'Call to function method_exists() with $this(CodeIgniter\Controller@anonymous/tests/Traits/BaseControllerTraitTest.php:268) and ''setFormat'' will always evaluate to false.'
-			identifier: function.impossibleType
-			count: 1
-			path: tests/Traits/BaseControllerTraitTest.php
-
-		-
-			rawMessage: 'Call to function method_exists() with $this(CodeIgniter\Controller@anonymous/tests/Traits/BaseControllerTraitTest.php:277) and ''setFormat'' will always evaluate to false.'
-			identifier: function.impossibleType
-			count: 1
-			path: tests/Traits/BaseControllerTraitTest.php
-
-		-
-			rawMessage: 'Call to function method_exists() with $this(CodeIgniter\Controller@anonymous/tests/Traits/BaseControllerTraitTest.php:40) and ''setFormat'' will always evaluate to false.'
-			identifier: function.impossibleType
-			count: 1
-			path: tests/Traits/BaseControllerTraitTest.php
-
-		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Encryption\\Encryption'' and Daycry\Encryption\Encryption will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
 			count: 2
@@ -2136,7 +2184,7 @@ parameters:
 		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertTrue() with true will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
-			count: 2
+			count: 3
 			path: tests/Traits/BaseControllerTraitTest.php
 
 		-
@@ -2154,7 +2202,7 @@ parameters:
 		-
 			rawMessage: Right side of && is always true.
 			identifier: booleanAnd.rightAlwaysTrue
-			count: 6
+			count: 2
 			path: tests/Traits/BaseControllerTraitTest.php
 
 		-
@@ -2180,6 +2228,48 @@ parameters:
 			identifier: method.nonObject
 			count: 1
 			path: tests/Validators/AttemptTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\CredentialRecord'' and Webauthn\CredentialRecord will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/WebAuthn/VirtualAuthenticatorTest.php
+
+		-
+			rawMessage: 'Parameter #1 $authenticatorAttestationResponse of method Webauthn\AuthenticatorAttestationResponseValidator::check() expects Webauthn\AuthenticatorAttestationResponse, Webauthn\AuthenticatorResponse given.'
+			identifier: argument.type
+			count: 1
+			path: tests/WebAuthn/VirtualAuthenticatorTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\WebAuthnCredential'' and Daycry\Auth\Entities\WebAuthnCredential will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnManagerRegistrationTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Symfony\\Component\\Serializer\\SerializerInterface'' and Symfony\Component\Serializer\SerializerInterface will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\AuthenticatorAssertionResponseValidator'' and Webauthn\AuthenticatorAssertionResponseValidator will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\AuthenticatorAttestationResponseValidator'' and Webauthn\AuthenticatorAttestationResponseValidator will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Webauthn\\PublicKeyCredentialCreationOptions'' and Webauthn\PublicKeyCredentialCreationOptions will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/WebAuthn/WebAuthnServicesTest.php
 
 		-
 			rawMessage: Access to property $aliases on an unknown class Tests\Support\Filter.

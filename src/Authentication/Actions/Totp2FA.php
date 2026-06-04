@@ -18,7 +18,6 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Services\AuditLogger;
 use Throwable;
@@ -82,13 +81,33 @@ class Totp2FA extends AbstractAction
             throw new RuntimeException('Cannot get the pending login User.');
         }
 
+        $lockoutManager = $authenticator->getLockoutManager();
+
+        // Apply the same per-user brute-force lockout that guards password
+        // login. Without this the second factor is infinitely guessable once
+        // the first factor has been passed.
+        $lockoutResult = $lockoutManager->isLockedOut($user);
+
+        if ($lockoutResult !== null) {
+            session()->setFlashdata('error', $lockoutResult->reason());
+
+            return $this->view(setting('Auth.views')['action_totp_2fa_verify']);
+        }
+
         $code = (string) $request->getPost('token');
 
         if (! $this->verifyCodeForUser($user, $code)) {
+            // Count the failed second-factor attempt; the account locks once the
+            // configured threshold is reached, just like password failures.
+            $lockoutManager->recordFailedAttempt($user);
+
             session()->setFlashdata('error', lang('Auth.invalidTotpToken'));
 
             return $this->view(setting('Auth.views')['action_totp_2fa_verify']);
         }
+
+        // Successful second factor — clear the failure counter.
+        $lockoutManager->resetOnSuccess($user);
 
         // Remove the pending marker and complete login
         $this->getIdentityModel()->deleteIdentitiesByType($user, $this->type);
@@ -153,15 +172,8 @@ class Totp2FA extends AbstractAction
      */
     private function verifyCodeForUser(User $user, string $code): bool
     {
-        $secret = $user->getTotpSecret();
-
-        if ($secret === null) {
-            return false;
-        }
-
-        $window = (int) (setting('AuthSecurity.totpWindow') ?? 1);
-
-        if (TOTP::verify($secret, $code, $window)) {
+        // verifyTotpCode() enforces single-use (anti-replay) of the time-step.
+        if ($user->verifyTotpCode($code)) {
             return true;
         }
 

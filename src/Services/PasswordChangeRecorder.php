@@ -49,6 +49,9 @@ class PasswordChangeRecorder
             }
 
             $this->stampChangedAt((int) $user->id);
+
+            // A password change invalidates every outstanding JWT access token.
+            $user->revokeIssuedTokens();
         } catch (Throwable $e) {
             log_message('warning', 'PasswordChangeRecorder::record failed: {message}', [
                 'message' => $e->getMessage(),

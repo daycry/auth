@@ -34,6 +34,24 @@ return [
     'expiredJWT'     => 'Platnosť tokenu vypršala.',
     'beforeValidJWT' => 'Token ešte nie je dostupný.',
 
+    // WebAuthn / Passkeys
+    'webauthnMaxCredentials'     => 'You have reached the maximum number of registered passkeys.',
+    'webauthnChallengeExpired'   => 'The passkey challenge has expired. Please try again.',
+    'webauthnVerificationFailed' => 'Passkey verification failed.',
+    'webauthnDisabled'           => 'Passkey sign-in is not available.',
+    'notLoggedIn'                => 'You must be logged in to do that.',
+    'needWebauthn'               => 'Please verify with your passkey.',
+    'webauthnSetupTitle'         => 'Passkeys',
+    'webauthnUnnamed'            => 'Unnamed passkey',
+    'webauthnDelete'             => 'Remove',
+    'webauthnNamePlaceholder'    => 'Name this passkey (e.g. My laptop)',
+    'webauthnAdd'                => 'Add passkey',
+    'webauthnRegistered'         => 'Passkey registered.',
+    'webauthnDuplicate'          => 'That passkey is already registered.',
+    'webauthn2faTitle'           => 'Two-factor verification',
+    'webauthn2faPrompt'          => 'Verify your identity with your passkey.',
+    'webauthn2faStart'           => 'Use passkey',
+
     'email'           => 'Emailová adresa',
     'username'        => 'Používateľské meno',
     'password'        => 'Heslo',
@@ -129,6 +147,8 @@ return [
     'unknownOauthProvider' => '{0} is not a configured OAuth provider.',
     'invalidOauthState'    => 'Invalid OAuth state. Please try again.',
     'emailNotFoundInOauth' => 'No email address was returned by the OAuth provider.',
+    'oauthEmailUnverified' => 'This email address is already registered. Sign in with your password to link this provider.',
+    'oauthAlreadyLinked'   => 'This account is already linked to a different user.',
 
     // Groups
     'unknownGroup' => '{0} nie je platná skupina.',

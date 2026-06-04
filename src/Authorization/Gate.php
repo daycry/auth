@@ -186,6 +186,17 @@ class Gate
             }
         }
 
+        // 3. RBAC fallback: a scoped ability (e.g. "users.edit") with no closure
+        //    or policy defers to the user's RBAC permissions, so `gate:` and
+        //    `permission:` filters share semantics. Toggle via gateFallbackToRbac.
+        if (
+            $user instanceof User
+            && str_contains($ability, '.')
+            && (bool) (setting('AuthSecurity.gateFallbackToRbac') ?? true)
+        ) {
+            return $user->can($ability);
+        }
+
         return null; // unknown ability → deny
     }
 

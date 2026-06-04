@@ -389,18 +389,15 @@ public int $timeLimit = MINUTE;
 // app/Config/Routes.php
 
 // Limit all auth routes
-$routes->group('auth', ['filter' => 'auth-rates'], static function ($routes) {
+$routes->group('auth', ['filter' => 'rates'], static function ($routes) {
     $routes->post('login',    'LoginController::loginAction');
     $routes->post('register', 'RegisterController::registerAction');
 });
 ```
 
-```php
-// app/Config/Filters.php
-public array $aliases = [
-    'auth-rates' => \Daycry\Auth\Filters\AuthRatesFilter::class,
-];
-```
+> The `rates` alias is **auto-registered** by `Daycry\Auth\Config\Registrar::Filters()`
+> — you don't declare it in `app/Config/Filters.php`. Use a per-route limit with
+> arguments, e.g. `['filter' => 'rates:50,MINUTE']`. See the [Filters guide](04-filters.md).
 
 ---
 
@@ -527,4 +524,4 @@ public int $threshold = 4; // 0=disabled, 1=emergency, 4=warning+, 7=info+, 8=de
 🔗 **See also**:
 - [Configuration](02-configuration.md) — All logging configuration options
 - [Per-User Lockout & Password Reset](03-authentication.md) — Security features
-- [Filters](04-filters.md) — `auth-rates` filter
+- [Filters](04-filters.md) — `rates` filter

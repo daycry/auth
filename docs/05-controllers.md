@@ -12,6 +12,8 @@ This guide covers all controllers included with Daycry Auth, including the new p
 - [PasswordResetController](#passwordresetcontroller)
 - [ForcePasswordResetController](#forcepasswordresetcontroller)
 - [JwtController](#jwtcontroller)
+- [OauthController](#oauthcontroller)
+- [WebAuthnController](#webauthncontroller)
 - [UserSecurityController](#usersecuritycontroller)
 - [Creating Custom Controllers](#creating-custom-controllers)
 - [Best Practices](#best-practices)
@@ -50,6 +52,29 @@ abstract class BaseAuthController extends BaseController implements AuthControll
 | `handleError(string $route, string $error)` | Redirects back with error |
 | `handleAuthResult(Result $result, string $failureRoute)` | Handles an auth result cleanly |
 
+### End-of-request bookkeeping: `finalizeRequest()`
+
+`BaseControllerTrait` performs request logging, invalid-attempt handling, and validator reset at the end of each request. This work lives in a single public method, `finalizeRequest()`:
+
+```php
+public function finalizeRequest(): void
+```
+
+| Property | Behaviour |
+|----------|-----------|
+| **Idempotent** | Guarded by an internal `$requestFinalized` flag — calling it more than once does nothing after the first call. |
+| **Never throws** | The body is wrapped in `try/catch (Throwable)`; any failure is written via `log_message('error', ...)` instead of propagating. This means a logging failure can never become an uncatchable shutdown fatal. |
+| **Default trigger** | `__destruct()` calls `finalizeRequest()` automatically, so the default behaviour is unchanged. |
+
+Because it is public and idempotent, you may also invoke it from an `after` filter when you need **deterministic timing** rather than relying on object destruction. If you hold a reference to the active controller, call it directly:
+
+```php
+// Inside a controller method or wherever you have the instance:
+$this->finalizeRequest(); // runs the bookkeeping now; the later __destruct() call is a no-op
+```
+
+The later automatic call from `__destruct()` is harmless because the guard flag makes it a no-op.
+
 ---
 
 ## LoginController
@@ -57,7 +82,7 @@ abstract class BaseAuthController extends BaseController implements AuthControll
 Handles traditional email + password login and logout.
 
 **Routes** (from `Config/Auth.php`):
-```
+```text
 GET  /login  → loginView()
 POST /login  → loginAction()
 GET  /logout → logoutAction()
@@ -99,7 +124,7 @@ class LoginController extends BaseLoginController
 Handles user registration.
 
 **Routes**:
-```
+```text
 GET  /register → registerView()
 POST /register → registerAction()
 ```
@@ -133,7 +158,7 @@ class RegisterController extends BaseRegisterController
 Handles post-authentication actions such as email 2FA, account activation, and TOTP verification.
 
 **Routes**:
-```
+```text
 GET  /auth/a/show   → show()
 POST /auth/a/handle → handle()
 POST /auth/a/verify → verify()
@@ -148,7 +173,7 @@ This controller is called automatically by the library when `$actions['login']` 
 Handles passwordless login via one-time email links.
 
 **Routes**:
-```
+```text
 GET  /login/magic-link        → loginView()
 POST /login/magic-link        → loginAction()
 GET  /login/verify-magic-link → verify()
@@ -172,7 +197,7 @@ class MagicLinkController extends BaseMagicLinkController
 Provides the complete password reset flow for users who have forgotten their password.
 
 **Routes** (from `Config/Auth.php`):
-```
+```text
 GET  /password-reset          → requestView()   — Show "Enter your email" form
 POST /password-reset          → requestAction() — Send reset email
 GET  /password-reset/message  → messageView()   — "Check your inbox" confirmation
@@ -244,7 +269,7 @@ Events::on('passwordReset', static function (object $user): void {
 When an administrator flags an account for a mandatory password change (e.g., after a security incident), `ForcePasswordResetFilter` intercepts the user and sends them here.
 
 **Routes**:
-```
+```text
 GET  /force-reset → showView()    — Show the form (requires current password)
 POST /force-reset → resetAction() — Validate and update password
 ```
@@ -258,7 +283,7 @@ public array $aliases = [
 ];
 
 // app/Config/Routes.php — apply the filter to protected routes
-$routes->group('dashboard', ['filter' => 'session,force-reset'], static function ($routes) {
+$routes->group('dashboard', ['filter' => 'auth:session,force-reset'], static function ($routes) {
     $routes->get('/', 'Dashboard::index');
 });
 
@@ -291,13 +316,16 @@ This prevents someone who has briefly accessed an unlocked computer from changin
 
 ## JwtController
 
-Provides a complete stateless JWT authentication API with refresh token rotation.
+Provides a complete stateless JWT authentication API with refresh token rotation. All three endpoints route their token CRUD through the overridable `service('jwtTokenRepository')` (a `JwtTokenRepository`):
+
+- `login()` and `refresh()` persist a new opaque refresh token via `createRefreshToken()`.
+- `refresh()` and `logout()` look the token up with `getRefreshToken()` and **soft-revoke** the old one with `softRevokeRefreshToken()` (sets `revoked_at` rather than deleting the row), tagging the reason `'rotation'` and `'logout'` respectively.
 
 **Routes**:
-```
+```text
 POST /auth/jwt/login   → login()   — Exchange credentials for access + refresh token
 POST /auth/jwt/refresh → refresh() — Exchange refresh token for new token pair
-POST /auth/jwt/logout  → logout()  — Revoke the refresh token
+POST /auth/jwt/logout  → logout()  — Soft-revoke the refresh token
 ```
 
 ### Register the Routes
@@ -311,14 +339,14 @@ $routes->post('auth/jwt/logout',  'Daycry\Auth\Controllers\JwtController::logout
 ### Configuration
 
 ```php
-// app/Config/Auth.php
-public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity
+// app/Config/AuthSecurity.php
+public int $jwtRefreshLifetime = 30 * DAY; // Refresh token validity (seconds)
 ```
 
 ### login()
 
 **Request** (`application/x-www-form-urlencoded` or JSON):
-```
+```text
 email=user@example.com
 password=secret
 ```
@@ -338,10 +366,12 @@ password=secret
 { "message": "Invalid credentials." }
 ```
 
+The minted JWT access token carries the payload `{uid, tv}`, where `tv` is the user's current `users.token_version`. See [Access Token Revocation](#access-token-revocation-token_version) below.
+
 ### refresh()
 
 **Request**:
-```
+```text
 user_id=42
 refresh_token=a3f8c2d1...
 ```
@@ -356,27 +386,130 @@ refresh_token=a3f8c2d1...
 }
 ```
 
-The **old refresh token is immediately revoked**. Store the new one in your client.
+The **old refresh token is immediately soft-revoked** (`revoked_at` is set, reason `'rotation'`) — it is single-use and cannot be replayed. Store the new pair in your client.
+
+A `user_id` / `refresh_token` that does not resolve to a live (non-revoked, non-expired) token returns:
+
+```json
+{ "message": "The refresh token is invalid or has expired." }
+```
+
+(`lang('Auth.invalidRefreshToken')`, HTTP 401.) If the user no longer exists, the response is `lang('Auth.invalidUser')` instead.
 
 ### logout()
 
 **Request**:
-```
+```text
 user_id=42
 refresh_token=a3f8c2d1...
 ```
 
 **Response** (200):
 ```json
-{ "message": "Logged out successfully." }
+{ "message": "You have successfully logged out." }
 ```
+
+`logout()` soft-revokes the matching refresh token (reason `'logout'`). It always returns success (`lang('Auth.successLogout')`) even when the supplied token does not match — so a logout never leaks whether a token was valid.
+
+### Access Token Revocation (`token_version`)
+
+JWT **access tokens** are stateless and short-lived, so they cannot be individually revoked from a server-side denylist. Instead the library carries a per-user version counter inside the token:
+
+- The user record has a `users.token_version` column (`int`, default `0`), added by migration `2026-05-08-000001_add_jwt_token_version_to_users`.
+- `JwtController` mints the access-token payload as `{uid, tv}` where `tv` is the user's `token_version` at issue time.
+- On every authenticated request the JWT authenticator's `check()` compares the embedded `tv` against the user's current `token_version`. A mismatch rejects the token with `lang('Auth.revokedToken')` ("The token has been revoked.").
+- Legacy scalar payloads (a bare user id with no `tv`) are still accepted — the version check is simply skipped for them.
+
+To invalidate **all** of a user's outstanding access tokens ("log out everywhere"), bump the counter:
+
+```php
+$user->revokeIssuedTokens(); // atomically increments users.token_version
+```
+
+This is called automatically by:
+
+| Trigger | Effect |
+|---------|--------|
+| `Bannable::ban()` | Banning a user revokes their issued access tokens. |
+| `Services\PasswordChangeRecorder::record()` | A password reset / change revokes issued access tokens. |
+
+Because the check is purely arithmetic against a single column, revocation is immediate and requires no denylist or token storage.
 
 ### Security Notes
 
-- Access tokens are short-lived JWTs (configured in `Config/JWT.php`).
+- Access tokens are short-lived JWTs (configured in `Config/JWT.php`); revoke them wholesale via `token_version` (see above).
 - Refresh tokens are stored hashed (SHA-256) in `auth_users_identities` with type `jwt_refresh`.
-- Each refresh token is one-time use — a new pair is issued on every `/refresh` call.
-- Revoke a refresh token by calling `/logout` or by revoking the identity record directly.
+- Each refresh token is one-time use — `refresh()` soft-revokes the old token and issues a new pair on every call.
+- Revoke a refresh token by calling `/logout` (soft-revokes via `JwtTokenRepository::softRevokeRefreshToken()`) or by revoking the identity record directly.
+- Both refresh-token and access-token revocation are non-destructive (soft `revoked_at` / version bump), preserving an audit trail.
+
+---
+
+## OauthController
+
+Handles the OAuth2 "Sign in with…" flow plus an explicit account-**linking** flow. The routes are auto-registered from `Config/Auth.php::$routes['oauth']`:
+
+| Method | Route | Action | Route name |
+|--------|-------|--------|------------|
+| `GET` | `oauth/login/(:segment)` | `redirect/$1` | `oauth-login` |
+| `GET` | `oauth/callback/(:segment)` | `callback/$1` | `oauth-callback` |
+| `GET` | `oauth/link/(:segment)` | `link/$1` | `oauth-link` |
+
+The `(:segment)` is the provider name (`google`, `github`, `azure`, …) configured in `Config/AuthOAuth.php::$providers`.
+
+### redirect($provider) & callback($provider)
+
+`redirect()` sends the visitor to the provider's consent screen; `callback()` exchanges the returned `code`/`state` via `OauthManager::handleCallback()` and signs the user in, redirecting to `loginRedirect()` on success or back to `loginPage()` with an `error` flash on failure. `handleCallback()` fires the `oauth-login` and (when profile fields are configured) `oauth-profile-fetched` events.
+
+### link($provider)
+
+`link()` is the **explicit linking** action: it connects a provider to the **currently authenticated** user instead of signing a new one in.
+
+- It **requires an authenticated user** — if `auth()->loggedIn()` is false it redirects to `config('Auth')->loginPage()`.
+- It stashes the current user id in the session under `oauth_link_user_id`, then redirects to the provider exactly like `redirect()`.
+- When the provider returns, the shared `callback()` detects the stashed id and links the social account to that user — **deliberately**, so there is no e-mail merge and no verified-email requirement (the user is already authenticated and acting on purpose).
+- If the social account is already bound to a **different** local user, linking is refused with `lang('Auth.oauthAlreadyLinked')` ("This account is already linked to a different user.").
+
+```html
+<!-- Offer the logged-in user a "Connect GitHub" button -->
+<a href="<?= route_to('oauth-link', 'github') ?>" class="btn btn-outline-dark">
+    Connect GitHub
+</a>
+```
+
+> **Linking vs. automatic merge.** The `link()` route is the safe way to attach a provider to an existing account. The *automatic* merge that happens during a normal `oauth-login` (matching an existing local e-mail) is opt-in per provider via `'allowUnverifiedEmailLink'` and only auto-merges when the provider asserts the e-mail is verified — otherwise it is refused with `lang('Auth.oauthEmailUnverified')`. See the [OAuth guide](09-oauth.md) for that flow. Use `link()` whenever you want the user to attach a provider on demand.
+
+### Customising
+
+The base controller is fully functional; extend it only to change the post-callback redirect or add provider-specific handling:
+
+```php
+use Daycry\Auth\Controllers\OauthController as BaseOauthController;
+
+class OauthController extends BaseOauthController
+{
+    // Override only what you need
+}
+```
+
+---
+
+## WebAuthnController
+
+Exposes the WebAuthn / passkey ceremonies as **JSON endpoints**. The routes are auto-registered from `Config/Auth.php::$routes['webauthn']` **only when `AuthSecurity::$webauthnEnabled` is `true`**; the controller additionally re-checks the flag and returns `404` when the feature is disabled (defense in depth).
+
+| Method | Route | Action | Access |
+|--------|-------|--------|--------|
+| `POST` | `webauthn/register/options` | enrollment: creation options | auth required |
+| `POST` | `webauthn/register/verify` | enrollment: verify attestation | auth required |
+| `POST` | `webauthn/login/options` | passwordless: request options | public |
+| `POST` | `webauthn/login/verify` | passwordless: verify assertion | public |
+| `POST` | `webauthn/2fa/options` | 2FA: request options for the pending user | pending login |
+| `POST` | `webauthn/credentials/{uuid}/delete` | revoke a passkey | auth required |
+
+Every endpoint returns JSON (`{status, ...}` on success, or `{status:"error", error, message}` with a 4xx code). A successful passwordless `login/verify` establishes the session and returns `{status:"ok", redirect}`. The 2FA verify step is handled by the `Webauthn2FA` action through the shared `ActionController` verify endpoint, not by `WebAuthnController`.
+
+This is a JSON API controller — you typically do not extend it; an SPA can call the endpoints directly, while the bundled `webauthn_setup` / `webauthn_2fa_verify` views drive the browser ceremonies. See [WebAuthn / Passkeys — Routes & JSON Endpoints](15-webauthn.md#routes--json-endpoints) for the full request/response contracts and error codes.
 
 ---
 
@@ -386,11 +519,13 @@ Provides self-service security management for logged-in users: change password, 
 
 **All routes require an active session** (`filter: session`).
 
+> When WebAuthn is enabled, the user's registered passkeys are listed inside the existing `security_overview` view rendered by this controller — the enrollment / deletion ceremonies themselves run against the JSON endpoints of [`WebAuthnController`](#webauthncontroller). See [WebAuthn / Passkeys](15-webauthn.md#frontend--javascript).
+
 ### Register the Routes
 
 ```php
 // app/Config/Routes.php
-$routes->group('security', ['filter' => 'session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
+$routes->group('security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
     // Change password
     $routes->get('password',        'UserSecurityController::changePasswordView',   ['as' => 'security-password']);
     $routes->post('password',       'UserSecurityController::changePassword');

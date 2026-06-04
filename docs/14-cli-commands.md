@@ -9,18 +9,20 @@ php spark list Auth
 ## 📋 Index
 
 - [Setup & Discovery](#setup--discovery)
-  - [`auth:setup`](#auth-setup)
-  - [`auth:discover`](#auth-discover)
+  - [`auth:setup`](#authsetup)
+  - [`auth:discover`](#authdiscover)
 - [User management](#user-management)
-  - [`auth:user`](#auth-user)
+  - [`auth:user`](#authuser)
 - [Token & session admin](#token--session-admin)
-  - [`auth:tokens`](#auth-tokens)
-  - [`auth:sessions`](#auth-sessions)
+  - [`auth:tokens`](#authtokens)
+  - [`auth:sessions`](#authsessions)
+- [Maintenance](#maintenance)
+  - [`auth:purge`](#authpurge)
 - [Two-factor admin](#two-factor-admin)
-  - [`auth:totp`](#auth-totp)
+  - [`auth:totp`](#authtotp)
 - [Audit & compliance](#audit--compliance)
-  - [`auth:audit`](#auth-audit)
-  - [`auth:gdpr`](#auth-gdpr)
+  - [`auth:audit`](#authaudit)
+  - [`auth:gdpr`](#authgdpr)
 
 ---
 
@@ -85,7 +87,7 @@ php spark auth:user addgroup    -e alice@example.com -g admin
 php spark auth:user removegroup -e alice@example.com -g admin
 ```
 
-> For GDPR-compliant deletion that preserves foreign-key integrity, prefer [`auth:gdpr anonymize`](#auth-gdpr) over `auth:user delete`.
+> For GDPR-compliant deletion that preserves foreign-key integrity, prefer [`auth:gdpr anonymize`](#authgdpr) over `auth:user delete`.
 
 ---
 
@@ -127,6 +129,38 @@ php spark auth:sessions terminate -i 42
 ```
 
 Sets `logged_out_at` on every active row in `auth_device_sessions`. The next request from any of those sessions will fall back to login (since the PHP session ID no longer matches an active row).
+
+---
+
+## Maintenance
+
+### `auth:purge`
+
+Housekeeping command that removes stale auth records. It purges:
+
+- **Expired remember-me tokens** from `auth_remember_tokens` (every row whose `expires` is in the past).
+- **Terminated device sessions** in `auth_device_sessions` older than `--days` (rows whose `logged_out_at` is older than the cutoff).
+
+```bash
+# Purge expired remember-me tokens + terminated sessions older than 30 days (default)
+php spark auth:purge
+
+# Tighten the device-session retention window to 7 days
+php spark auth:purge --days 7
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--days <n>` | `30` | Age in days above which **terminated** device sessions are deleted. Values `<= 0` fall back to `30`. Remember-me tokens are always purged by expiry regardless of this value. |
+
+Returns exit code `0` on success and `1` if the purge throws (the error is printed to stderr).
+
+> **Run this on a schedule** (cron or [daycry/jobs](https://github.com/daycry/jobs)) instead of relying on an on-login purge. Expired remember-me cookies are now rejected at validation time regardless of whether the row still exists, and `AuthSecurity::$rememberMePurgeChance` defaults to `0` (no probabilistic inline purge) — so `auth:purge` is the recommended way to keep these tables from growing unbounded. A daily run is a sensible starting point:
+>
+> ```bash
+> # crontab — run nightly at 03:15
+> 15 3 * * * cd /path/to/app && php spark auth:purge >> writable/logs/auth-purge.log 2>&1
+> ```
 
 ---
 
@@ -224,6 +258,7 @@ Prompts for confirmation, then:
 | Create / update users | `auth:user <action>` |
 | Force a logout from every device | `auth:sessions terminate -e <email>` |
 | Revoke API tokens | `auth:tokens revoke -e <email> --type=all` |
+| Purge stale tokens & old sessions (schedule it) | `auth:purge --days 30` |
 | Help a user who lost their authenticator | `auth:totp reset -e <email>` |
 | Check what happened on a user's account | `auth:audit --user=<email> --since=30d` |
 | Investigate suspicious activity site-wide | `auth:audit --type=login.suspicious` |

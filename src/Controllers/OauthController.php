@@ -38,6 +38,28 @@ class OauthController extends BaseAuthController
         return $manager->setProvider($provider)->redirect();
     }
 
+    /**
+     * Begins linking an OAuth provider to the *currently authenticated* user.
+     *
+     * Unlike redirect()/callback() (which sign a user in), this stashes the
+     * logged-in user's id so the shared callback links the provider to them
+     * explicitly — the safe alternative to merging accounts by e-mail.
+     */
+    public function link(string $provider)
+    {
+        if (! auth()->loggedIn()) {
+            return redirect()->to(config('Auth')->loginPage());
+        }
+
+        session()->set('oauth_link_user_id', auth()->id());
+
+        /** @var AuthOAuth $config */
+        $config  = config('AuthOAuth');
+        $manager = new OauthManager($config);
+
+        return $manager->setProvider($provider)->redirect();
+    }
+
     public function callback(string $provider)
     {
         /** @var AuthOAuth $config */

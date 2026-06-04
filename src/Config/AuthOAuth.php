@@ -34,6 +34,17 @@ class AuthOAuth extends BaseConfig
      * Routes: GET  /auth/oauth/{alias}           → OauthController::redirect()
      *         GET  /auth/oauth/{alias}/callback  → OauthController::callback()
      *
+     * Security — account linking:
+     *   When the social account's e-mail matches an EXISTING local (password)
+     *   account, the identity is only auto-linked if the provider asserts the
+     *   e-mail is verified (OIDC `email_verified` / Google `verified_email`).
+     *   Providers that cannot assert verification (e.g. Facebook, GitHub) will
+     *   refuse the merge unless you explicitly opt in per provider with:
+     *       'allowUnverifiedEmailLink' => true
+     *   Leave it unset (the secure default) unless you fully trust the provider,
+     *   otherwise an attacker could register a social account with a victim's
+     *   e-mail and be logged in as the victim.
+     *
      * @var array<string, array<string, mixed>>
      */
     public array $providers = [

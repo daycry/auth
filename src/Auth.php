@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth;
 
+use BadMethodCallException;
 use CodeIgniter\Router\RouteCollection;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Config\Auth as AuthConfig;
@@ -26,7 +27,8 @@ use Daycry\Auth\Interfaces\UserProviderInterface;
 /**
  * Facade for Authentication
  *
- * Common methods (all authenticators):
+ * Common methods (defined by AuthenticatorInterface — available on every
+ * authenticator: Session, AccessToken, JWT):
  *
  * @method Result               attempt(array $credentials)
  * @method Result               check(array $credentials)
@@ -35,22 +37,22 @@ use Daycry\Auth\Interfaces\UserProviderInterface;
  * @method void                 forget(?User $user = null)
  * @method ActionInterface|null getAction()
  * @method mixed                getLogCredentials(array $credentials)
+ * @method string               getPendingMessage()
+ * @method User|null            getPendingUser()
+ * @method User|null            getUser()
+ * @method bool                 hasAction(int|string|null $userId = null)
+ * @method bool                 isAnonymous()
+ * @method bool                 isPending()
+ * @method bool                 loggedIn()
+ * @method void                 login(User $user, bool $actions = true)
+ * @method void                 loginById(int|string $userId)
+ * @method void                 logout()
+ * @method void                 recordActiveDate()
  *
- * Session-only methods:
- * @method string    getPendingMessage()
- * @method User|null getPendingUser()
- * @method User|null getUser()
- * @method bool      hasAction(int|string|null $userId = null)
- * @method bool      isAnonymous()
- * @method bool      isPending()
- * @method bool      loggedIn()
- * @method void      login(User $user, bool $actions = true)
- * @method void      loginById(int|string $userId)
- * @method void      logout()
- * @method void      recordActiveDate()
- * @method self      remember(bool $shouldRemember = true)
- * @method void      startLogin(User $user)
- * @method bool      startUpAction(string $type, User $user)
+ * Session-only methods (calling these through a stateless authenticator throws):
+ * @method self remember(bool $shouldRemember = true)
+ * @method void startLogin(User $user)
+ * @method bool startUpAction(string $type, User $user)
  */
 class Auth
 {
@@ -153,8 +155,18 @@ class Auth
 
         $namespace = $config['namespace'] ?? 'Daycry\Auth\Controllers';
 
-        $routes->group('/', ['namespace' => $namespace], static function (RouteCollection $routes) use ($authRoutes, $config): void {
+        // Defense in depth: skip the WebAuthn route group entirely when the
+        // feature is globally disabled (the controller also 404s per-method).
+        $disabledGroups = [];
+        if (! (bool) (setting('AuthSecurity.webauthnEnabled') ?? false)) {
+            $disabledGroups[] = 'webauthn';
+        }
+
+        $routes->group('/', ['namespace' => $namespace], static function (RouteCollection $routes) use ($authRoutes, $config, $disabledGroups): void {
             foreach ($authRoutes as $name => $row) {
+                if (in_array($name, $disabledGroups, true)) {
+                    continue;
+                }
                 if (! isset($config['except']) || ! in_array($name, $config['except'], true)) {
                     foreach ($row as $params) {
                         $options = isset($params[3])
@@ -192,7 +204,7 @@ class Auth
      *
      * @param list<string> $args
      *
-     * @throws AuthenticationException
+     * @throws BadMethodCallException When the active authenticator has no such method.
      */
     public function __call(string $method, array $args)
     {
@@ -203,5 +215,15 @@ class Auth
         if (method_exists($authenticator, $method)) {
             return $authenticator->{$method}(...$args);
         }
+
+        // Fail loudly instead of silently returning null: a typo or a
+        // Session-only method called on a stateless authenticator must surface
+        // immediately rather than be misread as a falsy "not logged in" result.
+        throw new BadMethodCallException(sprintf(
+            'Method %s::%s() does not exist on the "%s" authenticator.',
+            $authenticator::class,
+            $method,
+            $this->alias,
+        ));
     }
 }
