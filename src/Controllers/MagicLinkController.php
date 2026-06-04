@@ -20,6 +20,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Libraries\TokenEmailSender;
+use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 
@@ -82,7 +83,6 @@ class MagicLinkController extends BaseAuthController
             );
         }
 
-        // Validate email format
         $rules    = $this->getValidationRules();
         $postData = $this->request->getPost();
 
@@ -90,29 +90,60 @@ class MagicLinkController extends BaseAuthController
             return $this->handleValidationError('magic-link');
         }
 
-        // Check if the user exists
+        $delivery = $this->request->getPost('delivery') === 'code' ? 'code' : 'link';
+
+        if ($delivery === 'link' && ! setting('AuthSecurity.magicLinkEnableLink')) {
+            return $this->handleError('magic-link', lang('Auth.magicLinkDisabled'));
+        }
+        if ($delivery === 'code' && ! setting('AuthSecurity.magicLinkEnableCode')) {
+            return $this->handleError('magic-link', lang('Auth.magicLinkDisabled'));
+        }
+
         $email = $this->request->getPost('email');
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
-        if ($user === null) {
-            return $this->handleError('magic-link', lang('Auth.invalidEmail'));
+        if ($delivery === 'code') {
+            // Session-bound: remember the requested email regardless of whether
+            // it exists (anti-enumeration), then show the code form.
+            session()->set('magicCodeEmail', $email);
+
+            if ($user !== null) {
+                try {
+                    (new TokenEmailSender())->sendTokenEmail(
+                        $user,
+                        Session::ID_TYPE_MAGIC_CODE,
+                        setting('AuthSecurity.magicCodeLifetime'),
+                        lang('Auth.magicCodeSubject'),
+                        setting('Auth.views')['magic-link-code-email'],
+                        [],
+                        static fn (): string => Utils::generateNumericCode(6),
+                    );
+                } catch (RuntimeException $e) {
+                    // Swallow send failures so the response can't be used to
+                    // distinguish existing from non-existing accounts.
+                    log_message('error', 'Magic code email failed: {m}', ['m' => $e->getMessage()]);
+                }
+            }
+
+            return redirect()->route('magic-link-code');
         }
 
-        $sender = new TokenEmailSender();
-
-        try {
-            $sender->sendTokenEmail(
-                $user,
-                Session::ID_TYPE_MAGIC_LINK,
-                setting('AuthSecurity.magicLinkLifetime'),
-                lang('Auth.magicLinkSubject'),
-                setting('Auth.views')['magic-link-email'],
-            );
-        } catch (RuntimeException) {
-            return $this->handleError('magic-link', lang('Auth.unableSendEmailToUser', [$user->email]));
+        // Link mode (existing behaviour, now anti-enumeration: unknown emails
+        // and send failures both fall through to the generic message page).
+        if ($user !== null) {
+            try {
+                (new TokenEmailSender())->sendTokenEmail(
+                    $user,
+                    Session::ID_TYPE_MAGIC_LINK,
+                    setting('AuthSecurity.magicLinkLifetime'),
+                    lang('Auth.magicLinkSubject'),
+                    setting('Auth.views')['magic-link-email'],
+                );
+            } catch (RuntimeException $e) {
+                log_message('error', 'Magic link email failed: {m}', ['m' => $e->getMessage()]);
+            }
         }
 
-        // Redirect to message page instead of returning the view directly
         return redirect()->route('magic-link-message');
     }
 

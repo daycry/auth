@@ -440,6 +440,12 @@ class Auth extends BaseConfig
             ],
             [
                 'get',
+                'login/magic-link/message',
+                'MagicLinkController::messageView',
+                'magic-link-message', // Route name
+            ],
+            [
+                'get',
                 'login/verify-magic-link',
                 'MagicLinkController::verify',
                 'verify-magic-link', // Route name
