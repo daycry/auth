@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Libraries;
 
+use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
@@ -64,17 +65,35 @@ class TokenEmailSender
         // emailed to the user, but only its non-reversible SHA-256 hash is
         // persisted — so a database/backup leak never yields a directly-usable
         // login/reset token. @see UserIdentityModel::getIdentityBySecret()
+        //
+        // The identities table has a UNIQUE(type, secret) key. Long crypto
+        // tokens effectively never collide, but a short numeric code (custom
+        // generator) can clash with another user's active code, so regenerate
+        // and retry on a unique-constraint violation (mirrors createCodeIdentity).
         helper('text');
-        $token = $tokenGenerator !== null
-            ? (string) $tokenGenerator()
-            : random_string('crypto', 20);
+        $token    = '';
+        $maxTries = 5;
 
-        $identityModel->insert([
-            'user_id' => $user->id,
-            'type'    => $identityType,
-            'secret'  => hash('sha256', $token),
-            'expires' => Time::now()->addSeconds($lifetime)->format('Y-m-d H:i:s'),
-        ]);
+        while (true) {
+            $token = $tokenGenerator !== null
+                ? (string) $tokenGenerator()
+                : random_string('crypto', 20);
+
+            try {
+                $identityModel->insert([
+                    'user_id' => $user->id,
+                    'type'    => $identityType,
+                    'secret'  => hash('sha256', $token),
+                    'expires' => Time::now()->addSeconds($lifetime)->format('Y-m-d H:i:s'),
+                ]);
+
+                break;
+            } catch (DatabaseException $e) {
+                if (--$maxTries <= 0) {
+                    throw $e;
+                }
+            }
+        }
 
         // Gather common email context
         /** @var IncomingRequest $request */
