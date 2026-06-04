@@ -166,6 +166,28 @@ class MagicLinkController extends BaseAuthController
     }
 
     /**
+     * Shows the 6-digit code entry form. Only reachable after a code has been
+     * requested (the pending email is in the session).
+     */
+    public function codeView(): ResponseInterface
+    {
+        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
+            return $this->handleError(
+                config('Auth')->loginRoute(),
+                lang('Auth.magicLinkDisabled'),
+            );
+        }
+
+        if (! session()->has('magicCodeEmail')) {
+            return redirect()->route('magic-link');
+        }
+
+        $content = $this->view(setting('Auth.views')['magic-link-code']);
+
+        return $this->response->setBody($content);
+    }
+
+    /**
      * Handles the GET request from the email
      */
     public function verify(): RedirectResponse
