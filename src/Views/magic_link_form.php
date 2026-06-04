@@ -35,7 +35,12 @@
                 </div>
 
                 <div class="d-grid col-12 col-md-8 mx-auto m-3">
-                    <button type="submit" class="btn btn-primary btn-block"><?= lang('Auth.send') ?></button>
+                    <?php if (setting('AuthSecurity.magicLinkEnableLink')): ?>
+                        <button type="submit" name="delivery" value="link" class="btn btn-primary btn-block mb-2"><?= lang('Auth.magicLinkSendLink') ?></button>
+                    <?php endif; ?>
+                    <?php if (setting('AuthSecurity.magicLinkEnableCode')): ?>
+                        <button type="submit" name="delivery" value="code" class="btn btn-outline-primary btn-block"><?= lang('Auth.magicLinkSendCode') ?></button>
+                    <?php endif; ?>
                 </div>
 
             </form>

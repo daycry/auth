@@ -246,11 +246,24 @@ When the lockout expires, the counter resets automatically on the next login att
 ## Magic Links
 
 > **File**: `app/Config/AuthSecurity.php`
+>
+> For flow details, security properties (anti-enumeration, code hashing, brute-force lockout) and email template customization, see [Magic Link Authentication](03-authentication.md#magic-link-authentication) in the Authentication guide.
+
+The passwordless email login supports **two delivery modes**:
+
+- **Link mode** — the user receives a one-time, single-use email link to click.
+- **Code mode** — the user receives a 6-digit code to type into a form (session-bound, per-user lockout, hashed at rest).
 
 ```php
-public bool $allowMagicLinkLogins = true;
-public int  $magicLinkLifetime    = HOUR; // Token validity in seconds
+public bool $allowMagicLinkLogins = true;        // Master switch (disables both modes)
+public int  $magicLinkLifetime    = HOUR;        // Link expiry (seconds)
+
+public bool $magicLinkEnableLink  = true;        // Offer the "email me a link" button
+public bool $magicLinkEnableCode  = true;        // Offer the "email me a code" button
+public int  $magicCodeLifetime    = 10 * MINUTE; // Code expiry (seconds; kept short, single-use)
 ```
+
+With `$allowMagicLinkLogins = false` the entire feature is disabled. When both `enable` flags are `true` the login form offers both buttons; set `$magicLinkEnableLink = false` or `$magicLinkEnableCode = false` to hide the corresponding button. Both modes honour pending post-auth actions and record login attempts.
 
 ---
 
@@ -452,6 +465,8 @@ public array $views = [
     'magic-link-login'            => '\Daycry\Auth\Views\magic_link_form',
     'magic-link-message'          => '\Daycry\Auth\Views\magic_link_message',
     'magic-link-email'            => '\Daycry\Auth\Views\Email\magic_link_email',
+    'magic-link-code'             => '\Daycry\Auth\Views\magic_link_code',
+    'magic-link-code-email'       => '\Daycry\Auth\Views\Email\magic_link_code_email',
 
     // Password Reset
     'password-reset-request'      => '\Daycry\Auth\Views\password_reset_request',
@@ -515,9 +530,12 @@ public array $routes = [
         ['post', 'login', 'LoginController::loginAction'],
     ],
     'magic-link' => [
-        ['get',  'login/magic-link',        'MagicLinkController::loginView',  'magic-link'],
-        ['post', 'login/magic-link',        'MagicLinkController::loginAction'],
-        ['get',  'login/verify-magic-link', 'MagicLinkController::verify',     'verify-magic-link'],
+        ['get',  'login/magic-link',         'MagicLinkController::loginView',   'magic-link'],
+        ['post', 'login/magic-link',         'MagicLinkController::loginAction'],
+        ['get',  'login/magic-link/message', 'MagicLinkController::messageView', 'magic-link-message'],
+        ['get',  'login/verify-magic-link',  'MagicLinkController::verify',      'verify-magic-link'],
+        ['get',  'login/magic-link/code',    'MagicLinkController::codeView',    'magic-link-code'],
+        ['post', 'login/magic-link/code',    'MagicLinkController::verifyCode'],
     ],
     'logout' => [
         ['get', 'logout', 'LoginController::logoutAction', 'logout'],

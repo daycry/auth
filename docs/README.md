@@ -26,7 +26,7 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 - Compromised-password recheck on login (HIBP)
 - Access Token authenticator + scope enforcement
 - JWT authenticator + refresh token rotation + token-version revocation
-- Magic Link (passwordless)
+- Magic Link (passwordless) — email link or 6-digit code modes
 - Password Reset flow
 - Force Password Reset
 - Pre-authentication events
@@ -130,7 +130,7 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 | Access Token scope enforcement (`token-scope:` filter) | ✅ |
 | JWT + Refresh Tokens (one-time-use rotation) | ✅ |
 | JWT **token-version revocation** ("log out everywhere" via `User::revokeIssuedTokens()`) | ✅ |
-| Magic Link (passwordless) | ✅ |
+| Magic Link (passwordless) — link & code modes | ✅ |
 | Email Two-Factor Auth | ✅ |
 | TOTP Two-Factor Auth | ✅ |
 | TOTP **backup codes** | ✅ |

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Enums;
 
+use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Enums\IdentityType;
 use Tests\Support\TestCase;
 
@@ -24,5 +25,11 @@ final class IdentityTypeTest extends TestCase
     public function testWebauthnCaseValue(): void
     {
         $this->assertSame('webauthn', IdentityType::WEBAUTHN->value);
+    }
+
+    public function testMagicCodeCaseValue(): void
+    {
+        $this->assertSame('magic_code', IdentityType::MAGIC_CODE->value);
+        $this->assertSame('magic_code', Session::ID_TYPE_MAGIC_CODE);
     }
 }

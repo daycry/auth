@@ -20,6 +20,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Libraries\TokenEmailSender;
+use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 
@@ -82,37 +83,72 @@ class MagicLinkController extends BaseAuthController
             );
         }
 
-        // Validate email format
         $rules    = $this->getValidationRules();
         $postData = $this->request->getPost();
 
+        // Resolve the form URL once. The 'magic-link' route is login/magic-link,
+        // so redirecting to the literal 'magic-link' path would 404 — use the
+        // named route.
+        $formUrl = route_to('magic-link');
+
         if (! $this->validateRequest($postData, $rules)) {
-            return $this->handleValidationError('magic-link');
+            return $this->handleValidationError($formUrl);
         }
 
-        // Check if the user exists
+        $delivery = $this->request->getPost('delivery') === 'code' ? 'code' : 'link';
+
+        if ($delivery === 'link' && ! setting('AuthSecurity.magicLinkEnableLink')) {
+            return $this->handleError($formUrl, lang('Auth.magicLinkDisabled'));
+        }
+        if ($delivery === 'code' && ! setting('AuthSecurity.magicLinkEnableCode')) {
+            return $this->handleError($formUrl, lang('Auth.magicLinkDisabled'));
+        }
+
         $email = $this->request->getPost('email');
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
-        if ($user === null) {
-            return $this->handleError('magic-link', lang('Auth.invalidEmail'));
+        if ($delivery === 'code') {
+            // Session-bound: remember the requested email regardless of whether
+            // it exists (anti-enumeration), then show the code form.
+            session()->set('magicCodeEmail', $email);
+
+            if ($user !== null) {
+                try {
+                    (new TokenEmailSender())->sendTokenEmail(
+                        $user,
+                        Session::ID_TYPE_MAGIC_CODE,
+                        setting('AuthSecurity.magicCodeLifetime'),
+                        lang('Auth.magicCodeSubject'),
+                        setting('Auth.views')['magic-link-code-email'],
+                        [],
+                        static fn (): string => Utils::generateNumericCode(6),
+                    );
+                } catch (RuntimeException $e) {
+                    // Swallow send failures so the response can't be used to
+                    // distinguish existing from non-existing accounts.
+                    log_message('error', 'Magic code email failed: {m}', ['m' => $e->getMessage()]);
+                }
+            }
+
+            return redirect()->route('magic-link-code');
         }
 
-        $sender = new TokenEmailSender();
-
-        try {
-            $sender->sendTokenEmail(
-                $user,
-                Session::ID_TYPE_MAGIC_LINK,
-                setting('AuthSecurity.magicLinkLifetime'),
-                lang('Auth.magicLinkSubject'),
-                setting('Auth.views')['magic-link-email'],
-            );
-        } catch (RuntimeException) {
-            return $this->handleError('magic-link', lang('Auth.unableSendEmailToUser', [$user->email]));
+        // Link mode (existing behaviour, now anti-enumeration: unknown emails
+        // and send failures both fall through to the generic message page).
+        if ($user !== null) {
+            try {
+                (new TokenEmailSender())->sendTokenEmail(
+                    $user,
+                    Session::ID_TYPE_MAGIC_LINK,
+                    setting('AuthSecurity.magicLinkLifetime'),
+                    lang('Auth.magicLinkSubject'),
+                    setting('Auth.views')['magic-link-email'],
+                );
+            } catch (RuntimeException $e) {
+                log_message('error', 'Magic link email failed: {m}', ['m' => $e->getMessage()]);
+            }
         }
 
-        // Redirect to message page instead of returning the view directly
         return redirect()->route('magic-link-message');
     }
 
@@ -130,6 +166,28 @@ class MagicLinkController extends BaseAuthController
     public function messageView(): ResponseInterface
     {
         $content = $this->view(setting('Auth.views')['magic-link-message']);
+
+        return $this->response->setBody($content);
+    }
+
+    /**
+     * Shows the 6-digit code entry form. Only reachable after a code has been
+     * requested (the pending email is in the session).
+     */
+    public function codeView(): ResponseInterface
+    {
+        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
+            return $this->handleError(
+                config('Auth')->loginRoute(),
+                lang('Auth.magicLinkDisabled'),
+            );
+        }
+
+        if (! session()->has('magicCodeEmail')) {
+            return redirect()->route('magic-link');
+        }
+
+        $content = $this->view(setting('Auth.views')['magic-link-code']);
 
         return $this->response->setBody($content);
     }
@@ -198,6 +256,82 @@ class MagicLinkController extends BaseAuthController
 
         // Get our login redirect url
         return redirect()->to(config('Auth')->loginRedirect());
+    }
+
+    /**
+     * Verifies the 6-digit code (code delivery mode). The pending email is read
+     * from the session, the code is matched against that user's own MAGIC_CODE
+     * identity (never a global lookup), and the account's brute-force lockout
+     * applies. Generic errors throughout (anti-enumeration).
+     */
+    public function verifyCode(): RedirectResponse
+    {
+        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
+            return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
+        }
+
+        $email = session()->get('magicCodeEmail');
+        if (empty($email)) {
+            return redirect()->route('magic-link');
+        }
+
+        $code = (string) $this->request->getPost('token');
+        $user = $this->provider->findByCredentials(['email' => $email]);
+
+        /** @var Session $authenticator */
+        $authenticator = auth('session')->getAuthenticator();
+
+        if ($user !== null) {
+            $lockout       = $authenticator->getLockoutManager();
+            $lockoutResult = $lockout->isLockedOut($user);
+
+            if ($lockoutResult !== null) {
+                // Generic message even while locked out: surfacing the lockout
+                // reason here would confirm the account exists (a non-existent
+                // email is never locked out and always gets the generic error),
+                // breaking anti-enumeration.
+                return redirect()->route('magic-link-code')->with('error', lang('Auth.magicCodeInvalid'));
+            }
+
+            /** @var UserIdentityModel $identityModel */
+            $identityModel = model(UserIdentityModel::class);
+            $identities    = $identityModel->getIdentitiesByTypes($user, [Session::ID_TYPE_MAGIC_CODE]);
+            $identity      = $identities[0] ?? null;
+
+            if (
+                $identity !== null
+                && $code !== ''
+                && hash_equals((string) $identity->secret, hash('sha256', $code))
+                && Time::now()->isBefore($identity->expires)
+            ) {
+                // Success — consume the code (single-use) and clear state.
+                $identityModel->delete($identity->id);
+                $lockout->resetOnSuccess($user);
+                session()->remove('magicCodeEmail');
+
+                $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
+
+                // Respect any pending post-auth action (mirrors verify()).
+                if ($authenticator->hasAction($user->id)) {
+                    return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
+                }
+
+                $authenticator->loginById($user->id);
+                session()->setTempdata('magicLogin', true);
+                Events::trigger('magicLogin');
+
+                return redirect()->to(config('Auth')->loginRedirect());
+            }
+
+            // Existing user, bad/expired code → count the failed attempt.
+            $lockout->recordFailedAttempt($user);
+        }
+
+        // Generic failure path (unknown email OR bad/expired code).
+        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, false);
+        Events::trigger('failedLogin', ['magicCode' => $code]);
+
+        return redirect()->route('magic-link-code')->with('error', lang('Auth.magicCodeInvalid'));
     }
 
     /**

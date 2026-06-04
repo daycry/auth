@@ -14,10 +14,12 @@ declare(strict_types=1);
 namespace Tests\Libraries;
 
 use CodeIgniter\Email\Email;
+use CodeIgniter\I18n\Time;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Libraries\TokenEmailSender;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
 
@@ -74,6 +76,76 @@ final class TokenEmailSenderTest extends DatabaseTestCase
         $this->dontSeeInDatabase($this->tables['identities'], [
             'user_id' => $user->id,
             'secret'  => $raw,
+        ]);
+    }
+
+    public function testUsesCustomNumericGeneratorAndHashesAtRest(): void
+    {
+        $user        = fake(UserModel::class);
+        $user->email = 'otp-generator@example.com';
+        model(UserModel::class)->save($user);
+
+        $raw = (new TokenEmailSender())->sendTokenEmail(
+            $user,
+            Session::ID_TYPE_MAGIC_CODE,
+            600,
+            'Subject',
+            '\Daycry\Auth\Views\Email\magic_link_email',
+            [],
+            static fn (): string => '135790',
+        );
+
+        $this->assertSame('135790', $raw);
+        // Stored hashed, never plaintext.
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $user->id,
+            'type'    => 'magic_code',
+            'secret'  => hash('sha256', '135790'),
+        ]);
+    }
+
+    public function testRegeneratesCodeOnUniqueCollision(): void
+    {
+        // User A already holds the code "111111".
+        $userA = fake(UserModel::class);
+        model(UserIdentityModel::class)->insert([
+            'user_id' => $userA->id,
+            'type'    => Session::ID_TYPE_MAGIC_CODE,
+            'secret'  => hash('sha256', '111111'),
+            'expires' => Time::now()->addMinutes(10)->format('Y-m-d H:i:s'),
+        ]);
+
+        // User B's generator first yields the colliding code, then a fresh one.
+        // The UNIQUE(type, secret) constraint must trigger a regenerate + retry.
+        $userB        = fake(UserModel::class);
+        $userB->email = 'collision-b@example.com';
+        model(UserModel::class)->save($userB);
+
+        $codes = ['111111', '222222'];
+        $i     = 0;
+
+        $raw = (new TokenEmailSender())->sendTokenEmail(
+            $userB,
+            Session::ID_TYPE_MAGIC_CODE,
+            600,
+            'Subject',
+            '\Daycry\Auth\Views\Email\magic_link_email',
+            [],
+            static function () use (&$i, $codes): string {
+                return $codes[$i++];
+            },
+        );
+
+        $this->assertSame('222222', $raw);
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $userB->id,
+            'type'    => 'magic_code',
+            'secret'  => hash('sha256', '222222'),
+        ]);
+        // User A's original code is untouched.
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $userA->id,
+            'secret'  => hash('sha256', '111111'),
         ]);
     }
 }

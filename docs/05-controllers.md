@@ -170,13 +170,16 @@ This controller is called automatically by the library when `$actions['login']` 
 
 ## MagicLinkController
 
-Handles passwordless login via one-time email links.
+Handles passwordless login via email — supports both one-time links and 6-digit OTP codes.
 
 **Routes**:
 ```text
-GET  /login/magic-link        → loginView()
-POST /login/magic-link        → loginAction()
-GET  /login/verify-magic-link → verify()
+GET  /login/magic-link         → loginView()      # Email entry form (both modes)
+POST /login/magic-link         → loginAction()    # Branches on delivery=link|code
+GET  /login/magic-link/message → messageView()    # "check your email" confirmation page
+GET  /login/verify-magic-link  → verify()         # Link mode: verify token from email link
+GET  /login/magic-link/code    → codeView()       # Code mode: 6-digit code entry form
+POST /login/magic-link/code    → verifyCode()     # Code mode: verify submitted code
 ```
 
 The base controller is fully functional. Extend only if you need to customise the view or post-login redirect:

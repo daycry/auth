@@ -259,6 +259,27 @@ class AuthSecurity extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Passwordless email login — delivery modes
+     * --------------------------------------------------------------------
+     * The passwordless email login (gated by $allowMagicLinkLogins) can
+     * deliver a clickable link, a 6-digit code, or both. Disable a mode to
+     * hide its button on the login form.
+     */
+    public bool $magicLinkEnableLink = true;
+
+    public bool $magicLinkEnableCode = true;
+
+    /**
+     * --------------------------------------------------------------------
+     * Magic Code Lifetime
+     * --------------------------------------------------------------------
+     * How long an emailed 6-digit login code stays valid, in seconds.
+     * Kept short (codes are single-use and session-bound).
+     */
+    public int $magicCodeLifetime = 10 * MINUTE;
+
+    /**
+     * --------------------------------------------------------------------
      * Password Reset Lifetime
      * --------------------------------------------------------------------
      * Specifies the amount of time, in seconds, that a password reset

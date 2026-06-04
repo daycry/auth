@@ -2,7 +2,9 @@ name: Docs
 
 on:
   push:
-    branches: [main, development]
+    # Publish only from the default branch. The github-pages environment's
+    # branch policy allows `development`; a push to `main` would be rejected.
+    branches: [development]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -26,9 +28,9 @@ jobs:
     name: Build (MkDocs Material)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -40,7 +42,7 @@ jobs:
       - name: Build site (strict — fails on any broken link/anchor)
         run: mkdocs build --strict --site-dir site
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
@@ -48,12 +50,13 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
-    # Only publish from the canonical branches, not from forks/PRs.
-    if: github.event_name != 'pull_request'
+    # Publish only from the default branch (the github-pages environment's
+    # allowed branch); never from forks/PRs or other branches.
+    if: github.ref == 'refs/heads/development'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
