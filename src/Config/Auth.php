@@ -355,6 +355,8 @@ class Auth extends BaseConfig
         'magic-link-login'            => '\Daycry\Auth\Views\magic_link_form',
         'magic-link-message'          => '\Daycry\Auth\Views\magic_link_message',
         'magic-link-email'            => '\Daycry\Auth\Views\Email\magic_link_email',
+        'magic-link-code'             => '\Daycry\Auth\Views\magic_link_code',
+        'magic-link-code-email'       => '\Daycry\Auth\Views\Email\magic_link_code_email',
         // Password reset
         'password-reset-request' => '\Daycry\Auth\Views\password_reset_request',
         'password-reset-message' => '\Daycry\Auth\Views\password_reset_message',
@@ -438,9 +440,26 @@ class Auth extends BaseConfig
             ],
             [
                 'get',
+                'login/magic-link/message',
+                'MagicLinkController::messageView',
+                'magic-link-message', // Route name
+            ],
+            [
+                'get',
                 'login/verify-magic-link',
                 'MagicLinkController::verify',
                 'verify-magic-link', // Route name
+            ],
+            [
+                'get',
+                'login/magic-link/code',
+                'MagicLinkController::codeView',
+                'magic-link-code', // Route name
+            ],
+            [
+                'post',
+                'login/magic-link/code',
+                'MagicLinkController::verifyCode',
             ],
         ],
         'logout' => [

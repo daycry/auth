@@ -54,6 +54,7 @@ class Session extends Base implements AuthenticatorInterface
     // Identity types
     public const ID_TYPE_EMAIL_PASSWORD = IdentityType::EMAIL_PASSWORD->value;
     public const ID_TYPE_MAGIC_LINK     = IdentityType::MAGIC_LINK->value;
+    public const ID_TYPE_MAGIC_CODE     = IdentityType::MAGIC_CODE->value;
     public const ID_TYPE_EMAIL_2FA      = IdentityType::EMAIL_2FA->value;
     public const ID_TYPE_EMAIL_ACTIVATE = IdentityType::EMAIL_ACTIVATE->value;
 

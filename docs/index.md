@@ -24,7 +24,7 @@ Authentication &amp; Authorization for **CodeIgniter 4** — Session, Access Tok
 
     ---
 
-    Session, Access Token (with scope enforcement), JWT (refresh tokens + one-shot **revocation** via `token_version`), and Magic Link — all behind one helper.
+    Session, Access Token (with scope enforcement), JWT (refresh tokens + one-shot **revocation** via `token_version`), and Magic Link (email link or **6-digit code**) — all behind one helper.
 
     [:octicons-arrow-right-24: Authentication](03-authentication.md)
 

@@ -17,6 +17,7 @@ use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Exceptions\DatabaseException;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
 
@@ -33,12 +34,13 @@ class TokenEmailSender
     /**
      * Generates a token identity and sends an email to the user.
      *
-     * @param User                 $user          The user to send the email to
-     * @param string               $identityType  Identity type constant (e.g. Session::ID_TYPE_MAGIC_LINK)
-     * @param int                  $lifetime      Token lifetime in seconds
-     * @param string               $emailSubject  Email subject line (lang key already resolved)
-     * @param string               $emailView     View path for the email body
-     * @param array<string, mixed> $extraViewData Additional data passed to the email view
+     * @param User                 $user           The user to send the email to
+     * @param string               $identityType   Identity type constant (e.g. Session::ID_TYPE_MAGIC_LINK)
+     * @param int                  $lifetime       Token lifetime in seconds
+     * @param string               $emailSubject   Email subject line (lang key already resolved)
+     * @param string               $emailView      View path for the email body
+     * @param array<string, mixed> $extraViewData  Additional data passed to the email view
+     * @param ?callable            $tokenGenerator Optional token factory (defaults to a 20-char crypto string)
      *
      * @return string The generated raw token
      *
@@ -51,6 +53,7 @@ class TokenEmailSender
         string $emailSubject,
         string $emailView,
         array $extraViewData = [],
+        ?callable $tokenGenerator = null,
     ): string {
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
@@ -62,15 +65,40 @@ class TokenEmailSender
         // emailed to the user, but only its non-reversible SHA-256 hash is
         // persisted — so a database/backup leak never yields a directly-usable
         // login/reset token. @see UserIdentityModel::getIdentityBySecret()
+        //
+        // The identities table has a UNIQUE(type, secret) key. Long crypto
+        // tokens effectively never collide, but a short numeric code (custom
+        // generator) can clash with another user's active code, so regenerate
+        // and retry on a unique-constraint violation (mirrors createCodeIdentity).
+        //
+        // Use the model's create(): it disables DBDebug and calls checkQueryReturn()
+        // so a failed insert ALWAYS throws Daycry\Auth\Exceptions\DatabaseException,
+        // even in production where DBDebug is off (a raw insert() would silently
+        // return false there — no row, no retry).
         helper('text');
-        $token = random_string('crypto', 20);
+        $token    = '';
+        $maxTries = 5;
 
-        $identityModel->insert([
-            'user_id' => $user->id,
-            'type'    => $identityType,
-            'secret'  => hash('sha256', $token),
-            'expires' => Time::now()->addSeconds($lifetime)->format('Y-m-d H:i:s'),
-        ]);
+        while (true) {
+            $token = $tokenGenerator !== null
+                ? (string) $tokenGenerator()
+                : random_string('crypto', 20);
+
+            try {
+                $identityModel->create([
+                    'user_id' => $user->id,
+                    'type'    => $identityType,
+                    'secret'  => hash('sha256', $token),
+                    'expires' => Time::now()->addSeconds($lifetime)->format('Y-m-d H:i:s'),
+                ]);
+
+                break;
+            } catch (DatabaseException $e) {
+                if (--$maxTries <= 0) {
+                    throw $e;
+                }
+            }
+        }
 
         // Gather common email context
         /** @var IncomingRequest $request */
