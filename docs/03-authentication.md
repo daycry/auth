@@ -630,28 +630,53 @@ async function apiFetch(url, options = {}) {
 
 **Best for**: Passwordless login, reducing friction for new users.
 
-### Enable Magic Links
+The passwordless email login supports **two delivery modes** — both for **existing users only** (registration is untouched) and both **anti-enumeration-safe** (the response never reveals whether an email belongs to an account):
+
+- **Link** — the user is emailed a one-time, single-use link to click.
+- **Code** — the user is emailed a **6-digit one-time code** to type into a form (session-bound; the code is hashed at rest and tied to the browser that requested it).
+
+The login form shows a button for each enabled mode.
+
+### Configuration
 
 ```php
-// app/Config/Auth.php
-public bool $allowMagicLinkLogins = true;
-public int  $magicLinkLifetime    = HOUR;
+// app/Config/AuthSecurity.php
+public bool $allowMagicLinkLogins = true;        // master switch (both modes)
+public int  $magicLinkLifetime    = HOUR;        // link expiry
+
+public bool $magicLinkEnableLink  = true;        // offer the "email me a link" button
+public bool $magicLinkEnableCode  = true;        // offer the "email me a code" button
+public int  $magicCodeLifetime    = 10 * MINUTE; // code expiry (kept short; single-use)
 ```
 
-### Complete Flow
+With `$allowMagicLinkLogins = false` the whole feature (routes included) is off. With both `enable` flags on, the form offers both buttons; disable one to hide it.
 
-1. User enters email on `/login/magic-link`
-2. System generates a one-time token and emails a link
-3. User clicks the link within 1 hour
-4. Token is verified → session created → user redirected
+### Flows
+
+**Link mode**
+1. User enters their email on `/login/magic-link` and chooses "email me a link".
+2. A one-time token is generated and emailed as a link.
+3. User clicks the link (within `$magicLinkLifetime`) → token verified → session created.
+
+**Code mode**
+1. User enters their email and chooses "email me a code". The email is remembered in the (anonymous) session.
+2. A 6-digit code is generated, **hashed**, stored, and emailed.
+3. User is shown `/login/magic-link/code` and enters the code.
+4. The code is verified **against that user's own code** (never a global lookup), single-use, with per-user brute-force lockout → session created.
+
+Both modes honour any pending post-auth action and record login attempts.
 
 ### Routes
 
 ```php
-$routes->get('login/magic-link',        'MagicLinkController::loginView',  ['as' => 'magic-link']);
-$routes->post('login/magic-link',       'MagicLinkController::loginAction');
-$routes->get('login/verify-magic-link', 'MagicLinkController::verify',     ['as' => 'verify-magic-link']);
+$routes->get('login/magic-link',         'MagicLinkController::loginView',  ['as' => 'magic-link']);
+$routes->post('login/magic-link',        'MagicLinkController::loginAction');     // delivery=link|code
+$routes->get('login/verify-magic-link',  'MagicLinkController::verify',     ['as' => 'verify-magic-link']);  // link mode
+$routes->get('login/magic-link/code',    'MagicLinkController::codeView',   ['as' => 'magic-link-code']);    // code form
+$routes->post('login/magic-link/code',   'MagicLinkController::verifyCode');                                 // code verify
 ```
+
+(These are registered automatically by `auth()->routes($routes)`.)
 
 ---
 

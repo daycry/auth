@@ -777,7 +777,7 @@ parameters:
 		-
 			rawMessage: Call to function model with Daycry\Auth\Models\UserIdentityModel::class is discouraged.
 			identifier: codeigniter.factoriesClassConstFetch
-			count: 1
+			count: 2
 			path: src/Controllers/MagicLinkController.php
 
 		-
@@ -1889,6 +1889,12 @@ parameters:
 			identifier: method.alreadyNarrowedType
 			count: 1
 			path: tests/Entities/UserTest.php
+
+		-
+			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertSame() with ''magic_code'' and ''magic_code'' will always evaluate to true.'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/Enums/IdentityTypeTest.php
 
 		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertSame() with ''webauthn'' and ''webauthn'' will always evaluate to true.'
