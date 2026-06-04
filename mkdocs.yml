@@ -84,6 +84,15 @@ markdown_extensions:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
+      # The docs' PHP snippets omit the opening `<?php` tag, so Pygments' PHP
+      # lexer would treat them as plain HTML (all "Other" tokens, no colour).
+      # Re-define the `php` fence to run the lexer in inline mode so bare PHP
+      # highlights correctly.
+      extend_pygments_lang:
+        - name: php
+          lang: php
+          options:
+            startinline: true
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
