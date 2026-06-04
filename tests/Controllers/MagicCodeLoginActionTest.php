@@ -78,6 +78,9 @@ final class MagicCodeLoginActionTest extends DatabaseTestCase
 
         $result = $this->post('login/magic-link', ['email' => 'otp@example.com', 'delivery' => 'code']);
 
+        // Back to the real form route (login/magic-link), not the literal
+        // '/magic-link' path which would 404.
+        $result->assertRedirectTo(route_to('magic-link'));
         $result->assertSessionHas('error');
     }
 }

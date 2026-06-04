@@ -86,17 +86,22 @@ class MagicLinkController extends BaseAuthController
         $rules    = $this->getValidationRules();
         $postData = $this->request->getPost();
 
+        // Resolve the form URL once. The 'magic-link' route is login/magic-link,
+        // so redirecting to the literal 'magic-link' path would 404 — use the
+        // named route.
+        $formUrl = route_to('magic-link');
+
         if (! $this->validateRequest($postData, $rules)) {
-            return $this->handleValidationError('magic-link');
+            return $this->handleValidationError($formUrl);
         }
 
         $delivery = $this->request->getPost('delivery') === 'code' ? 'code' : 'link';
 
         if ($delivery === 'link' && ! setting('AuthSecurity.magicLinkEnableLink')) {
-            return $this->handleError('magic-link', lang('Auth.magicLinkDisabled'));
+            return $this->handleError($formUrl, lang('Auth.magicLinkDisabled'));
         }
         if ($delivery === 'code' && ! setting('AuthSecurity.magicLinkEnableCode')) {
-            return $this->handleError('magic-link', lang('Auth.magicLinkDisabled'));
+            return $this->handleError($formUrl, lang('Auth.magicLinkDisabled'));
         }
 
         $email = $this->request->getPost('email');
@@ -281,7 +286,11 @@ class MagicLinkController extends BaseAuthController
             $lockoutResult = $lockout->isLockedOut($user);
 
             if ($lockoutResult !== null) {
-                return redirect()->route('magic-link-code')->with('error', $lockoutResult->reason());
+                // Generic message even while locked out: surfacing the lockout
+                // reason here would confirm the account exists (a non-existent
+                // email is never locked out and always gets the generic error),
+                // breaking anti-enumeration.
+                return redirect()->route('magic-link-code')->with('error', lang('Auth.magicCodeInvalid'));
             }
 
             /** @var UserIdentityModel $identityModel */

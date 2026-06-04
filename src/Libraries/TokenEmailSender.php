@@ -13,11 +13,11 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Libraries;
 
-use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Exceptions\DatabaseException;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
 
@@ -70,6 +70,11 @@ class TokenEmailSender
         // tokens effectively never collide, but a short numeric code (custom
         // generator) can clash with another user's active code, so regenerate
         // and retry on a unique-constraint violation (mirrors createCodeIdentity).
+        //
+        // Use the model's create(): it disables DBDebug and calls checkQueryReturn()
+        // so a failed insert ALWAYS throws Daycry\Auth\Exceptions\DatabaseException,
+        // even in production where DBDebug is off (a raw insert() would silently
+        // return false there — no row, no retry).
         helper('text');
         $token    = '';
         $maxTries = 5;
@@ -80,7 +85,7 @@ class TokenEmailSender
                 : random_string('crypto', 20);
 
             try {
-                $identityModel->insert([
+                $identityModel->create([
                     'user_id' => $user->id,
                     'type'    => $identityType,
                     'secret'  => hash('sha256', $token),

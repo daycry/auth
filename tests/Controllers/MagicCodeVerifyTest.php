@@ -164,11 +164,13 @@ final class MagicCodeVerifyTest extends DatabaseTestCase
                 ->post('login/magic-link/code', ['token' => '000000']);
         }
 
-        // Now locked out: even the correct code is refused with the lockout reason.
+        // Now locked out: even the correct code is refused. The error must be the
+        // SAME generic message a non-existent email gets — surfacing the lockout
+        // reason would confirm the account exists (anti-enumeration).
         $result = $this->withSession(['magicCodeEmail' => 'otp@example.com'])
             ->post('login/magic-link/code', ['token' => '123456']);
         $result->assertRedirectTo(route_to('magic-link-code'));
-        $result->assertSessionHas('error');
+        $result->assertSessionHas('error', lang('Auth.magicCodeInvalid'));
         $this->seeInDatabase($this->tables['identities'], ['user_id' => $user->id, 'type' => 'magic_code']);
     }
 }
