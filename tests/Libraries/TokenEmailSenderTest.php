@@ -76,4 +76,29 @@ final class TokenEmailSenderTest extends DatabaseTestCase
             'secret'  => $raw,
         ]);
     }
+
+    public function testUsesCustomNumericGeneratorAndHashesAtRest(): void
+    {
+        $user        = fake(UserModel::class);
+        $user->email = 'otp-generator@example.com';
+        model(UserModel::class)->save($user);
+
+        $raw = (new TokenEmailSender())->sendTokenEmail(
+            $user,
+            Session::ID_TYPE_MAGIC_CODE,
+            600,
+            'Subject',
+            '\Daycry\Auth\Views\Email\magic_link_email',
+            [],
+            static fn (): string => '135790',
+        );
+
+        $this->assertSame('135790', $raw);
+        // Stored hashed, never plaintext.
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $user->id,
+            'type'    => 'magic_code',
+            'secret'  => hash('sha256', '135790'),
+        ]);
+    }
 }

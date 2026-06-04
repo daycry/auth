@@ -33,12 +33,13 @@ class TokenEmailSender
     /**
      * Generates a token identity and sends an email to the user.
      *
-     * @param User                 $user          The user to send the email to
-     * @param string               $identityType  Identity type constant (e.g. Session::ID_TYPE_MAGIC_LINK)
-     * @param int                  $lifetime      Token lifetime in seconds
-     * @param string               $emailSubject  Email subject line (lang key already resolved)
-     * @param string               $emailView     View path for the email body
-     * @param array<string, mixed> $extraViewData Additional data passed to the email view
+     * @param User                 $user           The user to send the email to
+     * @param string               $identityType   Identity type constant (e.g. Session::ID_TYPE_MAGIC_LINK)
+     * @param int                  $lifetime       Token lifetime in seconds
+     * @param string               $emailSubject   Email subject line (lang key already resolved)
+     * @param string               $emailView      View path for the email body
+     * @param array<string, mixed> $extraViewData  Additional data passed to the email view
+     * @param ?callable            $tokenGenerator Optional token factory (defaults to a 20-char crypto string)
      *
      * @return string The generated raw token
      *
@@ -51,6 +52,7 @@ class TokenEmailSender
         string $emailSubject,
         string $emailView,
         array $extraViewData = [],
+        ?callable $tokenGenerator = null,
     ): string {
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
@@ -63,7 +65,9 @@ class TokenEmailSender
         // persisted — so a database/backup leak never yields a directly-usable
         // login/reset token. @see UserIdentityModel::getIdentityBySecret()
         helper('text');
-        $token = random_string('crypto', 20);
+        $token = $tokenGenerator !== null
+            ? (string) $tokenGenerator()
+            : random_string('crypto', 20);
 
         $identityModel->insert([
             'user_id' => $user->id,
