@@ -1,5 +1,6 @@
 vendor
 build
+/site
 composer.lock
 *.bak
 .claude

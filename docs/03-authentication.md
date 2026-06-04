@@ -671,6 +671,7 @@ Both modes honour any pending post-auth action and record login attempts.
 ```php
 $routes->get('login/magic-link',         'MagicLinkController::loginView',  ['as' => 'magic-link']);
 $routes->post('login/magic-link',        'MagicLinkController::loginAction');     // delivery=link|code
+$routes->get('login/magic-link/message', 'MagicLinkController::messageView', ['as' => 'magic-link-message']); // confirmation page
 $routes->get('login/verify-magic-link',  'MagicLinkController::verify',     ['as' => 'verify-magic-link']);  // link mode
 $routes->get('login/magic-link/code',    'MagicLinkController::codeView',   ['as' => 'magic-link-code']);    // code form
 $routes->post('login/magic-link/code',   'MagicLinkController::verifyCode');                                 // code verify
