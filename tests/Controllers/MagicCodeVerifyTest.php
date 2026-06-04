@@ -152,4 +152,23 @@ final class MagicCodeVerifyTest extends DatabaseTestCase
         $result = $this->post('login/magic-link/code', ['token' => '123456']);
         $result->assertRedirectTo(route_to('magic-link'));
     }
+
+    public function testRepeatedWrongCodesLockOut(): void
+    {
+        setting('AuthSecurity.userMaxAttempts', 2);
+        $user = $this->makeUser('otp@example.com');
+        $this->seedCode((int) $user->id, '123456');
+
+        for ($i = 0; $i < 2; $i++) {
+            $this->withSession(['magicCodeEmail' => 'otp@example.com'])
+                ->post('login/magic-link/code', ['token' => '000000']);
+        }
+
+        // Now locked out: even the correct code is refused with the lockout reason.
+        $result = $this->withSession(['magicCodeEmail' => 'otp@example.com'])
+            ->post('login/magic-link/code', ['token' => '123456']);
+        $result->assertRedirectTo(route_to('magic-link-code'));
+        $result->assertSessionHas('error');
+        $this->seeInDatabase($this->tables['identities'], ['user_id' => $user->id, 'type' => 'magic_code']);
+    }
 }

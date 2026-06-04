@@ -324,6 +324,17 @@ abstract class AbstractTranslationTestCase extends TestCase
             'Auth.webauthn2faTitle',
             'Auth.webauthn2faPrompt',
             'Auth.webauthn2faStart',
+            // Magic Code (passwordless email OTP) — newly added, pending translation
+            'Auth.magicCodeSubject',
+            'Auth.magicCodeEmailIntro',
+            'Auth.magicCodeEmailOutro',
+            'Auth.magicCodeTitle',
+            'Auth.magicCodePrompt',
+            'Auth.magicCodeSubmit',
+            'Auth.magicCodeResend',
+            'Auth.magicCodeInvalid',
+            'Auth.magicLinkSendLink',
+            'Auth.magicLinkSendCode',
         ];
 
         $excludedKeys  = array_unique(array_merge($excludedKeyTranslations, $this->excludedLocaleKeyTranslations));

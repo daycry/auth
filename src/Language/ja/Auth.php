@@ -51,6 +51,17 @@ return [
     'webauthn2faTitle'           => 'Two-factor verification',
     'webauthn2faPrompt'          => 'Verify your identity with your passkey.',
     'webauthn2faStart'           => 'Use passkey',
+    // Magic Code (passwordless email OTP)
+    'magicCodeSubject'    => 'Your login code',
+    'magicCodeEmailIntro' => 'Use this code to sign in. It expires shortly and can be used once.',
+    'magicCodeEmailOutro' => 'If you did not request this, you can ignore this email.',
+    'magicCodeTitle'      => 'Enter your login code',
+    'magicCodePrompt'     => 'We sent a 6-digit code to your email. Enter it below to sign in.',
+    'magicCodeSubmit'     => 'Sign in',
+    'magicCodeResend'     => 'Resend code',
+    'magicCodeInvalid'    => 'That code is invalid or has expired.',
+    'magicLinkSendLink'   => 'Email me a sign-in link',
+    'magicLinkSendCode'   => 'Email me a sign-in code',
 
     'email'           => 'メールアドレス', // 'Email Address'
     'username'        => 'ユーザー名', // 'Username'
