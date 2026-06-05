@@ -84,6 +84,8 @@ class AccessTokenRepository
 
         // Every users column, aliased u_<col>, so the JOIN row carries both the
         // identity (identities.*) and the full user record in one fetch.
+        // KEEP IN SYNC with the auth_users schema: a new users column must be
+        // added here, otherwise the JOIN-hydrated User would silently miss it.
         $userColumns = [
             'id',
             'uuid',

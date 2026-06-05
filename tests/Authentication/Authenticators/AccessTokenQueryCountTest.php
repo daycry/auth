@@ -115,6 +115,28 @@ final class AccessTokenQueryCountTest extends DatabaseTestCase
         $this->assertSame(0, $measured, 'token->user() must not issue an additional query');
     }
 
+    public function testJoinHydratedTokenPreservesScopes(): void
+    {
+        setting('AuthSecurity.tokenLastUsedThrottle', 9999);
+
+        /** @var User $user */
+        $user  = fake(UserModel::class);
+        $token = $user->generateAccessToken('foo', ['users.read', 'posts.write']);
+        $this->markTokenRecentlyUsed($token);
+
+        $result = $this->auth->check(['token' => $token->raw_token]);
+        $this->assertTrue($result->isOK());
+
+        // The serialized `extra` (scopes) column must survive the JOIN
+        // hydration intact — the token is built via injectRawData(), so the
+        // raw JSON is decoded on read exactly as the non-JOIN path would.
+        $accessToken = $result->extraInfo()->currentAccessToken();
+        $this->assertNotNull($accessToken);
+        $this->assertTrue($accessToken->can('users.read'));
+        $this->assertTrue($accessToken->can('posts.write'));
+        $this->assertTrue($accessToken->cant('users.delete'));
+    }
+
     /**
      * Persists a recent `last_used_at` on the token so the throttled
      * UPDATE inside check() is skipped, leaving only SELECT(s) to count.
