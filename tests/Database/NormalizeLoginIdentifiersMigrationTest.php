@@ -126,6 +126,32 @@ final class NormalizeLoginIdentifiersMigrationTest extends DatabaseTestCase
         ]);
     }
 
+    public function testCollisionInOneTableLeavesTheOtherTableUntouched(): void
+    {
+        // A perfectly normalizable, mixed-case username exists in `users`...
+        $cleanUserId = $this->insertRawUser('NormalizeMe');
+        // ...but a case-collision in the identities table must abort the WHOLE
+        // migration before ANY write — so the clean username stays mixed-case.
+        $userA = $this->insertRawUser('userA');
+        $userB = $this->insertRawUser('userB');
+        $this->insertRawIdentity($userA, Session::ID_TYPE_EMAIL_PASSWORD, 'Dup@x.com');
+        $this->insertRawIdentity($userB, Session::ID_TYPE_EMAIL_PASSWORD, 'dup@x.com');
+
+        $migration = new NormalizeLoginIdentifiers();
+
+        try {
+            $migration->up();
+            $this->fail('Expected the migration to abort on the email secret collision.');
+        } catch (RuntimeException) {
+            // expected
+        }
+
+        // Detection runs for BOTH tables before the transaction opens, so the
+        // clean username in the other table must NOT have been lowercased.
+        $this->seeInDatabase($this->tables['users'], ['id' => $cleanUserId, 'username' => 'NormalizeMe']);
+        $this->dontSeeInDatabase($this->tables['users'], ['id' => $cleanUserId, 'username' => 'normalizeme']);
+    }
+
     public function testLeavesOtherSecretsUntouched(): void
     {
         $userId = $this->insertRawUser('plainuser');

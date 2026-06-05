@@ -99,7 +99,16 @@ class NormalizeLoginIdentifiers extends Migration
         $this->normalizeUsernames();
         $this->normalizeEmailSecrets();
 
-        $this->connection->transComplete();
+        // With CI4 defaults a failed UPDATE inside the transaction does not
+        // throw — it silently rolls back and transComplete() returns false.
+        // Surface that so the migration is never recorded as "applied" while
+        // rows were left un-normalized (which would break index-friendly login).
+        if ($this->connection->transComplete() === false) {
+            throw new RuntimeException(
+                'Login-identifier normalization failed and was rolled back; no rows were changed. '
+                . 'Re-run the migration once the database error is resolved.',
+            );
+        }
     }
 
     /**
