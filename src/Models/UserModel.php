@@ -394,13 +394,26 @@ class UserModel extends BaseModel implements UserProviderInterface
             return null;
         }
 
-        // Any of the credentials used should be case-insensitive. The column is
-        // normalized to lowercase at write (see UserModel / User entity), so we
-        // lowercase only the INPUT and compare against the plain column. Wrapping
-        // the column in LOWER() would make the predicate non-sargable and defeat
-        // the unique index.
+        // Any of the credentials used should be case-insensitive.
+        //
+        // `username` is normalized to lowercase at write (see User::setUsername),
+        // so we lowercase only the INPUT and compare against the plain column —
+        // wrapping the column in LOWER() would be non-sargable and defeat the
+        // UNIQUE(username) index.
+        //
+        // Other (custom) credential fields are NOT normalized at write, so they
+        // keep the LOWER(column) comparison to preserve case-insensitive matching.
         foreach ($credentials as $key => $value) {
-            $this->where($this->table . ".{$key}", strtolower($value));
+            if ($key === 'username') {
+                $this->where($this->table . ".{$key}", strtolower($value));
+
+                continue;
+            }
+
+            $this->where(
+                'LOWER(' . $this->db->protectIdentifiers($this->table . ".{$key}") . ')',
+                strtolower($value),
+            );
         }
 
         if ($email !== null) {
