@@ -96,7 +96,7 @@ final class AccessTokenQueryCountTest extends DatabaseTestCase
         $this->assertTrue($result->isOK());
 
         $accessToken = $result->extraInfo()->currentAccessToken();
-        $this->assertNotNull($accessToken);
+        $this->assertInstanceOf(AccessTokenEntity::class, $accessToken);
 
         // The user relation must already be cached on the token entity, so
         // accessing it issues zero additional queries.
@@ -131,7 +131,7 @@ final class AccessTokenQueryCountTest extends DatabaseTestCase
         // hydration intact — the token is built via injectRawData(), so the
         // raw JSON is decoded on read exactly as the non-JOIN path would.
         $accessToken = $result->extraInfo()->currentAccessToken();
-        $this->assertNotNull($accessToken);
+        $this->assertInstanceOf(AccessTokenEntity::class, $accessToken);
         $this->assertTrue($accessToken->can('users.read'));
         $this->assertTrue($accessToken->can('posts.write'));
         $this->assertTrue($accessToken->cant('users.delete'));

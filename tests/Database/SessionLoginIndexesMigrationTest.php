@@ -15,6 +15,8 @@ namespace Tests\Database;
 
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Database\Migrations\AddSessionAndLoginIndexes;
+use Daycry\Auth\Entities\DeviceSession;
+use Daycry\Auth\Entities\Login;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
@@ -130,8 +132,8 @@ final class SessionLoginIndexesMigrationTest extends DatabaseTestCase
 
         $devices->purgeOldSessions(30);
 
-        $this->assertNull($devices->findBySessionId('sid-old'));
-        $this->assertNotNull($devices->findBySessionId('sid-new'));
+        $this->assertNotInstanceOf(DeviceSession::class, $devices->findBySessionId('sid-old'));
+        $this->assertInstanceOf(DeviceSession::class, $devices->findBySessionId('sid-new'));
     }
 
     public function testLastLoginAndPreviousLoginReturnExpectedRows(): void
@@ -144,11 +146,11 @@ final class SessionLoginIndexesMigrationTest extends DatabaseTestCase
         $logins->recordLoginAttempt(Session::ID_TYPE_EMAIL_PASSWORD, 'u@example.com', true, '1.1.1.3', 'ua', (int) $user->id);
 
         $last = $logins->lastLogin($user);
-        $this->assertNotNull($last);
+        $this->assertInstanceOf(Login::class, $last);
         $this->assertSame('1.1.1.3', $last->ip_address);
 
         $previous = $logins->previousLogin($user);
-        $this->assertNotNull($previous);
+        $this->assertInstanceOf(Login::class, $previous);
         $this->assertSame('1.1.1.1', $previous->ip_address);
     }
 

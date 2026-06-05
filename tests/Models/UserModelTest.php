@@ -340,7 +340,7 @@ final class UserModelTest extends DatabaseTestCase
             $sql = $query->getQuery();
             if (
                 str_starts_with(strtolower($sql), strtolower('SELECT'))
-                && str_contains($sql, $identitiesTable)
+                && str_contains($sql, (string) $identitiesTable)
                 && str_contains($sql, "`type` = 'email_password'")
             ) {
                 $byTypeCount++;
@@ -402,7 +402,8 @@ final class UserModelTest extends DatabaseTestCase
         $sql = (string) $this->db->getLastQuery();
 
         $this->assertStringNotContainsString(
-            strtolower('LOWER('), strtolower($sql),
+            strtolower('LOWER('),
+            strtolower($sql),
             'findByCredentials must not wrap the indexed column in LOWER(): ' . $sql,
         );
         // The input is lowercased in PHP, so the value compared is lowercase.
