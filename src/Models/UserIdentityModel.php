@@ -93,7 +93,11 @@ class UserIdentityModel extends BaseModel
         $data = [
             'user_id' => $user->id,
             'type'    => Session::ID_TYPE_EMAIL_PASSWORD,
-            'secret'  => $credentials['email'],
+            // The email is normalized to lowercase so the login lookup matches
+            // case-insensitively against the unique index. Defense-in-depth for
+            // callers that build the identity directly via this public API; the
+            // password hash (secret2) is never altered.
+            'secret'  => strtolower($credentials['email']),
             'secret2' => $passwords->hash($credentials['password']),
         ];
 

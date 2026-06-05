@@ -147,9 +147,24 @@ class User extends Entity
         return $this->email;
     }
 
+    /**
+     * The EMAIL_PASSWORD identity `secret` (the email) is stored lowercase so
+     * the login lookup can match case-insensitively against the unique index
+     * (eventually without an SQL `LOWER()` wrapper). Normalizing at write keeps
+     * reads of existing rows unaffected.
+     */
     public function setEmail(string $email): void
     {
-        $this->email = $email;
+        $this->email = strtolower($email);
+    }
+
+    /**
+     * Usernames are stored lowercase so the login lookup can use the
+     * unique index directly (case-insensitive login without SQL LOWER()).
+     */
+    public function setUsername(?string $username): void
+    {
+        $this->attributes['username'] = $username === null ? null : strtolower($username);
     }
 
     public function getPassword(): ?string

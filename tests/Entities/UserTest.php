@@ -284,6 +284,62 @@ final class UserTest extends DatabaseTestCase
         $this->assertSame('foo@example.com', $identity->secret);
     }
 
+    public function testSetUsernameStoresLowercase(): void
+    {
+        $user           = new User();
+        $user->username = 'JohnDoe';
+
+        $this->assertSame('johndoe', $user->username);
+    }
+
+    public function testSetUsernameAcceptsNull(): void
+    {
+        $user           = new User();
+        $user->username = null;
+
+        $this->assertNull($user->username);
+    }
+
+    public function testSetEmailStoresLowercase(): void
+    {
+        $user        = new User();
+        $user->email = 'A@B.com';
+
+        $this->assertSame('a@b.com', $user->getEmail());
+    }
+
+    public function testSaveStoresEmailIdentitySecretLowercase(): void
+    {
+        $user           = new User();
+        $user->username = 'MixedCaseUser';
+        $user->email    = 'Mixed@Example.COM';
+        $user->password = 'secret123';
+
+        model(UserModel::class)->save($user);
+
+        $this->seeInDatabase($this->tables['identities'], [
+            'type'   => Session::ID_TYPE_EMAIL_PASSWORD,
+            'secret' => 'mixed@example.com',
+        ]);
+        $this->seeInDatabase($this->tables['users'], [
+            'username' => 'mixedcaseuser',
+        ]);
+    }
+
+    public function testCreateEmailIdentityStoresSecretLowercase(): void
+    {
+        model(UserIdentityModel::class)->createEmailIdentity($this->user, [
+            'email'    => 'Foo@Example.COM',
+            'password' => 'passbar',
+        ]);
+
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $this->user->id,
+            'type'    => Session::ID_TYPE_EMAIL_PASSWORD,
+            'secret'  => 'foo@example.com',
+        ]);
+    }
+
     public function testActivate(): void
     {
         $this->user->active = false;
