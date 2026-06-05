@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Models;
 
+use CodeIgniter\Events\Events;
 use Daycry\Auth\Entities\DeviceSession;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\DeviceSessionModel;
@@ -236,6 +237,77 @@ final class DeviceSessionModelTest extends DatabaseTestCase
 
         $this->assertSame(0, $this->devices->enforceConcurrentSessionLimit($user, 5));
         $this->assertSame(0, $this->devices->enforceConcurrentSessionLimit($user, 0));
+    }
+
+    public function testEnforceConcurrentSessionLimitUsesSingleUpdate(): void
+    {
+        $user = $this->makeUser();
+
+        // 3 active sessions, limit 2 → 2 must be terminated in one batched UPDATE.
+        $this->devices->createSession($user, 'sid-1', '1.1.1.1');
+        $this->devices->where('session_id', 'sid-1')->set('last_active', '2020-01-01 00:00:00')->update();
+
+        $this->devices->createSession($user, 'sid-2', '2.2.2.2');
+        $this->devices->where('session_id', 'sid-2')->set('last_active', '2024-01-01 00:00:00')->update();
+
+        $this->devices->createSession($user, 'sid-3', '3.3.3.3');
+        $this->devices->where('session_id', 'sid-3')->set('last_active', '2025-01-01 00:00:00')->update();
+
+        // Count DB statements fired during enforcement only. Using the real
+        // DBQuery event (no MockEvents injected) mirrors AccessTokenQueryCountTest.
+        $count = 0;
+        Events::on('DBQuery', static function () use (&$count): void {
+            $count++;
+        });
+
+        $terminated = $this->devices->enforceConcurrentSessionLimit($user, 2);
+
+        // Snapshot immediately so only enforcement statements are measured.
+        $measured = $count;
+
+        $this->assertSame(2, $terminated);
+        $this->assertSame(2, $measured, '1 SELECT for the active set + 1 batched UPDATE');
+    }
+
+    public function testTerminateSessionsByIdsOnlyAffectsActive(): void
+    {
+        $user = $this->makeUser();
+
+        $this->devices->createSession($user, 'sid-1', '1.1.1.1');
+        $this->devices->createSession($user, 'sid-2', '2.2.2.2');
+        $this->devices->createSession($user, 'sid-3', '3.3.3.3');
+
+        // Pre-terminate sid-2 with a known, in-the-past timestamp.
+        $preTerminatedAt = '2000-01-01 00:00:00';
+        $this->devices->where('session_id', 'sid-2')
+            ->set('logged_out_at', $preTerminatedAt)
+            ->update();
+
+        $returned = $this->devices->terminateSessionsByIds(['sid-1', 'sid-2', 'sid-3']);
+
+        // Return value equals the count of (filtered) ids passed.
+        $this->assertSame(3, $returned);
+
+        // Read raw columns to dodge entity date casting.
+        $rows = $this->devices->builder()
+            ->select('session_id, logged_out_at')
+            ->whereIn('session_id', ['sid-1', 'sid-2', 'sid-3'])
+            ->get()
+            ->getResultArray();
+
+        $byId = [];
+
+        foreach ($rows as $row) {
+            $byId[$row['session_id']] = $row['logged_out_at'];
+        }
+
+        // The two active sessions are now terminated.
+        $this->assertNotEmpty($byId['sid-1']);
+        $this->assertNotEmpty($byId['sid-3']);
+
+        // The pre-terminated session keeps its ORIGINAL timestamp (the
+        // where('logged_out_at') guard means it was never re-touched).
+        $this->assertSame($preTerminatedAt, (string) $byId['sid-2']);
     }
 
     public function testPurgeOldSessionsRemovesTerminatedRows(): void

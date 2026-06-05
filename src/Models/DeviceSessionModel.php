@@ -162,6 +162,33 @@ class DeviceSessionModel extends BaseModel
     }
 
     /**
+     * Terminates the given sessions in a single UPDATE. Only rows still active
+     * (logged_out_at IS NULL) are affected, matching terminateSession().
+     *
+     * @param list<string> $sessionIds
+     *
+     * @return int Number of sessions terminated (active rows targeted).
+     */
+    public function terminateSessionsByIds(array $sessionIds): int
+    {
+        $sessionIds = array_values(array_filter(
+            $sessionIds,
+            static fn (string $id): bool => $id !== '',
+        ));
+
+        if ($sessionIds === []) {
+            return 0;
+        }
+
+        $this->whereIn('session_id', $sessionIds)
+            ->where('logged_out_at')
+            ->set('logged_out_at', Time::now()->format('Y-m-d H:i:s'))
+            ->update();
+
+        return count($sessionIds);
+    }
+
+    /**
      * Terminates all active sessions for a user, optionally keeping one session alive.
      *
      * @param string|null $exceptSessionId Session ID to keep active (e.g. current session)
@@ -269,15 +296,14 @@ class DeviceSessionModel extends BaseModel
             return 0;
         }
 
-        $terminated = 0;
+        $sessionIds = [];
 
         foreach (array_slice($active, 0, $excess) as $session) {
             if (! empty($session->session_id)) {
-                $this->terminateSession((string) $session->session_id);
-                $terminated++;
+                $sessionIds[] = (string) $session->session_id;
             }
         }
 
-        return $terminated;
+        return $this->terminateSessionsByIds($sessionIds);
     }
 }
