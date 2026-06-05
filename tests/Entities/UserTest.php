@@ -340,6 +340,21 @@ final class UserTest extends DatabaseTestCase
         ]);
     }
 
+    public function testCreateEmailIdentityDoesNotLowercaseThePassword(): void
+    {
+        // Scope guard: only the email (secret) is normalized. The password
+        // (secret2) must be hashed verbatim — never lowercased — so a
+        // mixed-case password keeps working and is not silently weakened.
+        $identity = model(UserIdentityModel::class)->createEmailIdentity($this->user, [
+            'email'    => 'Foo@Example.COM',
+            'password' => 'MixedCasePass123',
+        ]);
+
+        $passwords = service('passwords');
+        $this->assertTrue($passwords->verify('MixedCasePass123', (string) $identity->secret2));
+        $this->assertFalse($passwords->verify('mixedcasepass123', (string) $identity->secret2));
+    }
+
     public function testActivate(): void
     {
         $this->user->active = false;
