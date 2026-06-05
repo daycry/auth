@@ -167,6 +167,17 @@ public array $validFields = [
 ];
 ```
 
+!!! note "`username` and the login `email` are stored lowercase"
+    Login matching is case-insensitive (you can type `John@Example.com`), but
+    `username` and the `email_password` identity secret are now **stored**
+    lowercase so the login lookup can use the unique index. New writes are
+    normalized automatically, and a one-time data migration lowercases existing
+    rows. If you are upgrading an existing install, read
+    [Login identifiers are now stored lowercase](12-migration.md#login-identifiers-are-now-stored-lowercase)
+    — you must run migrations before deploying the new code, and the migration
+    aborts (without writing) if it finds case-only duplicate accounts. Any other
+    `validFields` entry keeps its previous case-insensitive matching.
+
 ---
 
 ## Password Settings
