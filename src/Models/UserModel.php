@@ -302,12 +302,13 @@ class UserModel extends BaseModel implements UserProviderInterface
         $identity      = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
 
         if ($identity === null) {
-            $identityModel->createEmailIdentity($user, [
+            // Reuse the just-created identity instead of re-querying it. The
+            // returned entity has its primary key set and original synced, so
+            // the save() below runs as an UPDATE rather than a duplicate INSERT.
+            $identity = $identityModel->createEmailIdentity($user, [
                 'email'    => $email,
                 'password' => '',
             ]);
-
-            $identity = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
         }
 
         if ($email !== null && $email !== '' && $email !== '0') {
