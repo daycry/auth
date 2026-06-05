@@ -361,6 +361,54 @@ final class UserModelTest extends DatabaseTestCase
         );
     }
 
+    /**
+     * Login lookup by email must be case-insensitive. Since C1 normalizes the
+     * stored email (identity secret) to lowercase at write, the same user must
+     * be found whether the supplied email is lower-, mixed-, or upper-case.
+     */
+    public function testFindByCredentialsIsCaseInsensitiveForEmail(): void
+    {
+        $users          = $this->createUserModel();
+        $user           = $this->createNewUser();
+        $user->username = 'caseuser';
+        $user->email    = 'John@Example.com';
+        $users->save($user);
+
+        $lower = $users->findByCredentials(['email' => 'john@example.com']);
+        $this->assertInstanceOf(User::class, $lower);
+
+        $upper = $users->findByCredentials(['email' => 'JOHN@EXAMPLE.COM']);
+        $this->assertInstanceOf(User::class, $upper);
+
+        $this->assertSame($lower->id, $upper->id);
+    }
+
+    /**
+     * Regression guard: the credentials query must NOT wrap the indexed column
+     * (identity `secret`) in LOWER(...), otherwise the UNIQUE(type, secret)
+     * index cannot be used. The input is still lowercased in PHP, so the
+     * predicate must be a plain `secret = '...'` comparison.
+     */
+    public function testFindByCredentialsQueryDoesNotWrapColumnInLower(): void
+    {
+        $users          = $this->createUserModel();
+        $user           = $this->createNewUser();
+        $user->username = 'caseuser2';
+        $user->email    = 'John@Example.com';
+        $users->save($user);
+
+        $users->findByCredentials(['email' => 'JOHN@EXAMPLE.COM']);
+
+        $sql = (string) $this->db->getLastQuery();
+
+        $this->assertStringNotContainsString(
+            strtolower('LOWER('), strtolower($sql),
+            'findByCredentials must not wrap the indexed column in LOWER(): ' . $sql,
+        );
+        // The input is lowercased in PHP, so the value compared is lowercase.
+        $this->assertStringContainsStringIgnoringCase('john@example.com', $sql);
+    }
+
     private function createNewUser(): User
     {
         $user           = new User();

@@ -394,12 +394,13 @@ class UserModel extends BaseModel implements UserProviderInterface
             return null;
         }
 
-        // any of the credentials used should be case-insensitive
+        // Any of the credentials used should be case-insensitive. The column is
+        // normalized to lowercase at write (see UserModel / User entity), so we
+        // lowercase only the INPUT and compare against the plain column. Wrapping
+        // the column in LOWER() would make the predicate non-sargable and defeat
+        // the unique index.
         foreach ($credentials as $key => $value) {
-            $this->where(
-                'LOWER(' . $this->db->protectIdentifiers($this->table . ".{$key}") . ')',
-                strtolower($value),
-            );
+            $this->where($this->table . ".{$key}", strtolower($value));
         }
 
         if ($email !== null) {
@@ -409,10 +410,10 @@ class UserModel extends BaseModel implements UserProviderInterface
             )
                 ->join($this->tables['identities'], sprintf('%1$s.user_id = %2$s.id', $this->tables['identities'], $this->table))
                 ->where($this->tables['identities'] . '.type', Session::ID_TYPE_EMAIL_PASSWORD)
-                ->where(
-                    'LOWER(' . $this->db->protectIdentifiers($this->tables['identities'] . '.secret') . ')',
-                    strtolower($email),
-                )
+                // The identity secret (email) is stored lowercase at write, so we
+                // lowercase only the INPUT and compare against the plain column.
+                // This keeps the UNIQUE(type, secret) composite index usable.
+                ->where($this->tables['identities'] . '.secret', strtolower($email))
                 ->asArray()
                 ->first();
 
