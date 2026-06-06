@@ -103,7 +103,7 @@ The `Unreleased` section in `CHANGELOG.md` adds 13 features and a handful of int
 
 ### Required steps
 
-1. **Run migrations** — six new migrations ship with this release:
+1. **Run migrations *before* serving the new code** — eight new migrations ship with this release:
 
    | Migration | Adds |
    |-----------|------|
@@ -113,10 +113,21 @@ The `Unreleased` section in `CHANGELOG.md` adds 13 features and a handful of int
    | `2026-05-07-000004_add_trusted_until_to_device_sessions` | `auth_device_sessions.trusted_until` |
    | `2026-05-07-000005_create_password_history_table` | `auth_password_history` |
    | `2026-05-07-000006_add_password_changed_at_to_users` | `users.password_changed_at` |
+   | `2026-06-05-000001_add_session_and_login_indexes` | Performance indexes on `auth_device_sessions` and `auth_logins` |
+   | `2026-06-05-000002_normalize_login_identifiers` | **Lowercases existing `users.username` and `email_password` identity secrets** (data migration — see [Login identifiers are now stored lowercase](#login-identifiers-are-now-stored-lowercase) below) |
 
    ```bash
    php spark migrate --all
    ```
+
+   !!! warning "Migrate first, then deploy — order matters this release"
+       The login lookup (`UserModel::findByCredentials`) no longer wraps the
+       stored column in SQL `LOWER()`, so it can use the unique index — but it
+       now relies on the stored value already being lowercase. **Run
+       `php spark migrate --all` on the existing database before serving the new
+       code.** If the new code is deployed first, legacy mixed-case rows (e.g. a
+       user stored as `John@Example.com`) will not match a login attempt until
+       the data migration has run. See the dedicated note below.
 
 2. **Rename test helpers (deprecated, BC kept)** — if your tests use the typo'd helpers, the corrected names are now available; the old ones still work as deprecated aliases.
 
@@ -151,6 +162,42 @@ Each of these defaults to "off / unchanged" — adopt only what fits your securi
 - `OauthManager::handleCallback()` now compares the OAuth `state` with `hash_equals()` (timing-safe) — drop-in replacement.
 - `UserLockoutManager::recordFailedAttempt()` now increments `failed_login_count` atomically — drop-in replacement.
 - `DeviceSessionRecorder` no longer propagates DB errors — they are logged and swallowed so a misconfigured tracking table can't break login.
+
+### Login identifiers are now stored lowercase
+
+To let the login lookup use the unique index, this release makes the
+username / login-email match **index-friendly**: the query no longer wraps the
+stored column in SQL `LOWER()`. Instead, the *stored* value is normalized to
+lowercase at write time and only the *input* is lowercased at read time. Three
+things change for you:
+
+1. **New writes are normalized.** `User::setUsername()` and `User::setEmail()`
+   lowercase the value, and `UserIdentityModel::createEmailIdentity()` stores
+   the email lowercase. Logins remain case-insensitive — a user can still type
+   `John@Example.com` and match.
+2. **A data migration lowercases existing rows.** `2026-06-05-000002_normalize_login_identifiers`
+   lowercases existing `users.username` values and existing `email_password`
+   identity secrets (the stored email). This is why you **migrate before you
+   deploy** (see [Required steps](#required-steps)): until it runs, legacy
+   mixed-case rows won't match under the new index-friendly query. The
+   migration's `down()` is a deliberate no-op — the original casing is
+   unrecoverable once lowercased.
+3. **The migration aborts (and writes nothing) on case-only duplicates.** If
+   lowercasing would collapse two distinct rows into one key — e.g. users
+   `John` and `john`, or two `email_password` secrets differing only in
+   case — the migration **detects this first, performs zero writes, and aborts
+   with a report listing the offending `id`s and values**. It never merges or
+   deletes accounts. Resolve the duplicate manually (rename, merge, or delete
+   one of the accounts), then re-run `php spark migrate`.
+
+!!! note "Scope is strict — only username and login email are touched"
+    Only `users.username` and the `email_password` identity secret are
+    lowercased. OAuth social-ids, access-token / JWT-refresh hashes,
+    magic-link / 2FA / reset codes, TOTP secrets, and WebAuthn credentials are
+    **left exactly as-is** (case preserved). If you log in with a custom
+    `validFields` entry other than `username`, that field keeps its previous
+    case-insensitive matching (the query still uses `LOWER()` for it), so no
+    data migration is needed or performed for it.
 
 ---
 
