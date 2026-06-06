@@ -119,8 +119,8 @@ $routes->group('auth', ['namespace' => 'Daycry\Auth\Controllers'], static functi
     $routes->get('password-reset',         'PasswordResetController::requestView',  ['as' => 'password-reset']);
     $routes->post('password-reset',        'PasswordResetController::requestAction');
     $routes->get('password-reset/message', 'PasswordResetController::messageView',  ['as' => 'password-reset-message']);
-    $routes->get('password-reset/(:any)',  'PasswordResetController::resetView');
-    $routes->post('password-reset/(:any)', 'PasswordResetController::resetAction');
+    $routes->get('password-reset/verify',  'PasswordResetController::resetView',  ['as' => 'password-reset-verify']);
+    $routes->post('password-reset/verify', 'PasswordResetController::resetAction');
 });
 
 // Protected routes — must be logged in

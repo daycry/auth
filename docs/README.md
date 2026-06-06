@@ -138,6 +138,8 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 | TOTP **rate-limited + anti-replay** verification | ✅ |
 | OAuth 2.0 Social Login (Google/GitHub/Facebook/Azure/Generic) | ✅ |
 | OAuth **explicit account linking** (`oauth/link/(:segment)`) | ✅ |
+| WebAuthn / Passkeys — **passwordless login** (biometric/PIN) | ✅ |
+| WebAuthn / Passkeys — **second-factor** (`Webauthn2FA` action) | ✅ |
 
 ### Authorization
 | Feature | Status |

@@ -66,16 +66,18 @@ With `trackDeviceSessions` set to `true`, every successful login call to `Sessio
 Device sessions require the `auth_device_sessions` table, which is created by the migration at:
 
 ```text
-src/Database/Migrations/2026-02-26-000002_create_device_sessions.php
+src/Database/Migrations/2026-02-26-000002_create_device_sessions_table.php
 ```
 
-Run it with:
+Run it (and all later migrations) with:
 
 ```bash
 php spark migrate --all
 ```
 
 The table also includes a `uuid` column for safe external exposure (never expose the integer `id` directly in APIs or URLs).
+
+Performance indexes that back the active-session queries, concurrent-session enforcement, and the purge command are added by a later migration, `2026-06-05-000001_add_session_and_login_indexes` — a composite `(user_id, logged_out_at)` and a single-column `(logged_out_at)` on `auth_device_sessions`.
 
 ---
 

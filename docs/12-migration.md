@@ -148,6 +148,7 @@ Each of these defaults to "off / unchanged" — adopt only what fits your securi
 | Throttle access-token `last_used_at` writes | `AuthSecurity::$tokenLastUsedThrottle = 60` | [Authentication — Access Token](03-authentication.md#access-token-authenticator) |
 | Concurrent session limit | `Auth::$maxConcurrentSessions = 5` | [Device Sessions — Concurrent Limit](11-device-sessions.md#concurrent-session-limit) |
 | Trusted devices (2FA bypass) | `AuthSecurity::$trustedDeviceLifetime = 30 * DAY` | [TOTP — Trust This Device](10-totp-2fa.md#trust-this-device) |
+| WebAuthn / Passkeys (passwordless login + 2FA) | `AuthSecurity::$webauthnEnabled = true` | [WebAuthn / Passkeys](15-webauthn.md) |
 | TOTP backup codes | (automatic on TOTP confirmation) | [TOTP — Backup Codes](10-totp-2fa.md#backup-codes) |
 | Compromised-password recheck on login | `AuthSecurity::$recheckPwnedOnLogin = true` | [Audit & Compliance](13-audit-and-compliance.md#compromised-password-recheck-on-login) |
 | Suspicious login alerts | `AuthSecurity::$suspiciousLoginAlerts = true` + listener | [Audit & Compliance](13-audit-and-compliance.md#suspicious-login-detection) |
