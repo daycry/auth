@@ -204,8 +204,8 @@ Provides the complete password reset flow for users who have forgotten their pas
 GET  /password-reset          → requestView()   — Show "Enter your email" form
 POST /password-reset          → requestAction() — Send reset email
 GET  /password-reset/message  → messageView()   — "Check your inbox" confirmation
-GET  /password-reset/{token}  → resetView()     — Show "Set new password" form
-POST /password-reset/{token}  → resetAction()   — Apply the new password
+GET  /password-reset/verify   → resetView()     — Show "Set new password" form
+POST /password-reset/verify   → resetAction()   — Apply the new password
 ```
 
 ### How to Enable
@@ -217,8 +217,8 @@ $routes->group('', ['namespace' => 'Daycry\Auth\Controllers'], static function (
     $routes->get('password-reset',           'PasswordResetController::requestView',   ['as' => 'password-reset']);
     $routes->post('password-reset',          'PasswordResetController::requestAction');
     $routes->get('password-reset/message',   'PasswordResetController::messageView',   ['as' => 'password-reset-message']);
-    $routes->get('password-reset/(:any)',    'PasswordResetController::resetView',     ['as' => 'password-reset-form']);
-    $routes->post('password-reset/(:any)',   'PasswordResetController::resetAction');
+    $routes->get('password-reset/verify',    'PasswordResetController::resetView',     ['as' => 'password-reset-verify']);
+    $routes->post('password-reset/verify',   'PasswordResetController::resetAction');
 });
 ```
 
@@ -273,8 +273,8 @@ When an administrator flags an account for a mandatory password change (e.g., af
 
 **Routes**:
 ```text
-GET  /force-reset → showView()    — Show the form (requires current password)
-POST /force-reset → resetAction() — Validate and update password
+GET  /auth/force-reset → showView()    — Show the form (requires current password)
+POST /auth/force-reset → resetAction() — Validate and update password
 ```
 
 ### How to Enable the Filter
@@ -291,8 +291,8 @@ $routes->group('dashboard', ['filter' => 'auth:session,force-reset'], static fun
 });
 
 // Register the reset routes (unfiltered, so user can access them)
-$routes->get('force-reset',  'Daycry\Auth\Controllers\ForcePasswordResetController::showView',    ['as' => 'force-reset']);
-$routes->post('force-reset', 'Daycry\Auth\Controllers\ForcePasswordResetController::resetAction');
+$routes->get('auth/force-reset',  'Daycry\Auth\Controllers\ForcePasswordResetController::showView',    ['as' => 'force-reset']);
+$routes->post('auth/force-reset', 'Daycry\Auth\Controllers\ForcePasswordResetController::resetAction');
 ```
 
 ### Flag a User Programmatically

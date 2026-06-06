@@ -728,8 +728,8 @@ Users who have forgotten their password can request a reset link by email.
 // GET  /password-reset          → requestView()
 // POST /password-reset          → requestAction()
 // GET  /password-reset/message  → messageView()
-// GET  /password-reset/{token}  → resetView()
-// POST /password-reset/{token}  → resetAction()
+// GET  /password-reset/verify   → resetView()
+// POST /password-reset/verify   → resetAction()
 ```
 
 ### Configuration
@@ -772,7 +772,7 @@ model(\Daycry\Auth\Models\UserIdentityModel::class)
 
 ### How It Works
 
-Once flagged, the `ForcePasswordResetFilter` intercepts any request from that user and redirects them to `/force-reset`. After a successful password change, the flag is cleared and they proceed normally.
+Once flagged, the `ForcePasswordResetFilter` intercepts any request from that user and redirects them to `/auth/force-reset`. After a successful password change, the flag is cleared and they proceed normally.
 
 ### Apply the Filter
 

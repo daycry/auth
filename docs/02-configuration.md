@@ -562,14 +562,14 @@ public array $routes = [
         ['get',  'password-reset',         'PasswordResetController::requestView',   'password-reset'],
         ['post', 'password-reset',         'PasswordResetController::requestAction'],
         ['get',  'password-reset/message', 'PasswordResetController::messageView',   'password-reset-message'],
-        ['get',  'password-reset/(:any)',   'PasswordResetController::resetView',     'password-reset-form'],
-        ['post', 'password-reset/(:any)',   'PasswordResetController::resetAction'],
+        ['get',  'password-reset/verify',   'PasswordResetController::resetView',     'password-reset-verify'],
+        ['post', 'password-reset/verify',   'PasswordResetController::resetAction'],
     ],
 
     // Force Password Reset
     'force-reset' => [
-        ['get',  'force-reset', 'ForcePasswordResetController::showView',    'force-reset'],
-        ['post', 'force-reset', 'ForcePasswordResetController::resetAction'],
+        ['get',  'auth/force-reset', 'ForcePasswordResetController::showView',    'force-reset'],
+        ['post', 'auth/force-reset', 'ForcePasswordResetController::resetAction'],
     ],
 
     // JWT (stateless, for APIs)
