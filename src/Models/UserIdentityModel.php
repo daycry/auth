@@ -79,22 +79,37 @@ class UserIdentityModel extends BaseModel
      * combination.
      *
      * @phpstan-param array{email: string, password: string} $credentials
+     *
+     * @return UserIdentity The freshly-persisted identity (with its primary key
+     *                      set and original synced, so a follow-up save() is an UPDATE).
      */
-    public function createEmailIdentity(User $user, array $credentials): void
+    public function createEmailIdentity(User $user, array $credentials): UserIdentity
     {
         $this->checkUserId($user);
 
         /** @var Passwords $passwords */
         $passwords = service('passwords');
 
-        $return = $this->insert([
+        $data = [
             'user_id' => $user->id,
             'type'    => Session::ID_TYPE_EMAIL_PASSWORD,
-            'secret'  => $credentials['email'],
+            // The email is normalized to lowercase so the login lookup matches
+            // case-insensitively against the unique index. Defense-in-depth for
+            // callers that build the identity directly via this public API; the
+            // password hash (secret2) is never altered.
+            'secret'  => strtolower($credentials['email']),
             'secret2' => $passwords->hash($credentials['password']),
-        ]);
+        ];
+
+        $return = $this->insert($data);
 
         $this->checkQueryReturn($return);
+
+        $identity     = new UserIdentity($data);
+        $identity->id = $this->getInsertID();
+        $identity->syncOriginal();
+
+        return $identity;
     }
 
     private function checkUserId(User $user): void

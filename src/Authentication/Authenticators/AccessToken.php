@@ -90,7 +90,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
             ]);
         }
 
-        $token = $this->tokenRepository()->getAccessTokenByRawToken($credentials['token']);
+        $token = $this->tokenRepository()->getAccessTokenByRawTokenWithUser($credentials['token']);
 
         if ($token === null) {
             return new Result([

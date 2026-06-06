@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace Tests\Models;
 
 use CodeIgniter\Database\Exceptions\DataException;
+use CodeIgniter\Database\Query;
+use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserModel;
@@ -285,6 +287,127 @@ final class UserModelTest extends DatabaseTestCase
         $user  = fake(UserModel::class);
 
         $users->save(['id' => $user->id]);
+    }
+
+    /**
+     * Saving a brand-new user with email + password must persist an identity
+     * row whose secret is the email and whose secret2 verifies the REAL
+     * password — proving the placeholder password ('') used by
+     * createEmailIdentity is correctly overwritten and persisted via the
+     * follow-up UPDATE on the reused entity.
+     */
+    public function testSaveNewUserPersistsRealCredentialsViaReusedIdentity(): void
+    {
+        $users = $this->createUserModel();
+        $user  = $this->createNewUser();
+        $users->save($user);
+
+        $saved = $users->findByCredentials(['email' => 'foo@bar.com']);
+        $this->assertInstanceOf(User::class, $saved);
+
+        // Exactly one email-password identity row exists (no duplicate INSERT).
+        $rows = $this->db->table($this->tables['identities'])
+            ->where('user_id', $saved->id)
+            ->where('type', 'email_password')
+            ->get()
+            ->getResultArray();
+        $this->assertCount(1, $rows);
+
+        // The stored secret is the email; secret2 verifies the real password,
+        // not the placeholder '' that createEmailIdentity inserted.
+        $this->assertSame('foo@bar.com', $rows[0]['secret']);
+        $passwords = service('passwords');
+        $this->assertTrue($passwords->verify('password', $rows[0]['secret2']));
+        $this->assertFalse($passwords->verify('', $rows[0]['secret2']));
+    }
+
+    /**
+     * Guards the query-count contract for saveEmailIdentity on a new user:
+     * its `getIdentityByType(EMAIL_PASSWORD)` lookup must run exactly ONCE.
+     * Previously the method re-queried the just-created identity, issuing a
+     * second identical SELECT; that redundant lookup is now gone.
+     *
+     * We match only the `type = 'email_password' ... LIMIT 1` shape emitted by
+     * getIdentityByType (the unrelated full `getIdentities()` SELECT fired by
+     * the User::getPasswordHash() accessor is deliberately excluded).
+     */
+    public function testNewUserSaveIssuesSingleIdentityByTypeSelect(): void
+    {
+        $identitiesTable = $this->tables['identities'];
+
+        $byTypeCount = 0;
+        Events::on('DBQuery', static function (Query $query) use (&$byTypeCount, $identitiesTable): void {
+            $sql = $query->getQuery();
+            if (
+                str_starts_with(strtolower($sql), strtolower('SELECT'))
+                && str_contains($sql, (string) $identitiesTable)
+                && str_contains($sql, "`type` = 'email_password'")
+            ) {
+                $byTypeCount++;
+            }
+        });
+
+        $users = $this->createUserModel();
+        $user  = $this->createNewUser();
+        $users->save($user);
+
+        // Snapshot immediately so only save()'s statements are measured.
+        $measured = $byTypeCount;
+
+        $this->assertSame(
+            1,
+            $measured,
+            'saveEmailIdentity must issue exactly one getIdentityByType SELECT for a new user (was 2)',
+        );
+    }
+
+    /**
+     * Login lookup by email must be case-insensitive. Since C1 normalizes the
+     * stored email (identity secret) to lowercase at write, the same user must
+     * be found whether the supplied email is lower-, mixed-, or upper-case.
+     */
+    public function testFindByCredentialsIsCaseInsensitiveForEmail(): void
+    {
+        $users          = $this->createUserModel();
+        $user           = $this->createNewUser();
+        $user->username = 'caseuser';
+        $user->email    = 'John@Example.com';
+        $users->save($user);
+
+        $lower = $users->findByCredentials(['email' => 'john@example.com']);
+        $this->assertInstanceOf(User::class, $lower);
+
+        $upper = $users->findByCredentials(['email' => 'JOHN@EXAMPLE.COM']);
+        $this->assertInstanceOf(User::class, $upper);
+
+        $this->assertSame($lower->id, $upper->id);
+    }
+
+    /**
+     * Regression guard: the credentials query must NOT wrap the indexed column
+     * (identity `secret`) in LOWER(...), otherwise the UNIQUE(type, secret)
+     * index cannot be used. The input is still lowercased in PHP, so the
+     * predicate must be a plain `secret = '...'` comparison.
+     */
+    public function testFindByCredentialsQueryDoesNotWrapColumnInLower(): void
+    {
+        $users          = $this->createUserModel();
+        $user           = $this->createNewUser();
+        $user->username = 'caseuser2';
+        $user->email    = 'John@Example.com';
+        $users->save($user);
+
+        $users->findByCredentials(['email' => 'JOHN@EXAMPLE.COM']);
+
+        $sql = (string) $this->db->getLastQuery();
+
+        $this->assertStringNotContainsString(
+            strtolower('LOWER('),
+            strtolower($sql),
+            'findByCredentials must not wrap the indexed column in LOWER(): ' . $sql,
+        );
+        // The input is lowercased in PHP, so the value compared is lowercase.
+        $this->assertStringContainsStringIgnoringCase('john@example.com', $sql);
     }
 
     private function createNewUser(): User

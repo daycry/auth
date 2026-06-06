@@ -302,12 +302,13 @@ class UserModel extends BaseModel implements UserProviderInterface
         $identity      = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
 
         if ($identity === null) {
-            $identityModel->createEmailIdentity($user, [
+            // Reuse the just-created identity instead of re-querying it. The
+            // returned entity has its primary key set and original synced, so
+            // the save() below runs as an UPDATE rather than a duplicate INSERT.
+            $identity = $identityModel->createEmailIdentity($user, [
                 'email'    => $email,
                 'password' => '',
             ]);
-
-            $identity = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
         }
 
         if ($email !== null && $email !== '' && $email !== '0') {
@@ -393,8 +394,22 @@ class UserModel extends BaseModel implements UserProviderInterface
             return null;
         }
 
-        // any of the credentials used should be case-insensitive
+        // Any of the credentials used should be case-insensitive.
+        //
+        // `username` is normalized to lowercase at write (see User::setUsername),
+        // so we lowercase only the INPUT and compare against the plain column —
+        // wrapping the column in LOWER() would be non-sargable and defeat the
+        // UNIQUE(username) index.
+        //
+        // Other (custom) credential fields are NOT normalized at write, so they
+        // keep the LOWER(column) comparison to preserve case-insensitive matching.
         foreach ($credentials as $key => $value) {
+            if ($key === 'username') {
+                $this->where($this->table . ".{$key}", strtolower($value));
+
+                continue;
+            }
+
             $this->where(
                 'LOWER(' . $this->db->protectIdentifiers($this->table . ".{$key}") . ')',
                 strtolower($value),
@@ -408,10 +423,10 @@ class UserModel extends BaseModel implements UserProviderInterface
             )
                 ->join($this->tables['identities'], sprintf('%1$s.user_id = %2$s.id', $this->tables['identities'], $this->table))
                 ->where($this->tables['identities'] . '.type', Session::ID_TYPE_EMAIL_PASSWORD)
-                ->where(
-                    'LOWER(' . $this->db->protectIdentifiers($this->tables['identities'] . '.secret') . ')',
-                    strtolower($email),
-                )
+                // The identity secret (email) is stored lowercase at write, so we
+                // lowercase only the INPUT and compare against the plain column.
+                // This keeps the UNIQUE(type, secret) composite index usable.
+                ->where($this->tables['identities'] . '.secret', strtolower($email))
                 ->asArray()
                 ->first();
 

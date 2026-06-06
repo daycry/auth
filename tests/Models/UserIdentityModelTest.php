@@ -115,6 +115,34 @@ final class UserIdentityModelTest extends DatabaseTestCase
         $this->assertCount(2, $rows);
     }
 
+    public function testCreateEmailIdentityReturnsPersistedIdentity(): void
+    {
+        $user = $this->makeUser();
+
+        $identity = $this->identityModel->createEmailIdentity($user, [
+            'email'    => 'x@example.com',
+            'password' => 'secret123',
+        ]);
+
+        // createEmailIdentity returns the persisted UserIdentity (statically
+        // typed), carrying the freshly-assigned primary key.
+        $this->assertNotNull($identity->id);
+        $this->assertSame((int) $this->identityModel->getInsertID(), (int) $identity->id);
+        $this->assertSame(Session::ID_TYPE_EMAIL_PASSWORD, $identity->type);
+        $this->assertSame((int) $user->id, (int) $identity->user_id);
+
+        // The entity has no pending changes, so a follow-up save() is an UPDATE.
+        $this->assertFalse($identity->hasChanged());
+
+        // The returned id must match the freshly-inserted DB row.
+        $this->seeInDatabase($this->tables['identities'], [
+            'id'      => $identity->id,
+            'user_id' => $user->id,
+            'type'    => Session::ID_TYPE_EMAIL_PASSWORD,
+            'secret'  => 'x@example.com',
+        ]);
+    }
+
     public function testGetIdentitiesByTypesReturnsEmptyForEmptyTypeList(): void
     {
         $user = $this->makeUser();
