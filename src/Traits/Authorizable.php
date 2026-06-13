@@ -528,6 +528,7 @@ trait Authorizable
 
         $allGroupPerms = $groupPermModel
             ->whereIn('group_id', $groupIds)
+            ->where('deleted_at', null)
             ->groupStart()
             ->where('until_at')
             ->orWhere('until_at >', $now)
@@ -598,7 +599,9 @@ trait Authorizable
         }
 
         $groupModel = $this->groupModel();
-        $rows       = $groupModel->findAll();
+        // Exclude (soft-)deleted groups from the valid-groups map so they can be
+        // neither used in checks nor (re-)assigned. No-op under hard-delete.
+        $rows = $groupModel->where('deleted_at', null)->findAll();
 
         foreach ($rows as $row) {
             $this->groups[$row->id] = $row->name;
@@ -649,7 +652,10 @@ trait Authorizable
         }
 
         $permissionModel = $this->permissionModel();
-        $rows            = $permissionModel->findAll();
+        // Exclude (soft-)deleted permissions from the valid-permissions map so
+        // they can be neither used in checks nor (re-)assigned. No-op under
+        // hard-delete.
+        $rows = $permissionModel->where('deleted_at', null)->findAll();
 
         foreach ($rows as $row) {
             $this->permissions[$row->id] = $row->name;
