@@ -233,6 +233,32 @@ model(\Daycry\Auth\Models\UserModel::class)->update($userId, [
 
 ---
 
+## Deleted Users
+
+`UserModel` hard-deletes by default (`$useSoftDeletes = false`), so deleting a
+user physically removes the row — there is nothing left to authenticate. The
+`users.deleted_at` column exists for consumers who enable **soft-deletes** (by
+extending `UserModel` with `$useSoftDeletes = true`). When `deleted_at` is set,
+the user is rejected by **every** authenticator, exactly like a hard-deleted or
+banned user:
+
+| Authenticator | How a soft-deleted user is rejected |
+|---------------|--------------------------------------|
+| **Session** | `findByCredentials()` / `findById()` apply the soft-delete scope (`deleted_at IS NULL`) |
+| **JWT** | resolves the user via `findById()`, which applies the same scope |
+| **Access Token** | the eager token+user JOIN re-applies a `deleted_at` guard, so this bypass path stays consistent with Session/JWT |
+
+The Access Token guard is **config-agnostic** — it filters `deleted_at`
+unconditionally, so it is a no-op under hard-delete (the row is already gone)
+and correct the moment soft-deletes are enabled. The same principle extends to
+the RBAC tables — see
+[Authorization → Soft-Deleted Records](06-authorization.md#soft-deleted-records).
+
+> To keep a user's record but block login **without** soft-deletes, prefer
+> `$user->ban()` (sets `status = 'banned'`) or `active = false`.
+
+---
+
 ## Compromised-Password Recheck on Login
 
 Optional opt-in: after a successful password verification, re-test the live password against [HaveIBeenPwned](https://haveibeenpwned.com/) and flag the account for forced reset if it appears in a known breach corpus.

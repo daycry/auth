@@ -109,9 +109,11 @@ validation:
   unrecognized_links: warn
   anchors: warn
 
-# Internal planning docs and the GitHub folder README are not part of the site.
+# Internal planning docs, memory notes, and the GitHub folder README are not
+# part of the site.
 exclude_docs: |
   superpowers/
+  memory/
   README.md
 
 extra_css:

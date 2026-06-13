@@ -13,6 +13,7 @@ Both are stored in the database and can be assigned freely to any user.
 - [Groups](#groups)
 - [Permissions](#permissions)
 - [Permission Inheritance](#permission-inheritance)
+- [Soft-Deleted Records](#soft-deleted-records)
 - [Gates & Policies](#gates--policies)
 - [Gate → RBAC Bridge](#gate--rbac-bridge)
 - [Resolvable Repository Services](#resolvable-repository-services)
@@ -246,6 +247,35 @@ $user->can('users.view');   // true
 > `$user->addPermission('posts.*')`) now correctly grants `posts.create`,
 > `posts.edit`, etc. Earlier versions only expanded scope wildcards that were
 > inherited from a group; direct wildcards required an exact-string match.
+
+---
+
+## Soft-Deleted Records
+
+Every RBAC table — `auth_groups`, `auth_permissions`, and the three pivots
+`auth_groups_users`, `auth_permissions_users`, `auth_permissions_groups` — ships
+with a `deleted_at` column. The models hard-delete by default
+(`$useSoftDeletes = false`), so that column stays `null`. If you enable
+**soft-deletes** (extend a model and set `$useSoftDeletes = true`, or write
+`deleted_at` yourself), a soft-deleted row is treated as gone for **every
+authorization decision**, exactly like a hard-deleted one:
+
+| Soft-deleted record | Effect |
+|---------------------|--------|
+| A **group** (`auth_groups`) | drops every member's membership — `inGroup()`, `getGroups()` and its inherited permissions stop counting it; it can no longer be (re-)assigned via `addGroup()` |
+| A **permission** (`auth_permissions`) | stops being granted via `can()` / `getPermissions()`, whether assigned directly or inherited, and can no longer be (re-)assigned via `addPermission()` |
+| A **pivot row** (`*_users`, `permissions_groups`) | drops just that one assignment — the group / permission itself and every other user stay untouched |
+
+The exclusion is **config-agnostic**: the RBAC read queries filter
+`deleted_at IS NULL` unconditionally, so it is a no-op under the default
+hard-delete behaviour (the row is already gone) and automatically correct once
+soft-deletes are in play. This mirrors how a soft-deleted **user** is locked out
+of every authenticator — see
+[Authentication → Deleted Users](03-authentication.md#deleted-users).
+
+> **Admin panel**: the management screens still list every record (including
+> soft-deleted ones) so they can be reviewed or restored. The exclusion applies
+> to authorization *use*, not to administrative listing.
 
 ---
 
