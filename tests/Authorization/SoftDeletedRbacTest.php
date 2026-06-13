@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authorization;
 
 use CodeIgniter\I18n\Time;
+use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
@@ -164,7 +165,7 @@ final class SoftDeletedRbacTest extends DatabaseTestCase
             'created_at'    => Time::now()->toDateTimeString(),
         ]);
 
-        /** @var \Daycry\Auth\Entities\Group $group */
+        /** @var Group $group */
         $group = model(GroupModel::class)->find(1);
 
         $this->assertCount(1, model(PermissionGroupModel::class)->getForGroup($group));

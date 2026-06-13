@@ -50,7 +50,7 @@ class PermissionModel extends BaseModel
         // authorization decision. Config-agnostic: a no-op when soft-deletes
         // are disabled (hard-delete removes the row, so deleted_at is null).
         return $this->whereIn('id', $permissionIds)
-            ->where($this->deletedField, null)
+            ->where($this->deletedField)
             ->orderBy($this->primaryKey)
             ->findAll();
     }
