@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Models;
 
+use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\AccessTokenRepository;
@@ -163,6 +164,28 @@ final class AccessTokenRepositoryTest extends DatabaseTestCase
     public function testGetAccessTokenByRawTokenReturnsNullForUnknown(): void
     {
         $this->assertNotInstanceOf(\Daycry\Auth\Entities\AccessToken::class, $this->repo->getAccessTokenByRawToken('totally-unknown-raw-token'));
+    }
+
+    public function testGetAccessTokenByRawTokenWithUserDeniesSoftDeletedUser(): void
+    {
+        $user  = $this->makeUser();
+        $token = $this->repo->generateAccessToken($user, 'mobile');
+
+        // Sanity: while the user is active, the eager JOIN resolves the token.
+        $this->assertInstanceOf(
+            \Daycry\Auth\Entities\AccessToken::class,
+            $this->repo->getAccessTokenByRawTokenWithUser($token->raw_token),
+        );
+
+        // Simulate a soft-deleted user: deleted_at set on the users row (this is
+        // what a UserModel subclass with $useSoftDeletes = true would write).
+        // The access-token path must honour it the same way Session/JWT do —
+        // a (soft-)deleted user can no longer authenticate via their token.
+        $this->db->table($this->tables['users'])
+            ->where('id', $user->id)
+            ->update(['deleted_at' => Time::now()->format('Y-m-d H:i:s')]);
+
+        $this->assertNull($this->repo->getAccessTokenByRawTokenWithUser($token->raw_token));
     }
 
     public function testGenerateAccessTokenDefaultsToWildcardScope(): void

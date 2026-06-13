@@ -136,6 +136,16 @@ class AccessTokenRepository
             }
         }
 
+        // A non-null deleted_at means the owning user was (soft-)deleted. The
+        // Session and JWT paths resolve the user through UserModel::find()/first(),
+        // which honour the soft-delete scope; this eager JOIN runs on
+        // UserIdentityModel and bypasses it, so we re-apply the guard here. The
+        // check is a no-op when soft-deletes are disabled (hard-delete removes
+        // the row, so deleted_at is always null then).
+        if (($userData['deleted_at'] ?? null) !== null) {
+            return null;
+        }
+
         // Build the User from the joined columns. Leaving its identities null
         // (DO NOT call setIdentities([])) keeps lazy-loading behaviour identical
         // to a findById() User.
