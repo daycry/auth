@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `daycry/auth` is a comprehensive Authentication/Authorization library for CodeIgniter 4 (PHP 8.2+). It provides multiple authentication methods (Session, Access Token, JWT, OAuth) and an RBAC authorization system. Full documentation lives in `docs/`.
 
+## Project Memory
+
+Durable, project-specific notes and lessons learned are stored in **`docs/memory/`** (e.g. `docs/memory/local-quality-gate.md`). These files are committed to the repo but **excluded from the published docs site** via `exclude_docs` in `mkdocs.yml` (the same way `docs/superpowers/` planning notes are). Read this folder for context that isn't obvious from the code, and add to it when you learn something worth persisting across sessions.
+
 ## Commands
 
 ```bash
