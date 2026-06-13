@@ -49,6 +49,12 @@ class GroupModel extends BaseModel
      */
     public function getByIds(array $groupIds): array
     {
-        return $this->whereIn('id', $groupIds)->orderBy($this->primaryKey)->findAll();
+        // Exclude (soft-)deleted groups so they never participate in an
+        // authorization decision. Config-agnostic: a no-op when soft-deletes
+        // are disabled (hard-delete removes the row, so deleted_at is null).
+        return $this->whereIn('id', $groupIds)
+            ->where($this->deletedField)
+            ->orderBy($this->primaryKey)
+            ->findAll();
     }
 }

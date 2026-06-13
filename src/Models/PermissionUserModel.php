@@ -52,6 +52,7 @@ class PermissionUserModel extends BaseModel
         $now = Time::now()->format('Y-m-d H:i:s');
 
         return $this->where('user_id', $user->id)
+            ->where($this->deletedField)
             ->groupStart()
             ->where('until_at IS NULL')
             ->orWhere('until_at >', $now)

@@ -46,6 +46,12 @@ class PermissionModel extends BaseModel
      */
     public function getByIds(array $permissionIds): array
     {
-        return $this->whereIn('id', $permissionIds)->orderBy($this->primaryKey)->findAll();
+        // Exclude (soft-)deleted permissions so they never participate in an
+        // authorization decision. Config-agnostic: a no-op when soft-deletes
+        // are disabled (hard-delete removes the row, so deleted_at is null).
+        return $this->whereIn('id', $permissionIds)
+            ->where($this->deletedField)
+            ->orderBy($this->primaryKey)
+            ->findAll();
     }
 }
