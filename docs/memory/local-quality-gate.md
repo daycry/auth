@@ -26,7 +26,7 @@ Both were fixed before merge, but the gate should have caught them first.
 ```bash
 vendor/bin/phpunit --no-coverage          # tests (1079+ at time of writing)
 composer phpstan:check                     # PHPStan level 5 — must say "No errors"
-vendor/bin/rector process --dry-run        # MUST be clean; exit code 2 = changes pending = FAIL
+vendor/bin/rector process --dry-run        # MUST be clean; exit code 2 = changes pending = FAIL (add --debug if workers time out)
 vendor/bin/php-cs-fixer fix --dry-run      # style (see CRLF caveat below)
 composer inspect                           # deptrac architecture
 mkdocs build --strict                      # only when docs changed
@@ -34,6 +34,20 @@ mkdocs build --strict                      # only when docs changed
 
 `composer ci` chains cs + deduplicate + inspect + analyze + test, but **Rector
 dry-run is the one most easily forgotten** when running checks à la carte.
+
+## Windows/Laragon performance traps (learned 2026-10-13, deps sync)
+
+- **Disable Xdebug for the gate.** Laragon's `php.ini` loads Xdebug with
+  `xdebug.mode=develop,debug,coverage`; the suite then runs ~50× slower
+  (3 s/test, >1 h) and looks hung. Prefix every gate command with
+  `XDEBUG_MODE=off` (the full suite then takes ~15 min locally vs ~2 min in CI).
+- **Rector parallel workers time out** (`Child process timed out after 120
+  seconds` → "results for N of M files are missing") on this machine. A partial
+  run is *not* a clean run. Use `vendor/bin/rector process --dry-run --debug`
+  (serial) to get a complete verdict.
+- **PHPStan/Rector CI runs on PHP 8.5.** After regenerating the baseline on the
+  default PHP, re-validate it with a Laragon 8.5 binary, e.g.
+  `/c/laragon/bin/php/php-8.5.11-nts-Win32-vs17-x64/php.exe -d memory_limit=2G vendor/phpstan/phpstan/phpstan analyse`.
 
 ## The CRLF caveat (Windows working copy)
 

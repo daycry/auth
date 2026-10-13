@@ -107,7 +107,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
         // The payload is either a bare scalar user id (legacy tokens) or an
         // array/object carrying {uid, tv} where `tv` is the token_version the
         // token was minted under.
-        $payload      = $this->payload ?? null;
+        $payload      = $this->payload;
         $tokenVersion = null;
 
         if (is_array($payload) || is_object($payload)) {

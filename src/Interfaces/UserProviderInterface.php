@@ -46,8 +46,8 @@ interface UserProviderInterface
     /**
      * Updates user record(s).
      *
-     * @param array|int|string|null $id
-     * @param mixed|null            $data
+     * @param array|int|string|null                $id
+     * @param array<int|string, mixed>|object|null $data
      */
     public function update($id = null, $data = null): bool;
 }

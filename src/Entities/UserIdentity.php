@@ -92,8 +92,6 @@ class UserIdentity extends Entity
      * Used when the user is fetched alongside the identity in a single JOIN
      * (see AccessTokenRepository::getAccessTokenByRawTokenWithUser()), avoiding
      * the lazy second query that user() would otherwise issue.
-     *
-     * @return $this
      */
     public function setUser(?User $user): static
     {

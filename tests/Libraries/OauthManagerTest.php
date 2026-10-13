@@ -889,6 +889,6 @@ final class OauthManagerTest extends TestCase
 
         $extra = json_decode($identity->extra, true);
         $this->assertArrayHasKey('profile_fetched_at', $extra);
-        $this->assertNotEmpty($extra['profile_fetched_at']);
+        $this->assertNotSame('', (string) $extra['profile_fetched_at']);
     }
 }

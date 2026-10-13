@@ -29,6 +29,7 @@ parameters:
 			- CodeIgniter\Settings\Config
 			- Daycry\Auth\Config
 		additionalServices:
+			- CodeIgniter\Settings\Config\Services
 			- Daycry\Auth\Config\Services
 			- Michalsn\CodeIgniterUuid\Config\Services
 	strictRules:

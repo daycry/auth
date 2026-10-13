@@ -49,7 +49,7 @@ class MockBaseAuthController extends BaseAuthController
             }
         };
 
-        $this->publicAuthHandler = $this->authHandler ?? null;
+        $this->publicAuthHandler = $this->authHandler;
     }
 
     protected function getValidationRules(): array

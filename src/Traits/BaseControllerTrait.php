@@ -18,7 +18,6 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Config\Mimes;
-use Config\Services;
 use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Services\AttemptHandler;
 use Daycry\Auth\Services\ExceptionHandler;
@@ -113,7 +112,7 @@ trait BaseControllerTrait
         $this->requestFinalized = true;
 
         try {
-            if (isset($this->request) && $this->request) {
+            if (isset($this->request)) {
                 $this->requestLogger->logRequest($this->response);
 
                 if (! $this->requestLogger->isRequestAuthorized()) {
@@ -121,7 +120,7 @@ trait BaseControllerTrait
                 }
             }
 
-            if (isset($this->validator) && $this->validator) {
+            if (isset($this->validator)) {
                 $this->validator->reset();
             }
         } catch (Throwable $e) {
@@ -172,7 +171,7 @@ trait BaseControllerTrait
                 $ex,
                 $this->request,
                 $this->response,
-                $this->validator ?? null,
+                $this->validator,
                 $this,
             );
         }

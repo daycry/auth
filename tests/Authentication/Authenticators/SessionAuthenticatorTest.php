@@ -136,8 +136,8 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $rememberModel->rememberUser($this->user, $selector, hash('sha256', $validator), $expires);
 
         // Set Cookie value for remember-me.
-        $token               = $selector . ':' . $validator;
-        $_COOKIE['remember'] = $token;
+        $token = $selector . ':' . $validator;
+        service('superglobals')->setCookie('remember', $token);
 
         // Delete the user.
         $users = model(UserModel::class);

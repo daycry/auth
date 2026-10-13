@@ -156,7 +156,7 @@ final class Totp2FATest extends DatabaseTestCase
         // enableTotp() creates a PENDING secret — not yet confirmed
         $this->assertTrue($this->user->hasTotpPending());
         $this->assertFalse($this->user->hasTotpEnabled());
-        $this->assertNotEmpty($this->user->getTotpSecret());
+        $this->assertNotSame('', (string) $this->user->getTotpSecret());
 
         // After confirmation the secret becomes active
         $this->user->confirmTotp();

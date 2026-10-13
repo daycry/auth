@@ -107,7 +107,7 @@ class Gate
      */
     public function allows(string $ability, ...$arguments): bool
     {
-        return $this->resolve($ability, $arguments) === true;
+        return $this->resolve($ability, $arguments);
     }
 
     /**

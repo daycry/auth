@@ -21,7 +21,6 @@ use Daycry\Auth\Services\ExceptionHandler;
 use Daycry\Auth\Services\RequestLogger;
 use Daycry\Auth\Traits\BaseControllerTrait;
 use Daycry\Encryption\Encryption;
-use Exception;
 use ReflectionClass;
 use RuntimeException;
 use Tests\Support\DatabaseTestCase;
@@ -131,8 +130,8 @@ final class BaseControllerTraitTest extends DatabaseTestCase
         $this->assertIsArray($token);
         $this->assertArrayHasKey('name', $token);
         $this->assertArrayHasKey('hash', $token);
-        $this->assertNotEmpty($token['name']);
-        $this->assertNotEmpty($token['hash']);
+        $this->assertNotSame('', (string) $token['name']);
+        $this->assertNotSame('', (string) $token['hash']);
     }
 
     public function testSetAndCheckRequestAuthorization(): void
@@ -390,9 +389,9 @@ final class BaseControllerTraitTest extends DatabaseTestCase
         $this->assertSame($token1['name'], $token2['name']);
 
         // Both tokens should have non-empty values
-        $this->assertNotEmpty($token1['name']);
-        $this->assertNotEmpty($token1['hash']);
-        $this->assertNotEmpty($token2['name']);
-        $this->assertNotEmpty($token2['hash']);
+        $this->assertNotSame('', (string) $token1['name']);
+        $this->assertNotSame('', (string) $token1['hash']);
+        $this->assertNotSame('', (string) $token2['name']);
+        $this->assertNotSame('', (string) $token2['hash']);
     }
 }

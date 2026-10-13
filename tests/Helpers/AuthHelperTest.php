@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Helpers;
 
 use Daycry\Auth\Auth;
-use Daycry\Auth\Entities\User;
 use Tests\Support\DatabaseTestCase;
 
 /**

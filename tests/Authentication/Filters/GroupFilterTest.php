@@ -60,7 +60,7 @@ final class GroupFilterTest extends FilterTestCase
 
         $result->assertRedirectTo('/login');
 
-        $this->assertNotEmpty(session()->getTempdata('beforeLoginUrl'));
+        $this->assertNotSame('', (string) session()->getTempdata('beforeLoginUrl'));
         $this->assertSame(site_url('protected-route'), session()->getTempdata('beforeLoginUrl'));
     }
 

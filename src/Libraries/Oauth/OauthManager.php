@@ -236,10 +236,9 @@ class OauthManager
      */
     protected function extractUserData(ResourceOwnerInterface $resourceOwner): array
     {
-        $id            = (string) $resourceOwner->getId();
-        $email         = null;
-        $name          = null;
-        $emailVerified = false;
+        $id    = (string) $resourceOwner->getId();
+        $email = null;
+        $name  = null;
 
         if ($this->providerName === 'azure') {
             // Azure resource-owner uses claim() for user attributes
@@ -330,8 +329,6 @@ class OauthManager
         }
 
         $identity = $repo->findByProviderAndSocialId($this->providerName, $socialId);
-
-        $user = null;
 
         if ($identity instanceof UserIdentity) {
             /** @var UserIdentity $identity */

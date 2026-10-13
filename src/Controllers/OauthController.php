@@ -67,7 +67,7 @@ class OauthController extends BaseAuthController
         $manager = new OauthManager($config);
 
         try {
-            $user = $manager->setProvider($provider)->handleCallback(
+            $manager->setProvider($provider)->handleCallback(
                 $this->request->getGet('code') ?? '',
                 $this->request->getGet('state') ?? '',
             );

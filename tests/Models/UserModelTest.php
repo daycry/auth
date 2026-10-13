@@ -62,7 +62,7 @@ final class UserModelTest extends DatabaseTestCase
         $saved = $users->findByCredentials(['email' => 'foo@bar.com']);
 
         // A canonical RFC 4122 UUID v7 (version nibble 7, variant 8/9/a/b).
-        $this->assertNotEmpty($saved->uuid);
+        $this->assertNotSame('', (string) $saved->uuid);
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
             (string) $saved->uuid,

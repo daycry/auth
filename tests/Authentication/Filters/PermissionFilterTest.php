@@ -39,7 +39,7 @@ final class PermissionFilterTest extends FilterTestCase
 
         $result->assertRedirectTo('/login');
 
-        $this->assertNotEmpty(session()->getTempdata('beforeLoginUrl'));
+        $this->assertNotSame('', (string) session()->getTempdata('beforeLoginUrl'));
         $this->assertSame(site_url('protected-route'), session()->getTempdata('beforeLoginUrl'));
 
         $result = $this->get('open-route');

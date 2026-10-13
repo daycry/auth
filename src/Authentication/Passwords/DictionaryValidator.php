@@ -41,9 +41,7 @@ class DictionaryValidator extends BaseValidator implements PasswordValidatorInte
      */
     public function check(string $password, ?User $user = null): Result
     {
-        if (self::$dictionary === null) {
-            self::$dictionary = $this->loadDictionary();
-        }
+        self::$dictionary ??= $this->loadDictionary();
 
         if (isset(self::$dictionary[$password])) {
             return new Result([

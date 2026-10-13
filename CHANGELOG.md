@@ -140,6 +140,9 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 - Corrected `.gitattributes` (`deptrac.yaml`, `phpstan-baseline.neon`, and the `phpcpd` phar now `export-ignore`).
 - CI composer cache keyed on `composer.json`.
 - `composer.json`: minimum PHP raised to `^8.2`.
+- **Dependency sync** — refreshed all dependencies within existing constraints (CodeIgniter 4.7.5, `daycry/jwt` 3.2, `web-auth/webauthn-lib` 5.3.9, Guzzle 8 / PSR-7 3 transitively), clearing 15 security advisories (2 critical in the CodeIgniter dev dependency, Guzzle/PSR-7 host-confusion and cookie-scope issues). No runtime API change.
+- **Static analysis tooling adapted to the new versions** — Rector 2.7 removed the per-version PHPUnit sets (`PHPUNIT_100` → `COMPOSER_BASED`) and stopped running nine deprecated rules, now dropped from `rector.php`; `phpstan.neon.dist` registers the `settings` service for phpstan-codeigniter 2.x. The newly reported findings were fixed in code (dead assignments, redundant `??`, generic `@extends BaseCast<…>` on the entity casts, `UserModel`/`UserProviderInterface` docblocks aligned with CodeIgniter's `Model`, strict assertions instead of `assertEmpty()`/`assertNotEmpty()` in tests) and the PHPStan baseline was regenerated (369 → 220 entries).
+- **Test made independent of the CodeIgniter version** — CodeIgniter 4.7.5 formats model timestamps in the `Time::setTestNow()` timezone; the locale/`created_at` test now freezes time in UTC and restores the global locale/clock in a `finally` block so a failure can no longer cascade into unrelated tests.
 
 ### Documentation
 

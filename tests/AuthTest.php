@@ -83,7 +83,7 @@ final class AuthTest extends DatabaseTestCase
         preg_match_all('/@method\s+\S+\s+(\w+)\(/', (string) $ref->getDocComment(), $matches);
         $documented = array_values(array_unique($matches[1]));
 
-        $this->assertNotEmpty($documented, 'Auth must document its facade methods via @method tags.');
+        $this->assertNotSame([], $documented, 'Auth must document its facade methods via @method tags.');
 
         $session = $this->authentication()->factory('session');
 

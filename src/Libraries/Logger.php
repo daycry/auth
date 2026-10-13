@@ -80,7 +80,7 @@ class Logger
             $this->benchmark->stop('auth');
 
             $data = [
-                'user_id'       => auth()->id() ?? null,
+                'user_id'       => auth()->id(),
                 'uri'           => $this->request->getUri()->__toString(),
                 'method'        => $this->request->getMethod(),
                 'params'        => json_encode($params, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
