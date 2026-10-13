@@ -590,7 +590,7 @@ class Auth extends BaseConfig
      * Controller Discovery
      * --------------------------------------------------------------------
      * Set to TRUE to enable auto-discovery of API controllers to fill the
-     * endpoints table. Requires the daycry/jobs package.
+     * endpoints table (uses daycry/class-finder, installed with this package).
      *
      * Ex: $namespaceScope = ['\Api\Controllers\Class', '\App\Controllers\Class'];
      */

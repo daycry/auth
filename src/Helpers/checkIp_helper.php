@@ -15,27 +15,49 @@ use Daycry\Auth\Libraries\CheckIpInRange;
 
 if (! function_exists('checkIp')) {
     /**
-     * Provides a valid IP for actual request
+     * Checks whether $ip matches any entry of an allow-list.
      *
-     * @param string $ip  IP
-     * @param array  $ips Ips
+     * IPv4 entries may be exact addresses, wildcards (1.2.3.*), CIDR
+     * (1.2.3.0/24, 1.2.3.0/255.255.255.0) or start-end ranges. Entries
+     * containing ':' are IPv6: a bare address (matched as /128, notation
+     * independent) or CIDR (2001:db8::/32). Malformed input never matches.
+     *
+     * @param string                   $ip  IP
+     * @param array<array-key, string> $ips Ips
      */
     function checkIp(string $ip, array $ips): bool
     {
-        $return = false;
+        $isIpv6 = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
 
         foreach ($ips as $i) {
-            if (str_contains((string) $i, '/') || str_contains((string) $i, '-') || str_contains((string) $i, '*')) {
-                $return = CheckIpInRange::ipv4_in_range($ip, $i);
-            } elseif ($ip === trim((string) $i)) {
-                $return = true;
+            $entry = trim((string) $i);
+
+            if ($entry === '') {
+                continue;
             }
 
-            if ($return) {
-                break;
+            if (str_contains($entry, ':')) {
+                // IPv6 entry: only an IPv6 client can match it.
+                if ($isIpv6 && CheckIpInRange::ipv6_in_range($ip, $entry)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (str_contains($entry, '/') || str_contains($entry, '-') || str_contains($entry, '*')) {
+                if (CheckIpInRange::ipv4_in_range($ip, $entry)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($ip === $entry) {
+                return true;
             }
         }
 
-        return $return;
+        return false;
     }
 }

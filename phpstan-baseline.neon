@@ -595,42 +595,6 @@ parameters:
 			path: src/Filters/RatesFilter.php
 
 		-
-			rawMessage: 'Parameter #2 of function sprintf is expected to be int by placeholder #1 ("%%u"), string given.'
-			identifier: argument.type
-			count: 1
-			path: src/Libraries/CheckIpInRange.php
-
-		-
-			rawMessage: 'Parameter #3 of function sprintf is expected to be int by placeholder #2 ("%%u"), string given.'
-			identifier: argument.type
-			count: 1
-			path: src/Libraries/CheckIpInRange.php
-
-		-
-			rawMessage: 'Parameter #4 of function sprintf is expected to be int by placeholder #3 ("%%u"), string given.'
-			identifier: argument.type
-			count: 1
-			path: src/Libraries/CheckIpInRange.php
-
-		-
-			rawMessage: 'Parameter #5 of function sprintf is expected to be int by placeholder #4 ("%%u"), string given.'
-			identifier: argument.type
-			count: 1
-			path: src/Libraries/CheckIpInRange.php
-
-		-
-			rawMessage: 'Value assigned to $main_ip_pieces[7] is never read.'
-			identifier: assign.unused
-			count: 1
-			path: src/Libraries/CheckIpInRange.php
-
-		-
-			rawMessage: Value assigned to variable $last_piece is never read before being overwritten.
-			identifier: assign.overwritten
-			count: 2
-			path: src/Libraries/CheckIpInRange.php
-
-		-
 			rawMessage: 'Call to an undefined method Daycry\Auth\Interfaces\UserProviderInterface::addToDefaultGroup().'
 			identifier: method.notFound
 			count: 1

@@ -18,7 +18,6 @@
         "codeigniter4/settings": "^2",
         "daycry/class-finder": "^2.0",
         "daycry/encryption": "^2.0",
-        "daycry/jobs": "^3.0",
         "daycry/jwt": "^3.0",
         "endroid/qr-code": "^6.0",
         "league/oauth2-facebook": "^2.0",
@@ -27,6 +26,9 @@
         "michalsn/codeigniter4-uuid": "^2.0",
         "thenetworg/oauth2-azure": "^2",
         "web-auth/webauthn-lib": "^5.3"
+    },
+    "suggest": {
+        "daycry/jobs": "Schedule maintenance commands such as `php spark auth:purge` from within CodeIgniter instead of a system cron"
     },
     "require-dev":
     {

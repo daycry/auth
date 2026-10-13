@@ -34,6 +34,51 @@ final class CheckIpHelperTest extends CIUnitTestCase
         $this->assertTrue(function_exists('checkIp'));
     }
 
+    public function testCheckIpMatchesIpv6Cidr(): void
+    {
+        $this->assertTrue(checkIp('2001:db8:1::1', ['2001:db8::/32']));
+    }
+
+    public function testCheckIpRejectsIpv6OutsideCidr(): void
+    {
+        // Regression: IPv6 entries were routed to the IPv4 matcher, where both
+        // sides evaluated to 0 and every IPv6 client matched every IPv6 CIDR.
+        $this->assertFalse(checkIp('2001:db9::1', ['2001:db8::/32']));
+    }
+
+    public function testCheckIpMatchesBareIpv6RegardlessOfNotation(): void
+    {
+        $this->assertTrue(checkIp('2001:DB8:0:0:0:0:0:1', ['2001:db8::1']));
+        $this->assertFalse(checkIp('2001:db8::2', ['2001:db8::1']));
+    }
+
+    public function testCheckIpRejectsIpv6ClientAgainstIpv4Ranges(): void
+    {
+        $this->assertFalse(checkIp('2001:db8::1', ['0.0.0.0/8']));
+        $this->assertFalse(checkIp('2001:db8::1', ['0.0.0.0-10.0.0.0']));
+        $this->assertFalse(checkIp('2001:db8::1', ['0.0.*.*']));
+    }
+
+    public function testCheckIpRejectsIpv4ClientAgainstIpv6Ranges(): void
+    {
+        $this->assertFalse(checkIp('192.168.1.1', ['::/0']));
+    }
+
+    public function testCheckIpRejectsInvalidClientAddress(): void
+    {
+        $this->assertFalse(checkIp('garbage', ['0.0.0.0/8', '2001:db8::/32']));
+    }
+
+    public function testCheckIpWithMixedIpv4AndIpv6Entries(): void
+    {
+        $ips = ['10.0.0.0/8', '2001:db8::/32'];
+
+        $this->assertTrue(checkIp('10.1.2.3', $ips));
+        $this->assertTrue(checkIp('2001:db8::42', $ips));
+        $this->assertFalse(checkIp('192.168.1.1', $ips));
+        $this->assertFalse(checkIp('2001:db9::42', $ips));
+    }
+
     public function testCheckIpWithExactMatch(): void
     {
         $ip  = '192.168.1.1';
