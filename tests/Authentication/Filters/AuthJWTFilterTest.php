@@ -67,6 +67,55 @@ final class AuthJWTFilterTest extends FilterTestCase
         $this->assertSame($user->id, auth('jwt')->user()->id);
     }
 
+    public function testStrictApiAndAuthRejectsJwtWithoutAccessToken(): void
+    {
+        $this->injectMockAttributesSecurity(['accessTokenEnabled' => true, 'strictApiAndAuth' => true]);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $this->jwtFor(fake(UserModel::class))])
+            ->get('protected-route');
+
+        $result->assertStatus(401);
+        $message = json_decode($result->getJSON(), true)['message'] ?? null;
+        $this->assertIsString($message);
+        $this->assertNotSame('', $message);
+    }
+
+    public function testStrictApiAndAuthAcceptsJwtWithValidAccessToken(): void
+    {
+        $this->injectMockAttributesSecurity(['accessTokenEnabled' => true, 'strictApiAndAuth' => true]);
+
+        /** @var User $user */
+        $user         = fake(UserModel::class);
+        $apiKey       = $user->generateAccessToken('api')->raw_token;
+        $apiKeyHeader = service('settings')->get('Auth.authenticatorHeader')['access_token'];
+
+        $result = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->jwtFor($user),
+            $apiKeyHeader   => $apiKey,
+        ])->get('protected-route');
+
+        $result->assertStatus(200);
+        $result->assertSee('Protected');
+    }
+
+    public function testNonStrictAccessTokenCheckLetsValidJwtThrough(): void
+    {
+        $this->injectMockAttributesSecurity(['accessTokenEnabled' => true, 'strictApiAndAuth' => false]);
+
+        $result = $this->withHeaders(['Authorization' => 'Bearer ' . $this->jwtFor(fake(UserModel::class))])
+            ->get('protected-route');
+
+        $result->assertStatus(200);
+        $result->assertSee('Protected');
+    }
+
+    private function jwtFor(User $user): string
+    {
+        $jwt = service('settings')->get('Auth.jwtAdapter');
+
+        return (new $jwt())->encode($user->id);
+    }
+
     public function testFilterBanned(): void
     {
         /** @var User $user */

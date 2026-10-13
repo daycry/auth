@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Libraries;
 
 use CodeIgniter\Events\Events;
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\Test\DatabaseTestTrait;
 use Daycry\Auth\Config\AuthOAuth as AuthConfig;
@@ -21,6 +22,7 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -30,6 +32,7 @@ use League\OAuth2\Client\Provider\GenericResourceOwner;
 use League\OAuth2\Client\Token\AccessToken;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use Mockery;
+use ReflectionProperty;
 use Tests\Support\TestCase;
 
 /**
@@ -890,5 +893,48 @@ final class OauthManagerTest extends TestCase
         $extra = json_decode($identity->extra, true);
         $this->assertArrayHasKey('profile_fetched_at', $extra);
         $this->assertNotSame('', (string) $extra['profile_fetched_at']);
+    }
+
+    public function testHandleCallbackRegistrationRequiresUserModelProvider(): void
+    {
+        // A provider that only implements UserProviderInterface cannot create
+        // users (no getInsertID()/addToDefaultGroup()); it used to fatal with
+        // "Call to undefined method" — now it fails fast with a clear error
+        // before anything is written.
+        session()->set('oauth2state', 'valid_state');
+
+        $userProvider = Mockery::mock(UserProviderInterface::class);
+        $userProvider->shouldReceive('findByCredentials')->andReturnNull();
+        $userProvider->shouldNotReceive('save');
+
+        $auth     = service('auth');
+        $property = new ReflectionProperty($auth, 'userProvider');
+        $property->setValue($auth, $userProvider);
+
+        $provider    = Mockery::mock(AbstractProvider::class);
+        $accessToken = new AccessToken(['access_token' => 'test_token']);
+        $provider->shouldReceive('getAccessToken')->andReturn($accessToken);
+
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('social_custom_1');
+        $resourceOwner->shouldReceive('toArray')->andReturn([
+            'email'          => 'custom@example.com',
+            'name'           => 'Custom',
+            'email_verified' => true,
+        ]);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        try {
+            $this->manager->handleCallback('auth_code', 'valid_state');
+            $this->fail('Expected a LogicException for a provider that cannot register users.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString(UserModel::class, $e->getMessage());
+        } finally {
+            $property->setValue($auth, null);
+        }
+
+        $this->dontSeeInDatabase('auth_users_identities', ['secret' => 'social_custom_1']);
     }
 }

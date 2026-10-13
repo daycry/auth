@@ -14,15 +14,18 @@ declare(strict_types=1);
 namespace Daycry\Auth\Libraries\Oauth;
 
 use CodeIgniter\Events\Events;
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Libraries\Oauth\ProfileResolver\ProfileResolverFactory;
 use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Models\UserModel;
 use League\OAuth2\Client\Grant\RefreshToken;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
@@ -359,15 +362,7 @@ class OauthManager
                     throw new AuthenticationException(lang('Auth.oauthEmailUnverified'));
                 }
             } else {
-                $username = explode('@', $email)[0] . '_' . bin2hex(random_bytes(3));
-                $user     = new User([
-                    'username' => $username,
-                    'active'   => true,
-                ]);
-                $provider->save($user);
-                $user = $provider->findById($provider->getInsertID());
-
-                $provider->addToDefaultGroup($user);
+                $user = $this->registerUser($provider, $email);
             }
 
             $repo->createOAuthIdentity((int) $user->id, $this->providerName, [
@@ -380,6 +375,37 @@ class OauthManager
         }
 
         auth()->login($user);
+
+        return $user;
+    }
+
+    /**
+     * Creates the local account for a first-time social login and adds it to
+     * the default group.
+     *
+     * Registration needs insert-ID and default-group support, which only
+     * UserModel (or a subclass) provides — the same requirement as the
+     * register form. A provider that merely implements UserProviderInterface
+     * is rejected up front instead of failing after the user row is written.
+     *
+     * @throws LogicException When the configured provider cannot register users.
+     */
+    private function registerUser(UserProviderInterface $provider, string $email): User
+    {
+        if (! $provider instanceof UserModel) {
+            throw new LogicException(
+                'OAuth auto-registration requires Auth::$userProvider to be ' . UserModel::class . ' or a subclass; got ' . $provider::class . '.',
+            );
+        }
+
+        $user = new User([
+            'username' => explode('@', $email)[0] . '_' . bin2hex(random_bytes(3)),
+            'active'   => true,
+        ]);
+        $provider->save($user);
+
+        $user = $provider->findById($provider->getInsertID());
+        $provider->addToDefaultGroup($user);
 
         return $user;
     }

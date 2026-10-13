@@ -23,6 +23,8 @@ interface AuthenticatorInterface
      * Attempts to authenticate a user with the given $credentials.
      * Logs the user in with a successful check.
      *
+     * @param array<string, mixed> $credentials
+     *
      * @throws AuthenticationException
      */
     public function attempt(array $credentials = []): Result;
@@ -30,6 +32,8 @@ interface AuthenticatorInterface
     /**
      * Checks a user's $credentials to see if they match an
      * existing user.
+     *
+     * @param array<string, mixed> $credentials
      */
     public function check(array $credentials = []): Result;
 

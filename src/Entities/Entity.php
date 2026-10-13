@@ -25,8 +25,7 @@ abstract class Entity extends FrameworkEntity
     /**
      * Custom convert handlers
      *
-     * @var         array<string, string>
-     * @phpstan-var array<string, class-string>
+     * @var array<string, string> Cast name => handler class name
      */
     protected $castHandlers = [
         'int_bool'   => IntBoolCast::class,

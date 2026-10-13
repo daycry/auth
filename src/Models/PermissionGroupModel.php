@@ -13,52 +13,29 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\Group;
 use Daycry\Auth\Entities\PermissionGroup;
 
-class PermissionGroupModel extends BaseModel
+class PermissionGroupModel extends PivotModel
 {
-    protected $primaryKey     = 'id';
-    protected $returnType     = PermissionGroup::class;
-    protected $useSoftDeletes = false;
-    protected $allowedFields  = [
+    protected $returnType    = PermissionGroup::class;
+    protected $allowedFields = [
         'group_id',
         'permission_id',
         'until_at',
     ];
-    protected $useTimestamps      = true;
-    protected $createdField       = 'created_at';
-    protected $updatedField       = 'updated_at';
-    protected $deletedField       = 'deleted_at';
-    protected $validationRules    = [];
-    protected $validationMessages = [];
-    protected $skipValidation     = false;
-
-    protected function initialize(): void
-    {
-        parent::initialize();
-
-        $this->table = $this->tables['permissions_groups'];
-    }
+    protected string $tableKey      = 'permissions_groups';
+    protected string $ownerColumn   = 'group_id';
+    protected string $relatedColumn = 'permission_id';
 
     /**
-     * Returns all permissions groups.
+     * Returns all active group permissions (permanent or not yet expired).
      *
      * @return list<PermissionGroup>|null
      */
     public function getForGroup(Group $group): ?array
     {
-        $now = Time::now()->format('Y-m-d H:i:s');
-
-        return $this->where('group_id', $group->id)
-            ->where($this->deletedField)
-            ->groupStart()
-            ->where('until_at')
-            ->orWhere('until_at >', $now)
-            ->groupEnd()
-            ->orderBy($this->primaryKey)
-            ->findAll();
+        return $this->findActiveFor($group->id);
     }
 
     /**
@@ -66,11 +43,7 @@ class PermissionGroupModel extends BaseModel
      */
     public function deleteAll($groupId): void
     {
-        $return = $this->builder()
-            ->where('group_id', $groupId)
-            ->delete();
-
-        $this->checkQueryReturn($return);
+        $this->deleteForOwner($groupId);
     }
 
     /**
@@ -79,11 +52,6 @@ class PermissionGroupModel extends BaseModel
      */
     public function deleteNotIn($groupId, $cache): void
     {
-        $return = $this->builder()
-            ->where('group_id', $groupId)
-            ->whereNotIn('permission_id', $cache)
-            ->delete();
-
-        $this->checkQueryReturn($return);
+        $this->deleteForOwner($groupId, $cache);
     }
 }

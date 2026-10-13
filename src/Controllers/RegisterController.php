@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\Events\Events;
+use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Entities\User;
@@ -140,7 +141,11 @@ class RegisterController extends BaseAuthController
     {
         $provider = model(setting('Auth.userProvider'));
 
-        assert($provider instanceof UserModel, 'Config Auth.userProvider is not a valid UserProvider.');
+        // An explicit check, not assert(): assertions are disabled in production
+        // (zend.assertions=-1), where a wrong provider would fatal later instead.
+        if (! $provider instanceof UserModel) {
+            throw new LogicException('Config Auth.userProvider must be ' . UserModel::class . ' or a subclass.');
+        }
 
         return $provider;
     }

@@ -17,11 +17,9 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
-use Config\Services;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
-use Daycry\Auth\Result;
 
 /**
  * Authentication Filter.
@@ -31,12 +29,17 @@ use Daycry\Auth\Result;
  */
 class AuthFilter implements FilterInterface
 {
+    /**
+     * @param mixed|null $arguments
+     *
+     * @return ResponseInterface|null
+     */
     public function before(RequestInterface $request, $arguments = null)
     {
         helper('checkEndpoint');
 
         if (! $request instanceof IncomingRequest) {
-            return;
+            return null;
         }
 
         $endpoint = checkEndpoint();
@@ -124,7 +127,7 @@ class AuthFilter implements FilterInterface
         if (! $result->isOK()) {
             return service('response')
                 ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
-                ->setJson(['message' => $result->reason()]);
+                ->setJSON(['message' => $result->reason()]);
         }
 
         if (setting('AuthSecurity.recordActiveDate')) {
@@ -140,28 +143,31 @@ class AuthFilter implements FilterInterface
     /**
      * Validate access token when enabled
      */
-    private function validateAccessToken()
+    private function validateAccessToken(): ?ResponseInterface
     {
-        $accessToken = (Services::auth(false))->setAuthenticator('access_token')->attempt();
+        $accessToken = service('auth', false)->setAuthenticator('access_token')->attempt();
 
         if (! $accessToken->isOK() && service('settings')->get('AuthSecurity.strictApiAndAuth')) {
             return service('response')
                 ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
-                ->setJson([
-                    'message' => ($accessToken instanceof Result)
-                        ? $accessToken->reason()
-                        : lang('Auth.badToken'),
+                ->setJSON([
+                    'message' => $accessToken->reason() ?? lang('Auth.badToken'),
                 ]);
         }
+
+        return null;
     }
 
     /**
      * We don't have anything to do here.
      *
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Nothing required
+        return null;
     }
 }

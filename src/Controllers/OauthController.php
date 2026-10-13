@@ -14,8 +14,9 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use Daycry\Auth\Config\AuthOAuth;
+use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
-use Exception;
+use Throwable;
 
 class OauthController extends BaseAuthController
 {
@@ -31,11 +32,7 @@ class OauthController extends BaseAuthController
 
     public function redirect(string $provider)
     {
-        /** @var AuthOAuth $config */
-        $config  = config('AuthOAuth');
-        $manager = new OauthManager($config);
-
-        return $manager->setProvider($provider)->redirect();
+        return $this->createManager()->setProvider($provider)->redirect();
     }
 
     /**
@@ -53,28 +50,41 @@ class OauthController extends BaseAuthController
 
         session()->set('oauth_link_user_id', auth()->id());
 
-        /** @var AuthOAuth $config */
-        $config  = config('AuthOAuth');
-        $manager = new OauthManager($config);
-
-        return $manager->setProvider($provider)->redirect();
+        return $this->createManager()->setProvider($provider)->redirect();
     }
 
     public function callback(string $provider)
     {
-        /** @var AuthOAuth $config */
-        $config  = config('AuthOAuth');
-        $manager = new OauthManager($config);
-
         try {
-            $manager->setProvider($provider)->handleCallback(
+            $this->createManager()->setProvider($provider)->handleCallback(
                 $this->request->getGet('code') ?? '',
                 $this->request->getGet('state') ?? '',
             );
 
             return redirect()->to(config('Auth')->loginRedirect());
-        } catch (Exception $e) {
+        } catch (AuthenticationException $e) {
+            // User-facing, translated messages (invalid state, unverified e-mail, ...).
             return redirect()->to(config('Auth')->loginPage())->with('error', $e->getMessage());
+        } catch (Throwable $e) {
+            // Anything else (database, provider HTTP, misconfiguration) may carry
+            // internal details: log it and show a generic message instead.
+            log_message('error', 'OAuth callback for provider {provider} failed: {message}', [
+                'provider' => $provider,
+                'message'  => $e->getMessage(),
+            ]);
+
+            return redirect()->to(config('Auth')->loginPage())->with('error', lang('Auth.badAttempt'));
         }
+    }
+
+    /**
+     * Builds the OAuth manager for the configured providers.
+     */
+    protected function createManager(): OauthManager
+    {
+        /** @var AuthOAuth $config */
+        $config = config('AuthOAuth');
+
+        return new OauthManager($config);
     }
 }

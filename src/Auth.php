@@ -30,7 +30,7 @@ use Daycry\Auth\Interfaces\UserProviderInterface;
  * Common methods (defined by AuthenticatorInterface — available on every
  * authenticator: Session, AccessToken, JWT):
  *
- * @method Result               attempt(array $credentials)
+ * @method Result               attempt(array $credentials = [])
  * @method Result               check(array $credentials)
  * @method bool                 checkAction(UserIdentity $identity, string $token)
  * @method void                 completeLogin(User $user)

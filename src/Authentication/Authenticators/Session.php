@@ -18,7 +18,10 @@ use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\Request;
+use CodeIgniter\HTTP\ResponseInterface;
+use Config\Security;
 use Config\Services;
+use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Authentication\Passwords\PwnedValidator;
 use Daycry\Auth\Authentication\Services\DeviceSessionRecorder;
 use Daycry\Auth\Authentication\Services\PendingActionCoordinator;
@@ -43,6 +46,9 @@ use Daycry\Auth\Result;
 use Daycry\Auth\Services\AuditLogger;
 use Throwable;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class Session extends Base implements AuthenticatorInterface
 {
     /**
@@ -159,7 +165,7 @@ class Session extends Base implements AuthenticatorInterface
      * Attempts to authenticate a user with the given $credentials.
      * Logs the user in with a successful check.
      *
-     * @phpstan-param array{email?: string, username?: string, password?: string} $credentials
+     * @phpstan-param array<string, mixed> $credentials Login fields (`email`|`username`, `password`)
      */
     public function attempt(array $credentials = []): Result
     {
@@ -170,7 +176,7 @@ class Session extends Base implements AuthenticatorInterface
      * Checks a user's $credentials to see if they match an
      * existing user.
      *
-     * @phpstan-param array{email?: string, username?: string, password?: string} $credentials
+     * @phpstan-param array<string, mixed> $credentials Login fields (`email`|`username`, `password`)
      */
     public function check(array $credentials = []): Result
     {
@@ -482,12 +488,10 @@ class Session extends Base implements AuthenticatorInterface
         // Destroy the session data - but ensure a session is still
         // available for flash messages, etc.
         /** @var \CodeIgniter\Session\Session $session */
-        $session     = session();
-        $sessionData = $session->get();
-        if (isset($sessionData)) {
-            foreach (array_keys($sessionData) as $key) {
-                $session->remove($key);
-            }
+        $session = session();
+
+        foreach (array_keys($session->get()) as $key) {
+            $session->remove($key);
         }
 
         // Regenerate the session ID for a touch of added safety.
@@ -866,7 +870,7 @@ class Session extends Base implements AuthenticatorInterface
             $this->deviceRecorder->recordSession($user, $this->request->getIPAddress());
         }
 
-        /** @var Response $response */
+        /** @var ResponseInterface $response */
         $response = service('response');
 
         // When logged in, ensure cache control headers are in place

@@ -15,7 +15,6 @@ namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
-use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -42,12 +41,12 @@ class ChainAuthFilter implements FilterInterface
      *
      * @param array|null $arguments
      *
-     * @return RedirectResponse|void
+     * @return ResponseInterface|null
      */
     public function before(RequestInterface $request, $arguments = null)
     {
         if (! $request instanceof IncomingRequest) {
-            return;
+            return null;
         }
 
         helper('settings');
@@ -62,7 +61,7 @@ class ChainAuthFilter implements FilterInterface
                     // Make sure Auth uses this Authenticator
                     auth()->setAuthenticator($alias);
 
-                    return;
+                    return null;
                 }
             } catch (Exception) {
                 continue;
@@ -84,9 +83,12 @@ class ChainAuthFilter implements FilterInterface
      * We don't have anything to do here.
      *
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Nothing required
+        return null;
     }
 }

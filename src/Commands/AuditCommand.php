@@ -146,8 +146,7 @@ class AuditCommand extends BaseCommand
             'm'     => $now->subMinutes($n),
             'h'     => $now->subHours($n),
             'd'     => $now->subDays($n),
-            'w'     => $now->subDays($n * 7),
-            default => $now->subDays(7),
+            default => $now->subDays($n * 7), // 'w'
         };
     }
 

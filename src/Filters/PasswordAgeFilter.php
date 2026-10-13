@@ -32,6 +32,8 @@ class PasswordAgeFilter implements FilterInterface
 {
     /**
      * @param array|null $arguments Unused — settings drive behaviour.
+     *
+     * @return ResponseInterface|null
      */
     public function before(RequestInterface $request, $arguments = null)
     {
@@ -77,9 +79,12 @@ class PasswordAgeFilter implements FilterInterface
 
     /**
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Nothing to do.
+        return null;
     }
 }

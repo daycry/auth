@@ -18,11 +18,13 @@ use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\DatabaseException;
+use Daycry\Auth\Exceptions\ValidationException;
 use Faker\Generator;
 
 class UserIdentityModel extends BaseModel

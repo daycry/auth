@@ -33,7 +33,7 @@ class RequestLogger
 
     public function __construct()
     {
-        $this->logger = Services::log();
+        $this->logger = service('log');
         $this->router = Services::router();
     }
 

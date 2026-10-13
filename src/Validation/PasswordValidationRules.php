@@ -55,7 +55,7 @@ class PasswordValidationRules
 
         $result = $checker->check($value, $user);
 
-        if (! $result->isOk()) {
+        if (! $result->isOK()) {
             if ($data === []) {
                 $error1 = $result->reason();
             } else {
@@ -63,7 +63,7 @@ class PasswordValidationRules
             }
         }
 
-        return $result->isOk();
+        return $result->isOK();
     }
 
     /**
