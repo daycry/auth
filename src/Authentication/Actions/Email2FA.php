@@ -79,7 +79,7 @@ class Email2FA extends AbstractAction
         $email->setSubject(lang('Auth.email2FASubject'));
         $email->setMessage($this->view(
             setting('Auth.views')['action_email_2fa_email'],
-            ['code'  => $identity->secret, 'user' => $user, 'ipAddress' => $ipAddress, 'userAgent' => $userAgent, 'date' => $date],
+            ['code' => $identity->secret, 'user' => $user, 'ipAddress' => $ipAddress, 'userAgent' => $userAgent, 'date' => $date],
             ['debug' => false],
         ));
 
