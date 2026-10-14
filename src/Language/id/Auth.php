@@ -288,4 +288,7 @@ return [
 
     // Self-service account management + security notices — newly added, pending translation
     'changeEmailInvalid' => 'Please enter a valid email address.',
+
+    // Self-service account management + security notices — newly added, pending translation
+    'deleteAccountFailed' => 'Your account could not be deleted. Please try again later.',
 ];

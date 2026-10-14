@@ -34,6 +34,8 @@ use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Services\UserAnonymizer;
+use Throwable;
 
 /**
  * UserSecurityController
@@ -526,6 +528,112 @@ class UserSecurityController extends BaseAuthController
         Events::trigger('oauth-unlinked', $user, $provider);
 
         return redirect()->back()->with('message', lang('Auth.unlinkOauthSuccess', [$provider]));
+    }
+
+    /**
+     * Account deletion form: password re-auth, or "send me a confirmation
+     * link" on a password-less account.
+     */
+    public function deleteAccountView(): string
+    {
+        $user = auth()->user();
+
+        return $this->view($this->viewFor('security-delete-account'), [
+            'hasPassword' => $this->hasUsablePassword($user),
+            'hasEmail'    => (string) $user->email !== '',
+        ]);
+    }
+
+    /**
+     * Deletes (anonymises) the account. A password account is deleted right
+     * after its current password is verified; a password-less account gets a
+     * single-use confirmation link by e-mail instead (the link is the re-auth).
+     */
+    public function deleteAccount(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        if ($this->hasUsablePassword($user)) {
+            $denied = $this->reauthenticate($user);
+
+            return $denied ?? $this->performAccountDeletion($user);
+        }
+
+        if ((string) $user->email === '') {
+            return redirect()->back()->with('error', lang('Auth.deleteAccountNeedsEmail'));
+        }
+
+        try {
+            (new TokenEmailSender())->sendTokenEmail(
+                $user,
+                IdentityType::ACCOUNT_DELETE->value,
+                (int) setting('AuthSecurity.emailChangeLifetime'),
+                lang('Auth.deleteAccountSubject'),
+                $this->viewFor('security-account-delete-email'),
+            );
+        } catch (RuntimeException $e) {
+            log_message('error', 'Account deletion confirmation could not be sent: {message}', ['message' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', lang('Auth.unableSendEmailToUser', [(string) $user->email]));
+        }
+
+        return redirect()->back()->with('message', lang('Auth.deleteAccountEmailSent'));
+    }
+
+    /**
+     * Confirmation page for the e-mailed deletion link (GET never mutates).
+     */
+    public function confirmDeleteAccountView(): RedirectResponse|string
+    {
+        $token = (string) $this->request->getGet('token');
+
+        [$identity, $error] = $this->pendingToken(IdentityType::ACCOUNT_DELETE, $token, 'deleteAccount');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        return $this->view($this->viewFor('security-confirm-delete-account'), ['token' => $token]);
+    }
+
+    /**
+     * Deletes a password-less account from its confirmed link.
+     */
+    public function confirmDeleteAccount(): RedirectResponse
+    {
+        [$identity, $error] = $this->pendingToken(IdentityType::ACCOUNT_DELETE, (string) $this->request->getPost('token'), 'deleteAccount');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        return $this->performAccountDeletion(auth()->user());
+    }
+
+    /**
+     * Anonymises the account first (one transaction), then — only once it
+     * succeeded — sends the farewell notice and signs the user out.
+     */
+    protected function performAccountDeletion(User $user): RedirectResponse
+    {
+        $userId = (int) $user->id;
+
+        // Load the address now: the anonymizer removes the identity holding it.
+        $user->getEmail();
+
+        try {
+            (new UserAnonymizer())->anonymize($user, 'self-service', $userId);
+        } catch (Throwable $e) {
+            log_message('error', 'Self-service account deletion failed for user {id}: {message}', ['id' => $userId, 'message' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', lang('Auth.deleteAccountFailed'));
+        }
+
+        service('securityNotifier')->accountDeleted($user);
+
+        auth('session')->logout();
+
+        Events::trigger('account-deleted', $userId);
+
+        return redirect()->to(config('Auth')->logoutRedirect())->with('message', lang('Auth.deleteAccountSuccess'));
     }
 
     /**

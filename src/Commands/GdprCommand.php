@@ -24,7 +24,7 @@ use Daycry\Auth\Models\PasswordHistoryModel;
 use Daycry\Auth\Models\TotpBackupCodeModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
-use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\UserAnonymizer;
 use Throwable;
 
 /**
@@ -86,7 +86,7 @@ class GdprCommand extends BaseCommand
 
         return match ($action) {
             'export'    => $this->exportAction($user, (string) ($params['o'] ?? '')),
-            'anonymize' => $this->anonymizeAction($user, $userModel),
+            'anonymize' => $this->anonymizeAction($user),
             default     => $this->unsupported(),
         };
     }
@@ -149,7 +149,7 @@ class GdprCommand extends BaseCommand
         }
     }
 
-    private function anonymizeAction(User $user, UserModel $userModel): int
+    private function anonymizeAction(User $user): int
     {
         if ($this->prompt('This will permanently anonymize user ' . $user->id . '. Continue?', ['y', 'n']) !== 'y') {
             $this->write('Aborted.', 'yellow');
@@ -160,41 +160,9 @@ class GdprCommand extends BaseCommand
         try {
             $userId = (int) $user->id;
 
-            // Soft-revoke and delete identities (passwords, tokens, OAuth).
-            /** @var UserIdentityModel $identityModel */
-            $identityModel = model(UserIdentityModel::class);
-            $identityModel->where('user_id', $userId)->delete();
-
-            // Drop device sessions / login history / backup codes /
-            // password history. We keep audit log entries with user_id set
-            // but the row itself anonymised below.
-            /** @var DeviceSessionModel $deviceModel */
-            $deviceModel = model(DeviceSessionModel::class);
-            $deviceModel->where('user_id', $userId)->delete();
-
-            /** @var TotpBackupCodeModel $backup */
-            $backup = model(TotpBackupCodeModel::class);
-            $backup->where('user_id', $userId)->delete();
-
-            /** @var PasswordHistoryModel $history */
-            $history = model(PasswordHistoryModel::class);
-            $history->where('user_id', $userId)->delete();
-
-            // Anonymise the user row (preserve FKs).
-            $userModel->where('id', $userId)->set([
-                'username'            => 'deleted_' . $userId,
-                'active'              => 0,
-                'failed_login_count'  => 0,
-                'locked_until'        => null,
-                'password_changed_at' => null,
-            ])->update();
-
-            // Final audit-log entry with anonymisation.
-            (new AuditLogger())->record(
-                AuditLogger::EVENT_USER_ANONYMIZED,
-                $userId,
-                ['initiator' => 'cli'],
-            );
+            // Identities, sessions, passkeys, codes, history and login records
+            // are removed and the row anonymised, in one transaction.
+            (new UserAnonymizer())->anonymize($user, 'cli');
 
             $this->write('User ' . $userId . ' anonymised. Identities and tokens removed.', 'green');
 
