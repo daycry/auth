@@ -127,7 +127,7 @@ Errors: `403` (not logged in), `409` (per-user cap reached or duplicate credenti
 
 On the login page, a "Sign in with a passkey" button calls:
 
-1. `POST webauthn/login/options {email?}` → request options. With **no email**, the flow is usernameless/discoverable (`allowCredentials` empty). With an email, it is scoped to that user's credentials. **Anti-enumeration:** an unknown email returns well-formed options with an empty `allowCredentials` and never reveals whether the account exists.
+1. `POST webauthn/login/options {email?}` → request options. With **no email**, the flow is usernameless/discoverable (`allowCredentials` empty). With an email, it is scoped to that user's credentials. **Anti-enumeration:** an unknown email, or an account without passkeys, receives a **decoy** credential descriptor instead of an empty list — deterministic per email (HMAC keyed with `Config\Encryption::$key`) and shaped like a real one — so the response does not reveal whether the account exists or has passkeys. A decoy can never match a stored credential. Residual signal: an account with *several* passkeys returns several descriptors (a decoy is always one). Set `Config\Encryption::$key` (already required for TOTP); without it a warning is logged and decoys become distinguishable.
 2. `navigator.credentials.get({publicKey})` → the device signs the assertion.
 3. `POST webauthn/login/verify {credential}` → the credential is looked up by its id, the assertion is verified (signature, challenge, origin, rpId, user-verification, sign-count anti-clone), the counter is persisted, and the session is established. Returns `200 {status:"ok", redirect}`.
 
@@ -212,7 +212,7 @@ Every ceremony enforces (each has a dedicated negative test in `tests/WebAuthn/W
 7. **userHandle** must match the credential's stored handle.
 8. **Ownership** — in 2FA / delete, the credential must belong to the (pending/logged-in) user.
 9. **Revoked** credentials are excluded from lookup and `allowCredentials`.
-10. **Anti-enumeration** — `login/options` never reveals whether an email exists.
+10. **Anti-enumeration** — `login/options` answers unknown emails and passkey-less accounts with a stable decoy descriptor, so it does not reveal whether an email exists (see the login flow above for the residual credential-count signal).
 11. **Lockout** — failed 2FA attempts feed the same per-user lockout as password failures.
 12. **CSRF** — CI4 CSRF applies to the POST endpoints (the ceremony is additionally CSRF-resistant via the challenge).
 
