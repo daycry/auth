@@ -13,13 +13,19 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
+use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
+use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Authentication\Passwords;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Models\RememberModel;
+use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\PasswordChangeRecorder;
 
 /**
  * UserSecurityController
@@ -273,5 +279,129 @@ class UserSecurityController extends BaseAuthController
         }
 
         return redirect()->to($intended);
+    }
+
+    /**
+     * Change-password form, or the set-password form for an account that has
+     * no usable password yet (e.g. created through OAuth).
+     */
+    public function changePasswordView(): string
+    {
+        return $this->view($this->viewFor('security-change-password'), [
+            'hasPassword' => $this->hasUsablePassword(auth()->user()),
+        ]);
+    }
+
+    /**
+     * Changes the password (requires the current one), or sets a first
+     * password on a password-less account (requires an e-mail address and a
+     * recent interactive sign-in instead).
+     *
+     * Every other device session and remember-me token is revoked, issued
+     * JWTs are invalidated; the current session stays signed in.
+     */
+    public function changePassword(): RedirectResponse
+    {
+        $user        = auth()->user();
+        $hasPassword = $this->hasUsablePassword($user);
+
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+
+        if ($hasPassword) {
+            if (! $passwords->verify((string) $this->request->getPost('current_password'), (string) $user->getPasswordHash())) {
+                return redirect()->back()->with('error', lang('Auth.changePasswordCurrentInvalid'));
+            }
+        } elseif ((string) $user->email === '') {
+            return redirect()->back()->with('error', lang('Auth.changePasswordNeedsEmail'));
+        } elseif (! $this->recentlyAuthenticated()) {
+            return redirect()->back()->with('error', lang('Auth.reauthRequired'));
+        }
+
+        $newPassword = (string) $this->request->getPost('new_password');
+
+        if ($newPassword !== (string) $this->request->getPost('new_password_confirm')) {
+            return redirect()->back()->with('error', lang('Auth.changePasswordMismatch'));
+        }
+
+        $check = $passwords->check($newPassword, $user);
+
+        if (! $check->isOK()) {
+            return redirect()->back()->with('error', $check->reason());
+        }
+
+        $previousHash = $user->getPasswordHash();
+
+        $user->setPassword($newPassword);
+        model(UserModel::class)->save($user);
+
+        // History, password_changed_at, JWT access + refresh revocation.
+        (new PasswordChangeRecorder())->record($user, $previousHash);
+
+        // Sign out everywhere else; keep this session.
+        model(DeviceSessionModel::class)->terminateAllForUser($user, session_id());
+        model(RememberModel::class)->purgeRememberTokensByUserId($user->id);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_CHANGED, (int) $user->id);
+        service('securityNotifier')->passwordChanged($user);
+        Events::trigger('password-changed', $user);
+
+        return redirect()->route('security')
+            ->with('message', lang($hasPassword ? 'Auth.changePasswordSuccess' : 'Auth.setPasswordSuccess'));
+    }
+
+    /**
+     * Whether the user can sign in with a password: an e-mail identity whose
+     * hash is not the empty password (OAuth accounts that later confirm an
+     * e-mail get an identity without a usable password).
+     */
+    protected function hasUsablePassword(User $user): bool
+    {
+        $hash = (string) $user->getPasswordHash();
+
+        if ($hash === '') {
+            return false;
+        }
+
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+
+        return ! $passwords->verify('', $hash);
+    }
+
+    /**
+     * Whether the user proved who they are recently: an interactive sign-in or
+     * a password confirmation within AuthSecurity::$passwordConfirmationLifetime.
+     * Gates sensitive changes on password-less accounts, where there is no
+     * current password to ask for.
+     */
+    protected function recentlyAuthenticated(): bool
+    {
+        $lifetime = (int) (setting('AuthSecurity.passwordConfirmationLifetime') ?? 0);
+        $latest   = max(
+            (int) session(Session::AUTHENTICATED_AT_KEY),
+            (int) session('password_confirmed_at'),
+        );
+
+        return $latest > 0 && time() - $latest <= $lifetime;
+    }
+
+    /**
+     * View name for a self-service screen, with a fallback for published
+     * Config\Auth::$views arrays that predate the key.
+     */
+    protected function viewFor(string $key): string
+    {
+        $defaults = [
+            'security-change-password'        => '\Daycry\Auth\Views\security\change_password',
+            'security-change-email'           => '\Daycry\Auth\Views\security\change_email',
+            'security-confirm-email-change'   => '\Daycry\Auth\Views\security\confirm_email_change',
+            'security-delete-account'         => '\Daycry\Auth\Views\security\delete_account',
+            'security-confirm-delete-account' => '\Daycry\Auth\Views\security\confirm_delete_account',
+            'security-account-delete-email'   => '\Daycry\Auth\Views\Email\account_delete_email',
+            'email-change-email'              => '\Daycry\Auth\Views\Email\email_change_email',
+        ];
+
+        return setting('Auth.views')[$key] ?? $defaults[$key];
     }
 }
