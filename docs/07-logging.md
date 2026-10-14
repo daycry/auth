@@ -186,31 +186,9 @@ Events::on('pre-register', static function (array $data): void {
 
 When `AuthSecurity::$suspiciousLoginAlerts = true`, every successful login runs `SuspiciousLoginDetector` and fires the `suspicious-login` event whenever the IP / User-Agent does not match the user's recent history.
 
-### Listener — email the user
+### E-mailing the user
 
-```php
-use CodeIgniter\Events\Events;
-use CodeIgniter\I18n\Time;
-use Daycry\Auth\Entities\User;
-
-Events::on('suspicious-login', static function (User $user, array $flags, string $ip, string $ua): void {
-    helper('email');
-
-    $email = emailer()
-        ->setFrom(setting('Email.fromEmail'), (string) setting('Email.fromName'))
-        ->setTo($user->email)
-        ->setSubject(lang('Auth.suspiciousLoginSubject'))
-        ->setMessage(view('Daycry\\Auth\\Views\\Email\\suspicious_login_alert', [
-            'user'      => $user,
-            'flags'     => $flags,
-            'ipAddress' => $ip,
-            'userAgent' => $ua,
-            'date'      => Time::now()->toDateTimeString(),
-        ]));
-
-    $email->send(false);
-});
-```
+The library already e-mails the user on a flagged sign-in when `AuthSecurity::$securityNotificationEmails` is on (the default). See [Audit & Compliance — Suspicious login detection](13-audit-and-compliance.md#suspicious-login-detection). Register your own listener only for extra reactions (alerting, chat ops, ...), and **remove** any older listener that e-mails the user, or the user gets the alert twice.
 
 ### Possible flag values
 

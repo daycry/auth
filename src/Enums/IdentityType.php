@@ -27,6 +27,7 @@ enum IdentityType: string
     case RESET_PASSWORD = 'reset_password';
     case JWT_REFRESH    = 'jwt_refresh';
     case EMAIL_CHANGE   = 'email_change';
+    case ACCOUNT_DELETE = 'account_delete';
     case WEBAUTHN       = 'webauthn';
     case MAGIC_CODE     = 'magic_code';
 

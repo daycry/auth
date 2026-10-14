@@ -70,7 +70,7 @@ Every event written by `\Daycry\Auth\Services\AuditLogger` lands in `auth_audit_
 | `EVENT_REFRESH_TOKEN_REVOKED` | `JwtTokenRepository::softRevokeRefreshToken()` — fired on `JwtController::logout()` and on refresh rotation (the consumed token is one-time-use); `metadata.reason` is `rotation` or `logout` |
 | `EVENT_TRUSTED_DEVICE_ADDED` | User ticks "Trust this device" on 2FA |
 | `EVENT_SUSPICIOUS_LOGIN` | `SuspiciousLoginDetector` flags a login, **or** `RememberMe` detects a remember-me token theft (`metadata.reason = remember_me_validator_mismatch`) |
-| `EVENT_USER_ANONYMIZED` | `auth:gdpr anonymize` CLI command |
+| `EVENT_USER_ANONYMIZED` | `auth:gdpr anonymize` CLI command (`initiator: cli`) and self-service account deletion (`initiator: self-service`) |
 | `EVENT_OAUTH_LINKED` / `EVENT_OAUTH_UNLINKED` | Reserved for application use |
 | `EVENT_EMAIL_CHANGE_REQUEST` / `EVENT_EMAIL_CHANGED` | Reserved for application use |
 | `EVENT_TRUSTED_DEVICE_REMOVED` | Reserved for application use |
@@ -196,7 +196,13 @@ Each login is checked against the user's history (last 30 days). The current imp
 
 The detector is forward-compatible — additional signals (geo-IP, ASN reputation, time-of-day, JA3 fingerprint) can be added without changing the integration point.
 
-### React with an event listener
+### E-mailing the user
+
+With `AuthSecurity::$securityNotificationEmails` on (the default), the library e-mails the user on every flagged sign-in using `Views/Email/suspicious_login_alert.php`. The listener lives in `src/Config/Events.php` and is discovered automatically. Override the `security-suspicious-login-email` view key to change the template, or the `securityNotifier` service to change delivery.
+
+> **Upgrading:** if you followed the earlier version of this guide and registered your own `suspicious-login` listener that e-mails the user, remove it, or the user will get the alert twice.
+
+For anything else (alerting on-call, Slack, blocking the session...), add your own listener:
 
 ```php
 // app/Config/Events.php
@@ -204,25 +210,11 @@ use CodeIgniter\Events\Events;
 use Daycry\Auth\Entities\User;
 
 Events::on('suspicious-login', static function (User $user, array $flags, string $ip, string $ua): void {
-    helper('email');
-
-    $email = emailer()
-        ->setFrom(setting('Email.fromEmail'), (string) setting('Email.fromName'))
-        ->setTo($user->email)
-        ->setSubject(lang('Auth.suspiciousLoginSubject'))
-        ->setMessage(view('Daycry\\Auth\\Views\\Email\\suspicious_login_alert', [
-            'user'      => $user,
-            'flags'     => $flags,
-            'ipAddress' => $ip,
-            'userAgent' => $ua,
-            'date'      => \CodeIgniter\I18n\Time::now()->toDateTimeString(),
-        ]));
-
-    $email->send(false);
+    log_message('alert', 'Suspicious sign-in for user {id} from {ip}: {flags}', [
+        'id' => $user->id, 'ip' => $ip, 'flags' => implode(', ', $flags),
+    ]);
 });
 ```
-
-The package ships `Views/Email/suspicious_login_alert.php` as a starting template — copy it to `app/Views/` and customize.
 
 ### What lands in the audit log
 
@@ -482,13 +474,14 @@ Permanent, irreversible — keeps the user row to preserve foreign-key integrity
 php spark auth:gdpr anonymize -e alice@example.com
 ```
 
-What happens:
+What happens. Steps 1–3 run in **one transaction**, done by `Services\UserAnonymizer`; a failure rolls everything back:
 
-1. **Identities, device sessions, password history, backup codes** — `DELETE` rows for the user.
-2. **User row** — `username` becomes `deleted_<id>`, `active = 0`, lockout / rotation fields cleared.
-3. **Audit log** — final `EVENT_USER_ANONYMIZED` entry with `actor_id = user_id` and `metadata.initiator = cli`.
+1. **Identities, device sessions, remember-me tokens, passkeys, password history, backup codes** — `DELETE` rows for the user.
+2. **Login history** (`auth_logins`) — successful sign-ins (by `user_id`) and failed attempts made with the login e-mail. They hold the e-mail, IP addresses and user agents.
+3. **User row** — `username` becomes `deleted_<id>`, `active = 0`, lockout / rotation fields cleared.
+4. **Audit log** — final `EVENT_USER_ANONYMIZED` entry with `metadata.initiator = cli`.
 
-The command prompts for confirmation before any destructive action. Login attempts (`auth_logins`) are kept by default — they are append-only events, not personal data of the deleted user. Adapt to your interpretation of GDPR by extending `GdprCommand::anonymizeAction()`.
+The command prompts for confirmation before any destructive action. Users can also delete their own account through `UserSecurityController` (see [Controllers](05-controllers.md#usersecuritycontroller)); that path runs the same anonymizer with `initiator = self-service`. To adapt erasure to your interpretation of GDPR, extend `UserAnonymizer`.
 
 ### When to use export vs anonymize
 

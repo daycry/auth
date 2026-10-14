@@ -116,9 +116,23 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $this->assertInstanceOf(User::class, $authUser);
         $this->assertSame($this->user->id, $authUser->id);
 
+        // A remember-me auto-login is not an interactive sign-in.
+        $this->assertNull(session(Session::AUTHENTICATED_AT_KEY));
+
         // Clean up: remove cookie and forget prefix setting.
         service('superglobals')->unsetCookie($cookieName);
         setting()->forget('Cookie.prefix');
+    }
+
+    public function testInteractiveLoginStampsAuthenticatedAt(): void
+    {
+        $this->assertNull(session(Session::AUTHENTICATED_AT_KEY));
+
+        $this->auth->login($this->user);
+
+        $stamp = session()->get(Session::AUTHENTICATED_AT_KEY);
+        $this->assertIsInt($stamp);
+        $this->assertLessThanOrEqual(2, abs(time() - $stamp));
     }
 
     public function testLoggedInAsDeletedUserWithRememberCookie(): void

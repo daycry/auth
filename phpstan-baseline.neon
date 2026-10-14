@@ -262,6 +262,12 @@ parameters:
 			rawMessage: 'Call to internal function emailer().'
 			identifier: function.internal
 			count: 1
+			path: src/Libraries/SecurityNotifier.php
+
+		-
+			rawMessage: 'Call to internal function emailer().'
+			identifier: function.internal
+			count: 1
 			path: src/Libraries/TokenEmailSender.php
 
 		-
@@ -595,6 +601,12 @@ parameters:
 			path: tests/Controllers/OauthControllerTest.php
 
 		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Controllers/UserSecurity/DeleteAccountTest.php
+
+		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Auth\\Entities\\UserIdentity'' and Daycry\Auth\Entities\UserIdentity will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
 			count: 1
@@ -868,6 +880,12 @@ parameters:
 			path: tests/Services/RequestLoggerTest.php
 
 		-
+			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'
+			identifier: staticMethod.internal
+			count: 1
+			path: tests/Services/UserAnonymizerTest.php
+
+		-
 			rawMessage: 'Call to method PHPUnit\Framework\Assert::assertInstanceOf() with ''Daycry\\Encryption\\Encryption'' and Daycry\Encryption\Encryption will always evaluate to true.'
 			identifier: method.alreadyNarrowedType
 			count: 2
@@ -968,6 +986,12 @@ parameters:
 			identifier: return.internalClass
 			count: 1
 			path: tests/_support/FilterTestCase.php
+
+		-
+			rawMessage: 'Return type of method Tests\Support\SelfServiceTestCase::actingAs() has typehint with internal class Tests\Support\SelfServiceTestCase.'
+			identifier: return.internalClass
+			count: 1
+			path: tests/_support/SelfServiceTestCase.php
 
 		-
 			rawMessage: 'Call to internal static method CodeIgniter\Config\Factories::injectMock() from outside its root namespace CodeIgniter.'

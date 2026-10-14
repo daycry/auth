@@ -13,35 +13,71 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
+use CodeIgniter\Database\Exceptions\DatabaseException as FrameworkDatabaseException;
+use CodeIgniter\Events\Events;
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\I18n\Time;
+use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Authentication\Passwords;
+use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Enums\IdentityType;
+use Daycry\Auth\Exceptions\DatabaseException;
+use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
+use Daycry\Auth\Models\RememberModel;
+use Daycry\Auth\Models\UserIdentityModel;
+use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Services\UserAnonymizer;
+use Throwable;
 
 /**
  * UserSecurityController
  *
- * Lets authenticated users manage their own security settings:
- *   - Active device sessions (list + revoke)
- *   - TOTP 2FA setup / disable
+ * Lets authenticated users manage their own account and security settings:
+ *   - device sessions (list + revoke), TOTP 2FA (setup / disable), login activity
+ *   - password change (or set a first password on a password-less account)
+ *   - e-mail change (confirmed through a link sent to the new address)
+ *   - unlink an OAuth provider (never the last way to sign in)
+ *   - account deletion (GDPR anonymisation)
  *
- * Routes to add in your app (example):
- *   $routes->group('account/security', ['filter' => 'session'], static function ($routes): void {
- *       $routes->get('/',                  'Daycry\Auth\Controllers\UserSecurityController::index',             ['as' => 'security']);
- *       $routes->post('sessions/revoke',   'Daycry\Auth\Controllers\UserSecurityController::revokeSession',     ['as' => 'security-revoke-session']);
- *       $routes->post('sessions/revoke-all','Daycry\Auth\Controllers\UserSecurityController::revokeAllSessions',['as' => 'security-revoke-all']);
- *       $routes->get('totp/setup',         'Daycry\Auth\Controllers\UserSecurityController::totpSetup',        ['as' => 'totp-setup']);
- *       $routes->post('totp/setup/confirm','Daycry\Auth\Controllers\UserSecurityController::totpSetupConfirm', ['as' => 'totp-setup-confirm']);
- *       $routes->post('totp/disable',      'Daycry\Auth\Controllers\UserSecurityController::totpDisable',      ['as' => 'totp-disable']);
- *       $routes->post('sessions/password', 'Daycry\Auth\Controllers\UserSecurityController::changePassword',   ['as' => 'security-change-password']);
- *       $routes->get('email/change',       'Daycry\Auth\Controllers\UserSecurityController::changeEmailView',  ['as' => 'security-change-email']);
- *       $routes->post('email/change',      'Daycry\Auth\Controllers\UserSecurityController::changeEmail',      ['as' => 'security-change-email-action']);
- *       $routes->get('email/confirm',      'Daycry\Auth\Controllers\UserSecurityController::confirmEmailChange',['as' => 'security-confirm-email']);
- *       $routes->post('oauth/unlink',      'Daycry\Auth\Controllers\UserSecurityController::unlinkOauth',      ['as' => 'security-unlink-oauth']);
+ * Password-less accounts (OAuth-created) re-authenticate with a recent
+ * interactive sign-in (AuthSecurity::$passwordConfirmationLifetime) instead
+ * of a current password; their deletion is confirmed by e-mail.
+ *
+ * Routes to add in your app. Keep CSRF protection on (CI4 `csrf` filter) for
+ * every POST, and consider the `rates` filter for the mutating routes:
+ *
+ *   $c = '\Daycry\Auth\Controllers\UserSecurityController::';
+ *   $routes->group('account/security', ['filter' => 'auth:session'], static function ($routes) use ($c): void {
+ *       $routes->get('/',                       $c . 'index',                    ['as' => 'security']);
+ *       $routes->post('sessions/revoke',        $c . 'revokeSession',            ['as' => 'security-revoke-session']);
+ *       $routes->post('sessions/revoke-all',    $c . 'revokeAllSessions',        ['as' => 'security-revoke-all']);
+ *       $routes->get('totp/setup',              $c . 'totpSetup',                ['as' => 'totp-setup']);
+ *       $routes->post('totp/setup/confirm',     $c . 'totpSetupConfirm',         ['as' => 'totp-setup-confirm']);
+ *       $routes->post('totp/disable',           $c . 'totpDisable',              ['as' => 'totp-disable']);
+ *       $routes->get('activity',                $c . 'loginActivity',            ['as' => 'security-activity']);
+ *       $routes->get('password',                $c . 'changePasswordView',       ['as' => 'security-change-password']);
+ *       $routes->post('password',               $c . 'changePassword',           ['as' => 'security-change-password-action']);
+ *       $routes->get('email',                   $c . 'changeEmailView',          ['as' => 'security-change-email']);
+ *       $routes->post('email',                  $c . 'changeEmail',              ['as' => 'security-change-email-action']);
+ *       $routes->get('email/confirm',           $c . 'confirmEmailChangeView',   ['as' => 'security-confirm-email']);
+ *       $routes->post('email/confirm',          $c . 'confirmEmailChange',       ['as' => 'security-confirm-email-action']);
+ *       $routes->post('oauth/(:segment)/unlink', $c . 'unlinkOauth/$1',          ['as' => 'security-unlink-oauth']);
+ *       $routes->get('delete',                  $c . 'deleteAccountView',        ['as' => 'security-delete-account']);
+ *       $routes->post('delete',                 $c . 'deleteAccount',            ['as' => 'security-delete-account-action']);
+ *       $routes->get('delete/confirm',          $c . 'confirmDeleteAccountView', ['as' => 'security-confirm-delete']);
+ *       $routes->post('delete/confirm',         $c . 'confirmDeleteAccount',     ['as' => 'security-confirm-delete-action']);
  *   });
+ *
+ * The e-mailed links point at `security-confirm-email` / `security-confirm-delete`,
+ * so those route names must exist.
  */
 class UserSecurityController extends BaseAuthController
 {
@@ -180,6 +216,7 @@ class UserSecurityController extends BaseAuthController
         }
 
         $user->disableTotp();
+        service('securityNotifier')->totpDisabled($user);
 
         return redirect()->route('security')->with('message', 'Two-factor authentication has been disabled.');
     }
@@ -273,5 +310,478 @@ class UserSecurityController extends BaseAuthController
         }
 
         return redirect()->to($intended);
+    }
+
+    /**
+     * Change-password form, or the set-password form for an account that has
+     * no usable password yet (e.g. created through OAuth).
+     */
+    public function changePasswordView(): string
+    {
+        return $this->view($this->viewFor('security-change-password'), [
+            'hasPassword' => $this->hasUsablePassword(auth()->user()),
+        ]);
+    }
+
+    /**
+     * Changes the password (requires the current one), or sets a first
+     * password on a password-less account (requires an e-mail address and a
+     * recent interactive sign-in instead).
+     *
+     * Every other device session and remember-me token is revoked, issued
+     * JWTs are invalidated; the current session stays signed in.
+     */
+    public function changePassword(): RedirectResponse
+    {
+        $user        = auth()->user();
+        $hasPassword = $this->hasUsablePassword($user);
+
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+
+        if (! $hasPassword && (string) $user->email === '') {
+            return redirect()->back()->with('error', lang('Auth.changePasswordNeedsEmail'));
+        }
+
+        $denied = $this->reauthenticate($user);
+        if ($denied instanceof RedirectResponse) {
+            return $denied;
+        }
+
+        $newPassword = (string) $this->request->getPost('new_password');
+
+        if ($newPassword !== (string) $this->request->getPost('new_password_confirm')) {
+            return redirect()->back()->with('error', lang('Auth.changePasswordMismatch'));
+        }
+
+        $check = $passwords->check($newPassword, $user);
+
+        if (! $check->isOK()) {
+            return redirect()->back()->with('error', $check->reason());
+        }
+
+        $previousHash = $user->getPasswordHash();
+
+        $user->setPassword($newPassword);
+        model(UserModel::class)->save($user);
+
+        // History, password_changed_at, JWT access + refresh revocation.
+        (new PasswordChangeRecorder())->record($user, $previousHash);
+
+        // Sign out everywhere else; keep this session.
+        model(DeviceSessionModel::class)->terminateAllForUser($user, session_id());
+        model(RememberModel::class)->purgeRememberTokensByUserId($user->id);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_CHANGED, (int) $user->id);
+        service('securityNotifier')->passwordChanged($user);
+        Events::trigger('password-changed', $user);
+
+        return redirect()->route('security')
+            ->with('message', lang($hasPassword ? 'Auth.changePasswordSuccess' : 'Auth.setPasswordSuccess'));
+    }
+
+    /**
+     * Form to request an e-mail address change.
+     */
+    public function changeEmailView(): string
+    {
+        $user = auth()->user();
+
+        return $this->view($this->viewFor('security-change-email'), [
+            'hasPassword'  => $this->hasUsablePassword($user),
+            'currentEmail' => (string) $user->email,
+        ]);
+    }
+
+    /**
+     * Requests an e-mail change: re-authenticates (current password, or a
+     * recent sign-in on a password-less account), e-mails a single-use
+     * confirmation link to the NEW address and warns the CURRENT one.
+     * Nothing changes until the link is confirmed.
+     */
+    public function changeEmail(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        $denied = $this->reauthenticate($user);
+        if ($denied instanceof RedirectResponse) {
+            return $denied;
+        }
+
+        $newEmail = strtolower(trim((string) $this->request->getPost('new_email')));
+
+        if (filter_var($newEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return redirect()->back()->with('error', lang('Auth.changeEmailInvalid'));
+        }
+
+        if ($newEmail === strtolower((string) $user->email)) {
+            return redirect()->back()->with('error', lang('Auth.changeEmailUnchanged'));
+        }
+
+        // Authenticated-only, low-severity enumeration surface (session +
+        // CSRF; add the `rates` filter to the route).
+        if ($this->emailBelongsToAnotherAccount($newEmail, $user)) {
+            return redirect()->back()->with('error', lang('Auth.changeEmailAlreadyUsed'));
+        }
+
+        try {
+            (new TokenEmailSender())->sendTokenEmail(
+                $user,
+                IdentityType::EMAIL_CHANGE->value,
+                (int) setting('AuthSecurity.emailChangeLifetime'),
+                lang('Auth.changeEmailSubject'),
+                $this->viewFor('email-change-email'),
+                [],
+                null,
+                $newEmail,
+                ['new_email' => $newEmail],
+            );
+        } catch (RuntimeException $e) {
+            log_message('error', 'E-mail change confirmation could not be sent: {message}', ['message' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', lang('Auth.unableSendEmailToUser', [$newEmail]));
+        }
+
+        service('securityNotifier')->emailChangeRequested($user, $newEmail);
+        (new AuditLogger())->record(AuditLogger::EVENT_EMAIL_CHANGE_REQUEST, (int) $user->id);
+
+        return redirect()->back()->with('message', lang('Auth.changeEmailSent'));
+    }
+
+    /**
+     * Confirmation page for the e-mailed link. GET never mutates (mail
+     * scanners and link prefetchers follow GET links); it renders a form that
+     * POSTs the token to confirmEmailChange().
+     */
+    public function confirmEmailChangeView(): RedirectResponse|string
+    {
+        $token = (string) $this->request->getGet('token');
+
+        [$identity, $error] = $this->pendingToken(IdentityType::EMAIL_CHANGE, $token, 'changeEmail');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        return $this->view($this->viewFor('security-confirm-email-change'), [
+            'token'    => $token,
+            'newEmail' => (string) ($this->identityExtra($identity)['new_email'] ?? ''),
+        ]);
+    }
+
+    /**
+     * Applies a confirmed e-mail change. The token is single-use and must
+     * belong to the signed-in user; the new address is re-checked.
+     */
+    public function confirmEmailChange(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        [$identity, $error] = $this->pendingToken(IdentityType::EMAIL_CHANGE, (string) $this->request->getPost('token'), 'changeEmail');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        // Consume first: the link is single-use whatever happens next.
+        model(UserIdentityModel::class)->delete($identity->id);
+
+        $newEmail = (string) ($this->identityExtra($identity)['new_email'] ?? '');
+
+        if (filter_var($newEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return redirect()->route('security')->with('error', lang('Auth.changeEmailTokenInvalid'));
+        }
+
+        if ($this->emailBelongsToAnotherAccount($newEmail, $user)) {
+            return redirect()->route('security')->with('error', lang('Auth.changeEmailAlreadyUsed'));
+        }
+
+        $oldEmail = (string) $user->email;
+
+        // Save the ENTITY: UserModel syncs the login identity (an array update
+        // would skip saveEmailIdentity and leave the old login address).
+        $user->setEmail($newEmail);
+
+        try {
+            model(UserModel::class)->save($user);
+        } catch (DatabaseException|FrameworkDatabaseException) {
+            // Lost a race on the unique (type, secret) index.
+            return redirect()->route('security')->with('error', lang('Auth.changeEmailAlreadyUsed'));
+        }
+
+        (new AuditLogger())->record(AuditLogger::EVENT_EMAIL_CHANGED, (int) $user->id);
+
+        if ($oldEmail !== '') {
+            service('securityNotifier')->emailChanged($user, $oldEmail);
+        }
+
+        Events::trigger('email-changed', $user, $oldEmail);
+
+        return redirect()->route('security')->with('message', lang('Auth.changeEmailSuccess'));
+    }
+
+    /**
+     * Disconnects an OAuth provider from the account. Refused when it is the
+     * last way to sign in: a usable password, another linked provider or a
+     * passkey (stored in its own table) must remain.
+     */
+    public function unlinkOauth(string $provider): RedirectResponse
+    {
+        $user          = auth()->user();
+        $type          = IdentityType::oauthProvider($provider);
+        $identityModel = model(UserIdentityModel::class);
+        $identity      = $identityModel->getIdentityByType($user, $type);
+
+        if ($identity === null) {
+            return redirect()->back()->with('error', lang('Auth.unlinkOauthNotFound', [$provider]));
+        }
+
+        $otherProviders = array_filter(
+            $identityModel->getIdentities($user),
+            static fn (UserIdentity $i): bool => str_starts_with((string) $i->type, 'oauth_') && $i->type !== $type,
+        );
+
+        if (! $this->hasUsablePassword($user) && $otherProviders === [] && ! $user->hasWebAuthnCredentials()) {
+            return redirect()->back()->with('error', lang('Auth.unlinkOauthLastMethod'));
+        }
+
+        $identityModel->delete($identity->id);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_OAUTH_UNLINKED, (int) $user->id, ['provider' => $provider]);
+        Events::trigger('oauth-unlinked', $user, $provider);
+
+        return redirect()->back()->with('message', lang('Auth.unlinkOauthSuccess', [$provider]));
+    }
+
+    /**
+     * Account deletion form: password re-auth, or "send me a confirmation
+     * link" on a password-less account.
+     */
+    public function deleteAccountView(): string
+    {
+        $user = auth()->user();
+
+        return $this->view($this->viewFor('security-delete-account'), [
+            'hasPassword' => $this->hasUsablePassword($user),
+            'hasEmail'    => (string) $user->email !== '',
+        ]);
+    }
+
+    /**
+     * Deletes (anonymises) the account. A password account is deleted right
+     * after its current password is verified; a password-less account gets a
+     * single-use confirmation link by e-mail instead (the link is the re-auth).
+     */
+    public function deleteAccount(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        if ($this->hasUsablePassword($user)) {
+            $denied = $this->reauthenticate($user);
+
+            return $denied ?? $this->performAccountDeletion($user);
+        }
+
+        if ((string) $user->email === '') {
+            return redirect()->back()->with('error', lang('Auth.deleteAccountNeedsEmail'));
+        }
+
+        try {
+            (new TokenEmailSender())->sendTokenEmail(
+                $user,
+                IdentityType::ACCOUNT_DELETE->value,
+                (int) setting('AuthSecurity.emailChangeLifetime'),
+                lang('Auth.deleteAccountSubject'),
+                $this->viewFor('security-account-delete-email'),
+            );
+        } catch (RuntimeException $e) {
+            log_message('error', 'Account deletion confirmation could not be sent: {message}', ['message' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', lang('Auth.unableSendEmailToUser', [(string) $user->email]));
+        }
+
+        return redirect()->back()->with('message', lang('Auth.deleteAccountEmailSent'));
+    }
+
+    /**
+     * Confirmation page for the e-mailed deletion link (GET never mutates).
+     */
+    public function confirmDeleteAccountView(): RedirectResponse|string
+    {
+        $token = (string) $this->request->getGet('token');
+
+        [$identity, $error] = $this->pendingToken(IdentityType::ACCOUNT_DELETE, $token, 'deleteAccount');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        return $this->view($this->viewFor('security-confirm-delete-account'), ['token' => $token]);
+    }
+
+    /**
+     * Deletes a password-less account from its confirmed link.
+     */
+    public function confirmDeleteAccount(): RedirectResponse
+    {
+        [$identity, $error] = $this->pendingToken(IdentityType::ACCOUNT_DELETE, (string) $this->request->getPost('token'), 'deleteAccount');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        return $this->performAccountDeletion(auth()->user());
+    }
+
+    /**
+     * Anonymises the account first (one transaction), then — only once it
+     * succeeded — sends the farewell notice and signs the user out.
+     */
+    protected function performAccountDeletion(User $user): RedirectResponse
+    {
+        $userId = (int) $user->id;
+
+        // Load the address now: the anonymizer removes the identity holding it.
+        $user->getEmail();
+
+        try {
+            (new UserAnonymizer())->anonymize($user, 'self-service', $userId);
+        } catch (Throwable $e) {
+            log_message('error', 'Self-service account deletion failed for user {id}: {message}', ['id' => $userId, 'message' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', lang('Auth.deleteAccountFailed'));
+        }
+
+        service('securityNotifier')->accountDeleted($user);
+
+        auth('session')->logout();
+
+        Events::trigger('account-deleted', $userId);
+
+        return redirect()->to(config('Auth')->logoutRedirect())->with('message', lang('Auth.deleteAccountSuccess'));
+    }
+
+    /**
+     * Re-authentication for a sensitive change: the current password on a
+     * password account, a recent interactive sign-in on a password-less one.
+     *
+     * @return RedirectResponse|null Null when the user is re-authenticated
+     */
+    protected function reauthenticate(User $user): ?RedirectResponse
+    {
+        if ($this->hasUsablePassword($user)) {
+            /** @var Passwords $passwords */
+            $passwords = service('passwords');
+
+            if (! $passwords->verify((string) $this->request->getPost('current_password'), (string) $user->getPasswordHash())) {
+                return redirect()->back()->with('error', lang('Auth.changePasswordCurrentInvalid'));
+            }
+
+            return null;
+        }
+
+        if (! $this->recentlyAuthenticated()) {
+            return redirect()->back()->with('error', lang('Auth.reauthRequired'));
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a self-service confirmation token of the signed-in user.
+     *
+     * @param string $langPrefix 'changeEmail' | 'deleteAccount' (selects the *TokenInvalid / *TokenExpired line)
+     *
+     * @return array{0: UserIdentity|null, 1: string|null} [identity, error message]
+     */
+    protected function pendingToken(IdentityType $type, string $token, string $langPrefix): array
+    {
+        $identityModel = model(UserIdentityModel::class);
+        $identity      = $token === '' ? null : $identityModel->getIdentityBySecret($type->value, $token);
+
+        if ($identity === null || (int) $identity->user_id !== (int) auth()->id()) {
+            return [null, lang('Auth.' . $langPrefix . 'TokenInvalid')];
+        }
+
+        if ($identity->expires !== null && Time::now()->isAfter($identity->expires)) {
+            $identityModel->delete($identity->id);
+
+            return [null, lang('Auth.' . $langPrefix . 'TokenExpired')];
+        }
+
+        return [$identity, null];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function identityExtra(UserIdentity $identity): array
+    {
+        $extra = json_decode((string) $identity->extra, true);
+
+        return is_array($extra) ? $extra : [];
+    }
+
+    /**
+     * Whether $email is the login address of an account other than $user.
+     */
+    protected function emailBelongsToAnotherAccount(string $email, User $user): bool
+    {
+        return model(UserIdentityModel::class)
+            ->where('type', IdentityType::EMAIL_PASSWORD->value)
+            ->where('secret', strtolower($email))
+            ->where('user_id !=', $user->id)
+            ->countAllResults() > 0;
+    }
+
+    /**
+     * Whether the user can sign in with a password: an e-mail identity whose
+     * hash is not the empty password (OAuth accounts that later confirm an
+     * e-mail get an identity without a usable password).
+     */
+    protected function hasUsablePassword(User $user): bool
+    {
+        $hash = (string) $user->getPasswordHash();
+
+        if ($hash === '') {
+            return false;
+        }
+
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+
+        return ! $passwords->verify('', $hash);
+    }
+
+    /**
+     * Whether the user proved who they are recently: an interactive sign-in or
+     * a password confirmation within AuthSecurity::$passwordConfirmationLifetime.
+     * Gates sensitive changes on password-less accounts, where there is no
+     * current password to ask for.
+     */
+    protected function recentlyAuthenticated(): bool
+    {
+        $lifetime = (int) (setting('AuthSecurity.passwordConfirmationLifetime') ?? 0);
+        $latest   = max(
+            (int) session(Session::AUTHENTICATED_AT_KEY),
+            (int) session('password_confirmed_at'),
+        );
+
+        return $latest > 0 && time() - $latest <= $lifetime;
+    }
+
+    /**
+     * View name for a self-service screen, with a fallback for published
+     * Config\Auth::$views arrays that predate the key.
+     */
+    protected function viewFor(string $key): string
+    {
+        $defaults = [
+            'security-change-password'        => '\Daycry\Auth\Views\security\change_password',
+            'security-change-email'           => '\Daycry\Auth\Views\security\change_email',
+            'security-confirm-email-change'   => '\Daycry\Auth\Views\security\confirm_email_change',
+            'security-delete-account'         => '\Daycry\Auth\Views\security\delete_account',
+            'security-confirm-delete-account' => '\Daycry\Auth\Views\security\confirm_delete_account',
+            'security-account-delete-email'   => '\Daycry\Auth\Views\Email\account_delete_email',
+            'email-change-email'              => '\Daycry\Auth\Views\Email\email_change_email',
+        ];
+
+        return setting('Auth.views')[$key] ?? $defaults[$key];
     }
 }

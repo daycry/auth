@@ -443,17 +443,22 @@ foreach ($devices->getAllForUser($user) as $session) {
 Daycry Auth ships with `UserSecurityController` which provides ready-to-use TOTP management endpoints. Register the routes in `app/Config/Routes.php`:
 
 ```php
-$routes->group('security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
-    $routes->get('/',             'UserSecurityController::index',          ['as' => 'security']);
-    $routes->get('totp/setup',    'UserSecurityController::totpSetup',      ['as' => 'totp-setup']);
-    $routes->post('totp/confirm', 'UserSecurityController::totpSetupConfirm', ['as' => 'totp-setup-confirm']);
-    $routes->post('totp/disable', 'UserSecurityController::totpDisable',    ['as' => 'totp-disable']);
+$c = '\Daycry\Auth\Controllers\UserSecurityController::';
 
-    // Device session management
-    $routes->post('sessions/(:num)/revoke', 'UserSecurityController::revokeSession/$1', ['as' => 'revoke-session']);
-    $routes->post('sessions/revoke-all',    'UserSecurityController::revokeAllSessions', ['as' => 'revoke-all-sessions']);
+$routes->group('account/security', ['filter' => 'auth:session'], static function ($routes) use ($c) {
+    $routes->get('/',                   $c . 'index',             ['as' => 'security']);
+    $routes->get('totp/setup',          $c . 'totpSetup',         ['as' => 'totp-setup']);
+    $routes->post('totp/setup/confirm', $c . 'totpSetupConfirm',  ['as' => 'totp-setup-confirm']);
+    // Disabling 2FA e-mails the user (AuthSecurity::$securityNotificationEmails)
+    $routes->post('totp/disable',       $c . 'totpDisable',       ['as' => 'totp-disable']);
+
+    // Device session management (POST field `session_id`)
+    $routes->post('sessions/revoke',     $c . 'revokeSession',     ['as' => 'security-revoke-session']);
+    $routes->post('sessions/revoke-all', $c . 'revokeAllSessions', ['as' => 'security-revoke-all']);
 });
 ```
+
+See [Controllers — UserSecurityController](05-controllers.md#usersecuritycontroller) for the full route group.
 
 The views are configured in `app/Config/Auth.php` under the `$views` array (see [Override the Default TOTP Views](#override-the-default-totp-views) above).
 

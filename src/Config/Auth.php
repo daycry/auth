@@ -338,7 +338,10 @@ class Auth extends BaseConfig
      *                            'password-reset-request', 'password-reset-message', 'password-reset-form', 'password-reset-email',
      *                            'force-password-reset',
      *                            'email-change-email',
-     *                            'security_overview'
+     *                            'security_overview',
+     *                            'security-change-password', 'security-change-email', 'security-confirm-email-change',
+     *                            'security-delete-account', 'security-confirm-delete-account', 'security-account-delete-email',
+     *                            'security-*-email' (SecurityNotifier notices)
      */
     public array $views = [
         'login'                       => '\Daycry\Auth\Views\login',
@@ -368,6 +371,20 @@ class Auth extends BaseConfig
         'email-change-email' => '\Daycry\Auth\Views\Email\email_change_email',
         // User security overview (device sessions + TOTP status)
         'security_overview' => '\Daycry\Auth\Views\profile\security',
+        // Self-service account management (UserSecurityController)
+        'security-change-password'        => '\Daycry\Auth\Views\security\change_password',
+        'security-change-email'           => '\Daycry\Auth\Views\security\change_email',
+        'security-confirm-email-change'   => '\Daycry\Auth\Views\security\confirm_email_change',
+        'security-delete-account'         => '\Daycry\Auth\Views\security\delete_account',
+        'security-confirm-delete-account' => '\Daycry\Auth\Views\security\confirm_delete_account',
+        'security-account-delete-email'   => '\Daycry\Auth\Views\Email\account_delete_email',
+        // Security notification e-mails (SecurityNotifier)
+        'security-password-changed-email'       => '\Daycry\Auth\Views\Email\security_notice_email',
+        'security-email-change-requested-email' => '\Daycry\Auth\Views\Email\security_notice_email',
+        'security-email-changed-email'          => '\Daycry\Auth\Views\Email\security_notice_email',
+        'security-account-deleted-email'        => '\Daycry\Auth\Views\Email\security_notice_email',
+        'security-totp-disabled-email'          => '\Daycry\Auth\Views\Email\security_notice_email',
+        'security-suspicious-login-email'       => '\Daycry\Auth\Views\Email\suspicious_login_alert',
         // WebAuthn / passkeys
         'webauthn_setup'      => '\Daycry\Auth\Views\webauthn_setup',
         'webauthn_2fa_verify' => '\Daycry\Auth\Views\webauthn_2fa_verify',

@@ -284,13 +284,19 @@ Daycry Auth includes a `UserSecurityController` with ready-made actions for sess
 
 ```php
 // app/Config/Routes.php
-$routes->group('security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
-    // Device sessions
-    $routes->get('sessions',                     'UserSecurityController::deviceSessionsView', ['as' => 'security-sessions']);
-    $routes->delete('sessions/(:segment)',       'UserSecurityController::terminateDeviceSession/$1');
-    $routes->delete('sessions/other/all',        'UserSecurityController::terminateOtherDeviceSessions');
+$c = '\Daycry\Auth\Controllers\UserSecurityController::';
+
+$routes->group('account/security', ['filter' => 'auth:session'], static function ($routes) use ($c) {
+    // Overview: lists the active device sessions
+    $routes->get('/',                   $c . 'index',             ['as' => 'security']);
+    // POST field `session_id` — the session must belong to the current user
+    $routes->post('sessions/revoke',     $c . 'revokeSession',     ['as' => 'security-revoke-session']);
+    // Revokes every session except the current one
+    $routes->post('sessions/revoke-all', $c . 'revokeAllSessions', ['as' => 'security-revoke-all']);
 });
 ```
+
+See [Controllers — UserSecurityController](05-controllers.md#usersecuritycontroller) for the full route group (password, e-mail, OAuth, account deletion).
 
 ---
 

@@ -145,6 +145,17 @@ The `Unreleased` section in `CHANGELOG.md` adds 13 features and a handful of int
    composer require daycry/jobs
    ```
 
+4. **Security notification e-mails are on by default.** `AuthSecurity::$securityNotificationEmails = true` makes the library e-mail users after:
+   - a password change;
+   - an e-mail change request or a completed change;
+   - an account deletion;
+   - 2FA being disabled;
+   - a suspicious sign-in, if `$suspiciousLoginAlerts` is on.
+
+   Make sure `Config\Email` can deliver; failures are only logged. Set the flag to `false` to opt out. If you registered your own `suspicious-login` listener that e-mails the user, remove it, or the user gets the alert twice.
+
+5. **`auth:gdpr anonymize` removes more personal data.** It now also deletes remember-me tokens, passkeys and the user's login history (`auth_logins`), and it runs in one transaction. Logic that used to extend `GdprCommand::anonymizeAction()` now belongs in `Services\UserAnonymizer`.
+
 ### Optional — opt-in to new features
 
 Each of these defaults to "off / unchanged" — adopt only what fits your security posture.
@@ -157,7 +168,7 @@ Each of these defaults to "off / unchanged" — adopt only what fits your securi
 | WebAuthn / Passkeys (passwordless login + 2FA) | `AuthSecurity::$webauthnEnabled = true` | [WebAuthn / Passkeys](15-webauthn.md) |
 | TOTP backup codes | (automatic on TOTP confirmation) | [TOTP — Backup Codes](10-totp-2fa.md#backup-codes) |
 | Compromised-password recheck on login | `AuthSecurity::$recheckPwnedOnLogin = true` | [Audit & Compliance](13-audit-and-compliance.md#compromised-password-recheck-on-login) |
-| Suspicious login alerts | `AuthSecurity::$suspiciousLoginAlerts = true` + listener | [Audit & Compliance](13-audit-and-compliance.md#suspicious-login-detection) |
+| Suspicious login alerts | `AuthSecurity::$suspiciousLoginAlerts = true` (the user is e-mailed automatically) | [Audit & Compliance](13-audit-and-compliance.md#suspicious-login-detection) |
 | Password history (no reuse) | `AuthSecurity::$passwordHistorySize = 5` + add `HistoryValidator` | [Audit & Compliance](13-audit-and-compliance.md#password-history-no-reuse) |
 | Password rotation policy | `AuthSecurity::$passwordMaxAge = 90 * DAY` + apply `password-age` filter | [Audit & Compliance](13-audit-and-compliance.md#password-rotation-policy) |
 | API token scope enforcement | Apply `token-scope:` filter on routes | [Filters — Token Scope](04-filters.md#4-token-scope-filter-token-scope) |

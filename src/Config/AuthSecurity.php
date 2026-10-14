@@ -289,6 +289,15 @@ class AuthSecurity extends BaseConfig
 
     /**
      * --------------------------------------------------------------------
+     * Self-service confirmation link lifetime
+     * --------------------------------------------------------------------
+     * How long, in seconds, the e-mail-change and account-deletion
+     * confirmation links sent by UserSecurityController stay valid.
+     */
+    public int $emailChangeLifetime = HOUR;
+
+    /**
+     * --------------------------------------------------------------------
      * JWT Refresh Token Lifetime
      * --------------------------------------------------------------------
      * Specifies how long (in seconds) a JWT refresh token is valid.
@@ -440,10 +449,23 @@ class AuthSecurity extends BaseConfig
      * and fires `suspicious-login` event + audit log entry whenever the
      * IP or User-Agent does not match the user's recent history.
      *
-     * Wire an `Events::on('suspicious-login', ...)` handler in your app to
-     * email the user / alert oncall on a flag.
+     * With $securityNotificationEmails on, the library e-mails the user on a
+     * flag (src/Config/Events.php). Add your own `Events::on('suspicious-login',
+     * ...)` handler for anything else (alerting oncall, ...).
      */
     public bool $suspiciousLoginAlerts = false;
+
+    /**
+     * --------------------------------------------------------------------
+     * Security notification e-mails
+     * --------------------------------------------------------------------
+     * Master switch for the first-party security e-mails sent by
+     * {@see \Daycry\Auth\Libraries\SecurityNotifier}: password changed,
+     * e-mail change requested / done, account deleted, two-factor disabled,
+     * and (with $suspiciousLoginAlerts) suspicious sign-in. A delivery
+     * failure is logged and never breaks the action that triggered it.
+     */
+    public bool $securityNotificationEmails = true;
 
     /**
      * --------------------------------------------------------------------

@@ -518,9 +518,15 @@ This is a JSON API controller — you typically do not extend it; an SPA can cal
 
 ## UserSecurityController
 
-Provides self-service security management for logged-in users: change password, change email, manage device sessions, and unlink OAuth providers.
+Self-service account and security management for signed-in users:
 
-**All routes require an active session** (`filter: session`).
+- device sessions (list + revoke), TOTP two-factor (set up / disable), login activity;
+- **change password**, or **set a first password** on a password-less account;
+- **change e-mail address**, confirmed through a link sent to the new address;
+- **unlink an OAuth provider**, which is refused if it is the last way to sign in;
+- **delete the account** (GDPR anonymisation).
+
+Every route needs an authenticated session (`auth:session` filter). Keep CI4 CSRF protection on for all POST routes, and add the [`rates`](04-filters.md) filter to the mutating ones.
 
 > When WebAuthn is enabled, the user's registered passkeys are listed inside the existing `security_overview` view rendered by this controller — the enrollment / deletion ceremonies themselves run against the JSON endpoints of [`WebAuthnController`](#webauthncontroller). See [WebAuthn / Passkeys](15-webauthn.md#frontend--javascript).
 
@@ -528,58 +534,157 @@ Provides self-service security management for logged-in users: change password, 
 
 ```php
 // app/Config/Routes.php
-$routes->group('security', ['filter' => 'auth:session', 'namespace' => 'Daycry\Auth\Controllers'], static function ($routes) {
-    // Change password
-    $routes->get('password',        'UserSecurityController::changePasswordView',   ['as' => 'security-password']);
-    $routes->post('password',       'UserSecurityController::changePassword');
+$c = '\Daycry\Auth\Controllers\UserSecurityController::';
 
-    // Change email
-    $routes->get('email',           'UserSecurityController::changeEmailView',      ['as' => 'security-email']);
-    $routes->post('email',          'UserSecurityController::changeEmail');
-    $routes->get('email/confirm',   'UserSecurityController::confirmEmailChange',   ['as' => 'security-email-confirm']);
+$routes->group('account/security', ['filter' => 'auth:session'], static function ($routes) use ($c) {
+    $routes->get('/',                        $c . 'index',                    ['as' => 'security']);
 
     // Device sessions
-    $routes->get('sessions',        'UserSecurityController::deviceSessionsView',   ['as' => 'security-sessions']);
-    $routes->delete('sessions/(:segment)', 'UserSecurityController::terminateDeviceSession/$1');
-    $routes->delete('sessions/other/all',  'UserSecurityController::terminateOtherDeviceSessions');
+    $routes->post('sessions/revoke',         $c . 'revokeSession',            ['as' => 'security-revoke-session']);
+    $routes->post('sessions/revoke-all',     $c . 'revokeAllSessions',        ['as' => 'security-revoke-all']);
 
-    // TOTP
-    $routes->get('totp/enable',     'UserSecurityController::totpEnableView',       ['as' => 'totp-enable']);
-    $routes->post('totp/enable',    'UserSecurityController::totpEnableAction');
-    $routes->post('totp/disable',   'UserSecurityController::totpDisableAction',    ['as' => 'totp-disable']);
+    // TOTP two-factor
+    $routes->get('totp/setup',               $c . 'totpSetup',                ['as' => 'totp-setup']);
+    $routes->post('totp/setup/confirm',      $c . 'totpSetupConfirm',         ['as' => 'totp-setup-confirm']);
+    $routes->post('totp/disable',            $c . 'totpDisable',              ['as' => 'totp-disable']);
+
+    // Login activity feed
+    $routes->get('activity',                 $c . 'loginActivity',            ['as' => 'security-activity']);
+
+    // Password
+    $routes->get('password',                 $c . 'changePasswordView',       ['as' => 'security-change-password']);
+    $routes->post('password',                $c . 'changePassword',           ['as' => 'security-change-password-action']);
+
+    // E-mail address
+    $routes->get('email',                    $c . 'changeEmailView',          ['as' => 'security-change-email']);
+    $routes->post('email',                   $c . 'changeEmail',              ['as' => 'security-change-email-action']);
+    $routes->get('email/confirm',            $c . 'confirmEmailChangeView',   ['as' => 'security-confirm-email']);
+    $routes->post('email/confirm',           $c . 'confirmEmailChange',       ['as' => 'security-confirm-email-action']);
 
     // OAuth
-    $routes->post('oauth/unlink/(:segment)', 'UserSecurityController::unlinkOauth/$1', ['as' => 'oauth-unlink']);
+    $routes->post('oauth/(:segment)/unlink', $c . 'unlinkOauth/$1',           ['as' => 'security-unlink-oauth']);
 
-    // Login activity feed (recent attempts)
-    $routes->get('activity', 'UserSecurityController::loginActivity', ['as' => 'security-activity']);
+    // Account deletion
+    $routes->get('delete',                   $c . 'deleteAccountView',        ['as' => 'security-delete-account']);
+    $routes->post('delete',                  $c . 'deleteAccount',            ['as' => 'security-delete-account-action']);
+    $routes->get('delete/confirm',           $c . 'confirmDeleteAccountView', ['as' => 'security-confirm-delete']);
+    $routes->post('delete/confirm',          $c . 'confirmDeleteAccount',     ['as' => 'security-confirm-delete-action']);
 });
 ```
 
-### changePassword()
+The confirmation e-mails link to the `security-confirm-email` and `security-confirm-delete` routes, so those route names must exist.
 
-Users can change their password by providing their current password + new password.
+### Password-less accounts
 
-**Form fields**:
-- `current_password` — verified before changing
-- `new_password`
-- `new_password_confirm` — must match `new_password`
+Accounts created through OAuth have no password. Many also have no e-mail address, because the address stays in the social identity. These accounts cannot be asked for a "current password", so:
 
-### changeEmail()
+| Action | Password account | Password-less account |
+|---|---|---|
+| Re-authentication | `current_password` | A **recent interactive sign-in** (within `AuthSecurity::$passwordConfirmationLifetime`, the sudo-mode window) |
+| Change password | change it | **set a first password**; needs an e-mail on file |
+| Delete account | immediate after `current_password` | **confirmation link** e-mailed to the account; needs an e-mail on file |
 
-Initiates an email address change. The system sends a confirmation link to the **new** email address. The address is only updated once the link is clicked.
+A sign-in is "interactive" when it uses a password, OAuth, a magic link or 2FA. Remember-me auto-logins do **not** count. This stops a stolen long-lived session from planting a password or moving the account to another e-mail address. The window can also be refreshed with the `password-confirm` sudo mode.
 
-**Form fields**:
-- `new_email` — the new address (must be a valid email not already in use)
-- `current_password` — required to authorise the change
+An e-mail identity whose password hash is the empty password does **not** count as a password. Such an identity is what an OAuth account gets once it confirms an e-mail address.
 
-### confirmEmailChange()
+### changePasswordView() / changePassword()
 
-Called when the user clicks the confirmation link in their email. Validates the token and updates the email address.
+**Form fields:**
+- `current_password`: only shown and required on a password account;
+- `new_password`: checked by the configured password validators;
+- `new_password_confirm`: must match `new_password`.
 
-### unlinkOauth()
+On success:
+- password history and `password_changed_at` are updated;
+- every issued JWT is revoked: access tokens through `token_version`, and refresh tokens;
+- every **other** device session and every remember-me token is revoked. The current session stays signed in;
+- the change is audited as `password.changed`;
+- a [security notice](#security-notification-e-mails) is sent and the `password-changed` event is fired.
 
-Removes an OAuth provider link from the user's account. Fails gracefully if the user would have no remaining login method.
+### changeEmailView() / changeEmail()
+
+**Form fields:** `new_email` and, on a password account, `current_password`.
+
+The request is rejected when:
+- the address is invalid;
+- it is already the account's address;
+- it belongs to **another** account. This makes the endpoint an authenticated-only, low-severity enumeration surface; the `rates` filter mitigates it.
+
+Otherwise:
+- a single-use `email_change` link, hashed at rest and valid for `AuthSecurity::$emailChangeLifetime`, is sent to the **new** address;
+- the **current** address is warned immediately.
+
+Nothing changes until the link is confirmed.
+
+### confirmEmailChangeView() / confirmEmailChange()
+
+The GET request only renders a confirmation page, because mail scanners and link prefetchers follow GET links. The page's POST applies the change, after these checks:
+
+1. The token must belong to the signed-in user.
+2. The token is consumed first (single use).
+3. The address is checked again.
+
+The `User` entity is then saved, so the **login** identity moves to the new address. Finally, the previous address is notified, `email.changed` is audited and the `email-changed` event is fired.
+
+### unlinkOauth(string $provider)
+
+Removes the `oauth_<provider>` identity. The request is refused (`Auth.unlinkOauthLastMethod`) unless at least one other way to sign in remains:
+- a usable password;
+- another linked provider;
+- a passkey.
+
+Audited as `oauth.unlinked`; fires `oauth-unlinked`.
+
+```html
+<?= form_open(url_to('security-unlink-oauth', 'google')) ?>
+    <button type="submit" class="btn btn-sm btn-outline-danger">Disconnect Google</button>
+<?= form_close() ?>
+```
+
+### deleteAccountView() / deleteAccount() / confirmDeleteAccountView() / confirmDeleteAccount()
+
+The account is anonymised by `Services\UserAnonymizer`, the same code as `php spark auth:gdpr anonymize`. The steps run in **one transaction**:
+
+1. Remove every identity, device session, remember-me token, passkey, TOTP backup code and password-history row.
+2. Remove the login history: successful sign-ins by user id, and failed attempts by the login e-mail.
+3. Overwrite the users row (`username = deleted_<id>`, `active = 0`).
+
+The row itself is kept, so foreign keys and the audit trail stay intact. The deletion is audited as `user.anonymized` with `initiator: self-service`.
+
+How it starts depends on the account:
+- **Password account:** deleted right after `current_password` is verified.
+- **Password-less account:** receives an `account_delete` confirmation link instead. Its confirmation GET and POST work like the e-mail change ones.
+- **No password and no e-mail:** asked to add an e-mail first.
+
+The farewell notice is sent **after** the anonymisation has committed, and then the user is signed out. If anything fails, nothing is changed and the user sees `Auth.deleteAccountFailed`.
+
+### Views
+
+Each screen can be overridden through `Config\Auth::$views`:
+
+| Key | Default |
+|---|---|
+| `security-change-password` | `Views/security/change_password.php` |
+| `security-change-email` | `Views/security/change_email.php` |
+| `security-confirm-email-change` | `Views/security/confirm_email_change.php` |
+| `security-delete-account` | `Views/security/delete_account.php` |
+| `security-confirm-delete-account` | `Views/security/confirm_delete_account.php` |
+| `email-change-email` | `Views/Email/email_change_email.php` (link to the new address) |
+| `security-account-delete-email` | `Views/Email/account_delete_email.php` (deletion link) |
+
+### Security notification e-mails
+
+`Libraries\SecurityNotifier` (`service('securityNotifier')`) e-mails the user when:
+- the password changes;
+- an e-mail change is requested (sent to the current address) or completed (sent to the previous address);
+- the account is deleted;
+- two-factor authentication is turned off;
+- a sign-in looks suspicious. This one also needs `AuthSecurity::$suspiciousLoginAlerts`.
+
+All of them are controlled by `AuthSecurity::$securityNotificationEmails`, which defaults to `true`. Accounts without an e-mail address are skipped. Delivery is swallow-and-log: a mail failure never breaks the action that triggered it.
+
+The notices share `Views/Email/security_notice_email.php`. Each one has its own `$views` key (`security-password-changed-email`, `security-email-change-requested-email`, `security-email-changed-email`, `security-account-deleted-email`, `security-totp-disabled-email`, `security-suspicious-login-email`). To change delivery, for example to queue the mails, override the `securityNotifier` service.
 
 ### loginActivity()
 
@@ -607,15 +712,6 @@ The default view exposes these variables:
 |----------|------|-------------|
 | `$entries` | `list<\Daycry\Auth\Entities\Login>` | Login rows newest-first. |
 | `$limit` | `int` | The applied limit. |
-
-```html
-<!-- In a security settings view -->
-<?= form_open('security/oauth/unlink/google', ['method' => 'post']) ?>
-    <button type="submit" class="btn btn-sm btn-outline-danger">
-        Disconnect Google
-    </button>
-<?= form_close() ?>
-```
 
 ---
 
