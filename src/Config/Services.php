@@ -20,6 +20,7 @@ use Daycry\Auth\Authorization\Gate;
 use Daycry\Auth\Authorization\GroupPermissionRepository;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Libraries\Logger;
+use Daycry\Auth\Libraries\SecurityNotifier;
 use Daycry\Auth\Libraries\WebAuthn\ChallengeManager;
 use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
 use Daycry\Auth\Models\AccessTokenRepository;
@@ -102,6 +103,19 @@ class Services extends BaseService
         }
 
         return new JwtTokenRepository(model(UserIdentityModel::class));
+    }
+
+    /**
+     * First-party security notification e-mails. Override this binding to
+     * customise delivery (queue, another transport, templates).
+     */
+    public static function securityNotifier(bool $getShared = true): SecurityNotifier
+    {
+        if ($getShared) {
+            return self::getSharedInstance('securityNotifier');
+        }
+
+        return new SecurityNotifier();
     }
 
     /**

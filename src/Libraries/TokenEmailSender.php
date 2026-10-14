@@ -41,6 +41,8 @@ class TokenEmailSender
      * @param string               $emailView      View path for the email body
      * @param array<string, mixed> $extraViewData  Additional data passed to the email view
      * @param ?callable            $tokenGenerator Optional token factory (defaults to a 20-char crypto string)
+     * @param string|null          $to             Recipient; defaults to the user's e-mail (e.g. a new address to confirm)
+     * @param array<string, mixed> $identityExtra  Data stored (JSON) in the token identity's `extra` column
      *
      * @return string The generated raw token
      *
@@ -54,6 +56,8 @@ class TokenEmailSender
         string $emailView,
         array $extraViewData = [],
         ?callable $tokenGenerator = null,
+        ?string $to = null,
+        array $identityExtra = [],
     ): string {
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
@@ -90,6 +94,7 @@ class TokenEmailSender
                     'type'    => $identityType,
                     'secret'  => hash('sha256', $token),
                     'expires' => Time::now()->addSeconds($lifetime)->format('Y-m-d H:i:s'),
+                    'extra'   => $identityExtra === [] ? null : json_encode($identityExtra, JSON_THROW_ON_ERROR),
                 ]);
 
                 break;
@@ -119,8 +124,9 @@ class TokenEmailSender
 
         // Send the email
         helper('email');
-        $email = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
-        $email->setTo($user->email);
+        $email     = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
+        $recipient = $to ?? $user->email;
+        $email->setTo($recipient);
         $email->setSubject($emailSubject);
         $email->setMessage($this->view($emailView, $viewData));
 
@@ -130,7 +136,7 @@ class TokenEmailSender
             $email->clear();
 
             throw new RuntimeException(
-                'Cannot send email for user: ' . $user->email,
+                'Cannot send email for user: ' . $recipient,
             );
         }
 

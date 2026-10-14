@@ -18,9 +18,11 @@ use CodeIgniter\I18n\Time;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Tests\Support\CapturingEmail;
 use Tests\Support\DatabaseTestCase;
 
 /**
@@ -46,6 +48,53 @@ final class TokenEmailSenderTest extends DatabaseTestCase
                 return true;
             }
         });
+    }
+
+    public function testSendsToExplicitRecipientAndStoresIdentityExtra(): void
+    {
+        CapturingEmail::install();
+
+        $user        = fake(UserModel::class);
+        $user->email = 'current@example.com';
+        model(UserModel::class)->save($user);
+
+        $raw = (new TokenEmailSender())->sendTokenEmail(
+            $user,
+            IdentityType::EMAIL_CHANGE->value,
+            3600,
+            'Confirm',
+            setting('Auth.views')['email-change-email'],
+            ['link' => 'https://example.com/confirm'],
+            null,
+            'new@example.com',
+            ['new_email' => 'new@example.com'],
+        );
+
+        $this->assertSame(['new@example.com'], array_column(CapturingEmail::$sent, 'to'));
+
+        $identity = model(UserIdentityModel::class)->getIdentityBySecret(IdentityType::EMAIL_CHANGE->value, $raw);
+        $this->assertNotNull($identity);
+        $this->assertSame(['new_email' => 'new@example.com'], json_decode((string) $identity->extra, true));
+    }
+
+    public function testDefaultsToTheUserAddressWithoutExtra(): void
+    {
+        CapturingEmail::install();
+
+        $user        = fake(UserModel::class);
+        $user->email = 'default@example.com';
+        model(UserModel::class)->save($user);
+
+        $raw = (new TokenEmailSender())->sendTokenEmail(
+            $user,
+            Session::ID_TYPE_MAGIC_LINK,
+            3600,
+            'Subject',
+            setting('Auth.views')['magic-link-email'],
+        );
+
+        $this->assertSame(['default@example.com'], array_column(CapturingEmail::$sent, 'to'));
+        $this->assertNull(model(UserIdentityModel::class)->getIdentityBySecret(Session::ID_TYPE_MAGIC_LINK, $raw)->extra);
     }
 
     public function testStoresHashedTokenButReturnsRawToken(): void

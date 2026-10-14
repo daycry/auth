@@ -57,6 +57,11 @@ class Session extends Base implements AuthenticatorInterface
      */
     public const ID_TYPE_USERNAME = IdentityType::USERNAME->value;
 
+    /**
+     * Session key holding the Unix time of the last interactive sign-in.
+     */
+    public const AUTHENTICATED_AT_KEY = 'auth_authenticated_at';
+
     // Identity types
     public const ID_TYPE_EMAIL_PASSWORD = IdentityType::EMAIL_PASSWORD->value;
     public const ID_TYPE_MAGIC_LINK     = IdentityType::MAGIC_LINK->value;
@@ -560,6 +565,12 @@ class Session extends Base implements AuthenticatorInterface
         $this->removeSessionKey('auth_action_message');
 
         $this->userState = AuthenticationState::LOGGED_IN;
+
+        // When the user last proved who they are interactively (password,
+        // OAuth, magic link, 2FA...). Remember-me auto-logins do not pass
+        // through here, so they never refresh it. Used to require a recent
+        // sign-in for sensitive changes on password-less accounts.
+        session()->set(self::AUTHENTICATED_AT_KEY, time());
 
         // a successful login
         Events::trigger('login', $user);
