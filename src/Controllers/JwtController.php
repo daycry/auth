@@ -112,7 +112,9 @@ class JwtController extends BaseAuthController
         $userModel = model(UserModel::class);
         $user      = $userModel->findById($userId);
 
-        if ($user === null) {
+        // A banned user must not obtain new tokens, even if a refresh token
+        // survived the ban (e.g. the status was changed outside User::ban()).
+        if ($user === null || $user->isBanned()) {
             return $this->response->setStatusCode(401)->setJSON([
                 'message' => lang('Auth.invalidUser'),
             ]);

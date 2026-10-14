@@ -322,7 +322,7 @@ Refresh tokens are stored in `auth_users_identities` (type: `jwt_refresh`) and a
 
 JWT access tokens are signed and self-contained, so they cannot be deleted server-side. To support "log out everywhere", each user carries a `users.token_version` counter (int, default `0`, added by migration `2026-05-08-000001`). `JwtController` mints the access-token payload as `{uid, tv}` where `tv` is the user's current `token_version`; the JWT authenticator's `check()` rejects any token whose embedded `tv` no longer matches the user's `token_version`, returning `lang('Auth.revokedToken')`. (Legacy scalar payloads — a bare user id — are still accepted, with the `tv` check skipped.)
 
-Call `User::revokeIssuedTokens()` to bump `token_version` atomically and invalidate **all** outstanding access tokens at once. It is invoked automatically by `Bannable::ban()` and by `Services\PasswordChangeRecorder::record()` (password reset / change). See [Authentication — Revoking JWT Access Tokens](03-authentication.md#jwt-refresh-tokens).
+Call `User::revokeIssuedTokens()` to bump `token_version` atomically and invalidate **all** outstanding access tokens at once — it also soft-revokes the user's JWT refresh tokens, so none can mint new access tokens. It is invoked automatically by `Bannable::ban()` and by `Services\PasswordChangeRecorder::record()` (password reset / change). See [Authentication — Revoking JWT Access Tokens](03-authentication.md#jwt-refresh-tokens).
 
 ---
 

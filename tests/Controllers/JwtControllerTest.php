@@ -15,8 +15,10 @@ namespace Tests\Controllers;
 
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\PasswordChangeRecorder;
 use Tests\Support\DatabaseTestCase;
 
 /**
@@ -133,6 +135,56 @@ final class JwtControllerTest extends DatabaseTestCase
         $this->post('auth/jwt/refresh', [
             'user_id'       => 999999,
             'refresh_token' => $refresh,
+        ])->assertStatus(401);
+    }
+
+    public function testPasswordChangeRevokesOutstandingRefreshTokens(): void
+    {
+        // An attacker holding a stolen refresh token must not survive the
+        // victim's password change: token_version invalidates the access
+        // token, and the refresh family must die with it — otherwise /refresh
+        // mints a fresh access token carrying the *new* token_version.
+        $tokens = $this->login();
+        $user   = model(UserModel::class)->findById($tokens['user_id']);
+        $this->assertInstanceOf(User::class, $user);
+
+        (new PasswordChangeRecorder())->record($user, null);
+
+        $this->post('auth/jwt/refresh', [
+            'user_id'       => $tokens['user_id'],
+            'refresh_token' => $tokens['refresh_token'],
+        ])->assertStatus(401);
+    }
+
+    public function testBanRevokesOutstandingRefreshTokens(): void
+    {
+        $tokens = $this->login();
+        $user   = model(UserModel::class)->findById($tokens['user_id']);
+        $this->assertInstanceOf(User::class, $user);
+
+        $user->ban('abuse');
+        // Lifting the ban must not resurrect tokens issued before it.
+        $user->unBan();
+
+        $this->post('auth/jwt/refresh', [
+            'user_id'       => $tokens['user_id'],
+            'refresh_token' => $tokens['refresh_token'],
+        ])->assertStatus(401);
+    }
+
+    public function testRefreshRejectsBannedUserEvenWithALiveToken(): void
+    {
+        // Defense in depth: a ban applied outside User::ban() (e.g. a direct
+        // UPDATE) leaves the refresh token alive; refresh must still refuse.
+        $tokens = $this->login();
+
+        $this->db->table($this->tables['users'])
+            ->where('id', $tokens['user_id'])
+            ->update(['status' => 'banned']);
+
+        $this->post('auth/jwt/refresh', [
+            'user_id'       => $tokens['user_id'],
+            'refresh_token' => $tokens['refresh_token'],
         ])->assertStatus(401);
     }
 

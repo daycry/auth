@@ -528,7 +528,9 @@ It is also called **automatically** in two places, so you usually don't need to 
 
 This means banning a user or having them change their password invalidates all of their live JWT access tokens, not just future ones.
 
-> **Scope note**: `revokeIssuedTokens()` invalidates JWT **access tokens** via the `tv` check. Refresh tokens are revoked separately (soft-revocation on logout — see below). Personal access tokens have their own revocation flow (see [Soft Revocation](#soft-revocation)).
+`revokeIssuedTokens()` also **soft-revokes every JWT refresh token** of the user. Without that, a stolen refresh token would survive a password change: `/refresh` would mint a new access token carrying the *new* `tv`. `JwtController::refresh()` additionally refuses banned users, even if a refresh token is still alive.
+
+> **Scope note**: personal access tokens (`X-API-KEY`) are **not** revoked by `revokeIssuedTokens()` — they have their own revocation flow (see [Soft Revocation](#soft-revocation)).
 
 ---
 
