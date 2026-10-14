@@ -29,6 +29,7 @@ use Webauthn\AuthenticatorAttestationResponseValidator;
 use Webauthn\AuthenticatorSelectionCriteria;
 use Webauthn\PublicKeyCredential;
 use Webauthn\PublicKeyCredentialCreationOptions;
+use Webauthn\PublicKeyCredentialDescriptor;
 use Webauthn\PublicKeyCredentialParameters;
 use Webauthn\PublicKeyCredentialRequestOptions;
 use Webauthn\PublicKeyCredentialRpEntity;
@@ -144,9 +145,14 @@ class WebAuthnManager
     {
         $allow = [];
         if ($email !== null && $email !== '') {
-            $user = model(UserModel::class)->findByCredentials(['email' => $email]);
-            if ($user !== null) {
-                $allow = $this->repository->descriptorsForUser($user->id); // empty stays usernameless / anti-enumeration
+            $user  = model(UserModel::class)->findByCredentials(['email' => $email]);
+            $allow = $user !== null ? $this->repository->descriptorsForUser($user->id) : [];
+
+            // Unknown e-mail, or an account without passkeys: answer with a
+            // stable decoy so the response does not reveal whether the
+            // account exists or which credentials it has (enumeration oracle).
+            if ($allow === []) {
+                $allow = [$this->decoyDescriptor($email)];
             }
         }
 
@@ -216,6 +222,35 @@ class WebAuthnManager
      *
      * @param int|string|null $requireUserId when set, the credential must belong to this user
      */
+    /**
+     * Builds a fake credential descriptor that is deterministic per e-mail
+     * (HMAC keyed with the application encryption key), so repeated requests
+     * for the same address get the same answer — exactly like a real account.
+     * Its id length and transports mimic real authenticators. It can never
+     * match a stored credential.
+     */
+    private function decoyDescriptor(string $email): PublicKeyCredentialDescriptor
+    {
+        $key = (string) config('Encryption')->key;
+
+        if ($key === '') {
+            log_message('warning', 'WebAuthn decoy credentials need Config\Encryption::$key; without it they can be told apart from real ones.');
+        }
+
+        $seed = hash_hmac('sha512', 'webauthn-login-decoy|' . strtolower(trim($email)), $key, true);
+
+        // Real descriptors vary: some authenticators report no transports at
+        // all (the key is then omitted), so the decoy must vary the same way.
+        $lengths    = [16, 20, 32, 64];
+        $transports = [['internal', 'hybrid'], ['hybrid', 'internal'], ['usb', 'nfc'], ['internal'], []];
+
+        return PublicKeyCredentialDescriptor::create(
+            PublicKeyCredentialDescriptor::CREDENTIAL_TYPE_PUBLIC_KEY,
+            substr($seed, 0, $lengths[ord($seed[0]) % count($lengths)]),
+            $transports[ord($seed[1]) % count($transports)],
+        );
+    }
+
     private function verifyAssertion(string $optionsJson, string $browserJson, int|string|null $requireUserId): User
     {
         try {

@@ -22,6 +22,7 @@ use Daycry\Auth\Models\WebAuthnCredentialModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\WebAuthn\SuppressesWebauthnDeprecations;
 use Tests\Support\WebAuthn\VirtualAuthenticator;
+use Webauthn\PublicKeyCredentialDescriptor;
 
 /**
  * Adversarial, security-invariant negative tests. Each method tampers with one
@@ -217,53 +218,86 @@ final class WebAuthnSecurityTest extends DatabaseTestCase
     }
 
     /**
-     * Anti-enumeration — documenting reality precisely:
-     *
-     * The non-enumerable path is the USERNAMELESS one. startLogin(null) (and
-     * any input that resolves to no user) always returns an EMPTY
-     * allowCredentials, so an attacker learns nothing about account existence.
-     *
-     * By contrast, supplying the email of a user who HAS an enrolled passkey
-     * returns a POPULATED allowCredentials by design (so the browser can scope
-     * the assertion). That is an intentional trade-off, not a guarantee of
-     * indistinguishability for the email-scoped path — which is why the
-     * recommended/anti-enumerable flow is usernameless.
+     * Anti-enumeration: the email-scoped login options must not reveal
+     * whether an account exists or has passkeys. An unknown e-mail, a user
+     * without passkeys and a user with one passkey all receive the same shape
+     * — one credential descriptor; the first two get a stable decoy derived
+     * from the app key, so repeating the request cannot tell them apart.
      */
-    public function testLoginOptionsDoNotRevealUserExistence(): void
+    public function testEmailScopedLoginOptionsDoNotRevealAccountExistence(): void
     {
-        // Usernameless path: nothing to scope, so allowCredentials is empty
-        // regardless of input — this is the non-enumerable guarantee.
-        $usernameless = $this->manager()->startLogin(null);
-        $this->assertArrayHasKey('challenge', $usernameless);
-        $this->assertSame([], $usernameless['allowCredentials'] ?? []);
-
-        // A user that exists but has NO passkey is indistinguishable from a
-        // non-existent user: both yield well-formed options with an empty
-        // allowCredentials list.
         $known        = fake(UserModel::class);
         $known->email = 'known@example.com';
         model(UserModel::class)->save($known);
 
-        $a = $this->manager()->startLogin('known@example.com');
-        $b = $this->manager()->startLogin('does-not-exist@example.com');
+        $noPasskey = $this->manager()->startLogin('known@example.com');
+        $unknown   = $this->manager()->startLogin('does-not-exist@example.com');
 
-        $this->assertArrayHasKey('challenge', $a);
-        $this->assertArrayHasKey('challenge', $b);
-        $this->assertSame(array_keys($a), array_keys($b));
-        $this->assertSame($a['allowCredentials'] ?? [], $b['allowCredentials'] ?? []);
-        $this->assertSame([], $a['allowCredentials'] ?? []);
+        $this->assertSame(array_keys($noPasskey), array_keys($unknown));
+        $this->assertCount(1, $noPasskey['allowCredentials'] ?? []);
+        $this->assertCount(1, $unknown['allowCredentials'] ?? []);
+        $this->assertDescriptorShape($noPasskey['allowCredentials'][0]);
+        $this->assertDescriptorShape($unknown['allowCredentials'][0]);
 
-        // Reality check: once the known user enrols a passkey, the email-scoped
-        // path DOES populate allowCredentials — by design — so it is NOT a
-        // non-enumeration guarantee. Only the usernameless path is.
+        // Decoys are stable per e-mail (a real account answers identically
+        // every time) and distinct across e-mails; e-mail case is irrelevant.
+        $this->assertSame($unknown['allowCredentials'], $this->manager()->startLogin('does-not-exist@example.com')['allowCredentials']);
+        $this->assertSame($unknown['allowCredentials'], $this->manager()->startLogin('Does-Not-Exist@Example.com')['allowCredentials']);
+        $this->assertNotSame($noPasskey['allowCredentials'], $unknown['allowCredentials']);
+
+        // Once the user enrols a passkey, the real descriptor replaces the
+        // decoy — same shape, so still indistinguishable from the outside.
         $authn = new VirtualAuthenticator('example.com', 'https://example.com');
         $this->enrol($known, $authn);
 
         $withPasskey = $this->manager()->startLogin('known@example.com');
-        $this->assertNotSame([], $withPasskey['allowCredentials'] ?? []);
+        $this->assertCount(1, $withPasskey['allowCredentials'] ?? []);
+        $this->assertDescriptorShape($withPasskey['allowCredentials'][0]);
+        $this->assertNotSame($noPasskey['allowCredentials'], $withPasskey['allowCredentials']);
 
-        // The usernameless path remains empty even though a passkey now exists.
-        $stillUsernameless = $this->manager()->startLogin(null);
-        $this->assertSame([], $stillUsernameless['allowCredentials'] ?? []);
+        // The usernameless path stays empty.
+        $this->assertSame([], $this->manager()->startLogin(null)['allowCredentials'] ?? []);
+    }
+
+    public function testDecoyShapesCoverTheVariantsRealCredentialsHave(): void
+    {
+        // Across many e-mails the decoys must include descriptors both with
+        // and without `transports`, like real authenticators do.
+        $withTransports = $withoutTransports = 0;
+
+        for ($i = 0; $i < 60; $i++) {
+            $descriptor = $this->manager()->startLogin("probe{$i}@example.com")['allowCredentials'][0];
+            $this->assertDescriptorShape($descriptor);
+            array_key_exists('transports', $descriptor) ? $withTransports++ : $withoutTransports++;
+        }
+
+        $this->assertGreaterThan(0, $withTransports);
+        $this->assertGreaterThan(0, $withoutTransports);
+    }
+
+    /**
+     * A descriptor as the browser receives it: type + id, transports optional.
+     *
+     * @param array<string, mixed> $descriptor
+     */
+    private function assertDescriptorShape(array $descriptor): void
+    {
+        $this->assertSame('public-key', $descriptor['type'] ?? null);
+        $this->assertIsString($descriptor['id'] ?? null);
+        $this->assertNotSame('', $descriptor['id']);
+        $this->assertSame([], array_diff(array_keys($descriptor), ['type', 'id', 'transports']));
+
+        foreach ($descriptor['transports'] ?? [] as $transport) {
+            $this->assertContains($transport, PublicKeyCredentialDescriptor::AUTHENTICATOR_TRANSPORTS);
+        }
+    }
+
+    public function testDecoyDescriptorCannotBeUsedToSignIn(): void
+    {
+        $options = $this->manager()->startLogin('nobody@example.com');
+        $decoyId = $options['allowCredentials'][0]['id'];
+
+        // No stored credential matches the decoy id.
+        $this->assertNull(model(WebAuthnCredentialModel::class)->where('credential_id', $decoyId)->first());
     }
 }
