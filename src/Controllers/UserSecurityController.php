@@ -40,24 +40,44 @@ use Throwable;
 /**
  * UserSecurityController
  *
- * Lets authenticated users manage their own security settings:
- *   - Active device sessions (list + revoke)
- *   - TOTP 2FA setup / disable
+ * Lets authenticated users manage their own account and security settings:
+ *   - device sessions (list + revoke), TOTP 2FA (setup / disable), login activity
+ *   - password change (or set a first password on a password-less account)
+ *   - e-mail change (confirmed through a link sent to the new address)
+ *   - unlink an OAuth provider (never the last way to sign in)
+ *   - account deletion (GDPR anonymisation)
  *
- * Routes to add in your app (example):
- *   $routes->group('account/security', ['filter' => 'session'], static function ($routes): void {
- *       $routes->get('/',                  'Daycry\Auth\Controllers\UserSecurityController::index',             ['as' => 'security']);
- *       $routes->post('sessions/revoke',   'Daycry\Auth\Controllers\UserSecurityController::revokeSession',     ['as' => 'security-revoke-session']);
- *       $routes->post('sessions/revoke-all','Daycry\Auth\Controllers\UserSecurityController::revokeAllSessions',['as' => 'security-revoke-all']);
- *       $routes->get('totp/setup',         'Daycry\Auth\Controllers\UserSecurityController::totpSetup',        ['as' => 'totp-setup']);
- *       $routes->post('totp/setup/confirm','Daycry\Auth\Controllers\UserSecurityController::totpSetupConfirm', ['as' => 'totp-setup-confirm']);
- *       $routes->post('totp/disable',      'Daycry\Auth\Controllers\UserSecurityController::totpDisable',      ['as' => 'totp-disable']);
- *       $routes->post('sessions/password', 'Daycry\Auth\Controllers\UserSecurityController::changePassword',   ['as' => 'security-change-password']);
- *       $routes->get('email/change',       'Daycry\Auth\Controllers\UserSecurityController::changeEmailView',  ['as' => 'security-change-email']);
- *       $routes->post('email/change',      'Daycry\Auth\Controllers\UserSecurityController::changeEmail',      ['as' => 'security-change-email-action']);
- *       $routes->get('email/confirm',      'Daycry\Auth\Controllers\UserSecurityController::confirmEmailChange',['as' => 'security-confirm-email']);
- *       $routes->post('oauth/unlink',      'Daycry\Auth\Controllers\UserSecurityController::unlinkOauth',      ['as' => 'security-unlink-oauth']);
+ * Password-less accounts (OAuth-created) re-authenticate with a recent
+ * interactive sign-in (AuthSecurity::$passwordConfirmationLifetime) instead
+ * of a current password; their deletion is confirmed by e-mail.
+ *
+ * Routes to add in your app. Keep CSRF protection on (CI4 `csrf` filter) for
+ * every POST, and consider the `rates` filter for the mutating routes:
+ *
+ *   $c = '\Daycry\Auth\Controllers\UserSecurityController::';
+ *   $routes->group('account/security', ['filter' => 'auth:session'], static function ($routes) use ($c): void {
+ *       $routes->get('/',                       $c . 'index',                    ['as' => 'security']);
+ *       $routes->post('sessions/revoke',        $c . 'revokeSession',            ['as' => 'security-revoke-session']);
+ *       $routes->post('sessions/revoke-all',    $c . 'revokeAllSessions',        ['as' => 'security-revoke-all']);
+ *       $routes->get('totp/setup',              $c . 'totpSetup',                ['as' => 'totp-setup']);
+ *       $routes->post('totp/setup/confirm',     $c . 'totpSetupConfirm',         ['as' => 'totp-setup-confirm']);
+ *       $routes->post('totp/disable',           $c . 'totpDisable',              ['as' => 'totp-disable']);
+ *       $routes->get('activity',                $c . 'loginActivity',            ['as' => 'security-activity']);
+ *       $routes->get('password',                $c . 'changePasswordView',       ['as' => 'security-change-password']);
+ *       $routes->post('password',               $c . 'changePassword',           ['as' => 'security-change-password-action']);
+ *       $routes->get('email',                   $c . 'changeEmailView',          ['as' => 'security-change-email']);
+ *       $routes->post('email',                  $c . 'changeEmail',              ['as' => 'security-change-email-action']);
+ *       $routes->get('email/confirm',           $c . 'confirmEmailChangeView',   ['as' => 'security-confirm-email']);
+ *       $routes->post('email/confirm',          $c . 'confirmEmailChange',       ['as' => 'security-confirm-email-action']);
+ *       $routes->post('oauth/(:segment)/unlink', $c . 'unlinkOauth/$1',          ['as' => 'security-unlink-oauth']);
+ *       $routes->get('delete',                  $c . 'deleteAccountView',        ['as' => 'security-delete-account']);
+ *       $routes->post('delete',                 $c . 'deleteAccount',            ['as' => 'security-delete-account-action']);
+ *       $routes->get('delete/confirm',          $c . 'confirmDeleteAccountView', ['as' => 'security-confirm-delete']);
+ *       $routes->post('delete/confirm',         $c . 'confirmDeleteAccount',     ['as' => 'security-confirm-delete-action']);
  *   });
+ *
+ * The e-mailed links point at `security-confirm-email` / `security-confirm-delete`,
+ * so those route names must exist.
  */
 class UserSecurityController extends BaseAuthController
 {
@@ -196,6 +216,7 @@ class UserSecurityController extends BaseAuthController
         }
 
         $user->disableTotp();
+        service('securityNotifier')->totpDisabled($user);
 
         return redirect()->route('security')->with('message', 'Two-factor authentication has been disabled.');
     }

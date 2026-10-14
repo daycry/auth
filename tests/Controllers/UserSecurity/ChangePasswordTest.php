@@ -34,7 +34,7 @@ final class ChangePasswordTest extends SelfServiceTestCase
         $result = $this->signedInAs($this->userWithPassword())->get('account/security/password');
 
         $result->assertStatus(200);
-        $result->assertSee('name="current_password"', null);
+        $result->assertSee('name="current_password"');
         $result->assertSee(lang('Auth.changePasswordTitle'));
     }
 
@@ -51,9 +51,10 @@ final class ChangePasswordTest extends SelfServiceTestCase
         ]);
 
         $result->assertRedirect();
-        $this->assertSame(lang('Auth.changePasswordSuccess'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.changePasswordSuccess'), $this->flash('message'), $this->errorHint());
 
         $fresh = model(UserModel::class)->findById($user->id);
+        $this->assertInstanceOf(User::class, $fresh);
         $this->assertTrue($this->passwords()->verify(self::NEW_PASSWORD, $fresh->getPasswordHash()));
         $this->assertSame($tokenVersion + 1, (int) $fresh->token_version);
         $this->dontSeeInDatabase($this->tables['remember_tokens'], ['user_id' => $user->id]);
@@ -116,7 +117,7 @@ final class ChangePasswordTest extends SelfServiceTestCase
             'new_password_confirm' => self::NEW_PASSWORD,
         ])->assertRedirect();
 
-        $this->assertSame(lang('Auth.changePasswordSuccess'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.changePasswordSuccess'), $this->flash('message'), $this->errorHint());
         $this->assertSame([], CapturingEmail::$sent);
     }
 
@@ -133,8 +134,9 @@ final class ChangePasswordTest extends SelfServiceTestCase
             'new_password_confirm' => self::NEW_PASSWORD,
         ])->assertRedirect();
 
-        $this->assertSame(lang('Auth.setPasswordSuccess'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.setPasswordSuccess'), $this->flash('message'), $this->errorHint());
         $fresh = model(UserModel::class)->findById($user->id);
+        $this->assertInstanceOf(User::class, $fresh);
         $this->assertTrue($this->passwords()->verify(self::NEW_PASSWORD, $fresh->getPasswordHash()));
     }
 
@@ -183,6 +185,7 @@ final class ChangePasswordTest extends SelfServiceTestCase
     private function assertUnchanged(User $user): void
     {
         $fresh = model(UserModel::class)->findById($user->id);
+        $this->assertInstanceOf(User::class, $fresh);
         $this->assertTrue($this->passwords()->verify(self::PASSWORD, $fresh->getPasswordHash()));
         $this->assertSame([], CapturingEmail::$sent);
     }

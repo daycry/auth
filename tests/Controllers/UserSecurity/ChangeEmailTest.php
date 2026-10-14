@@ -36,7 +36,7 @@ final class ChangeEmailTest extends SelfServiceTestCase
             'current_password' => self::PASSWORD,
         ])->assertRedirect();
 
-        $this->assertSame(lang('Auth.changeEmailSent'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.changeEmailSent'), $this->flash('message'), $this->errorHint());
 
         $toNew = CapturingEmail::sentTo('new@example.com');
         $this->assertCount(1, $toNew);
@@ -62,7 +62,7 @@ final class ChangeEmailTest extends SelfServiceTestCase
         $this->assertSame('member@example.com', model(UserModel::class)->findById($user->id)->email);
 
         $this->post('account/security/email/confirm', ['token' => $token])->assertRedirect();
-        $this->assertSame(lang('Auth.changeEmailSuccess'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.changeEmailSuccess'), $this->flash('message'), $this->errorHint());
 
         // The login identity itself moved (entity save, not a raw update).
         $fresh = model(UserModel::class)->findById($user->id);
@@ -154,7 +154,7 @@ final class ChangeEmailTest extends SelfServiceTestCase
 
         $this->signedInAs($user);
         $this->post('account/security/email', ['new_email' => 'social@example.com'])->assertRedirect();
-        $this->assertSame(lang('Auth.changeEmailSent'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.changeEmailSent'), $this->flash('message'), $this->errorHint());
 
         $token = $this->tokenFromLastEmail('social@example.com');
         $this->post('account/security/email/confirm', ['token' => $token])->assertRedirect();

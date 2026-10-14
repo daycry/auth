@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Self-service account management (`UserSecurityController`)
+- **Change password** (`changePasswordView` / `changePassword`), or **set a first password** on a password-less (OAuth-created) account. On success, other device sessions and remember-me tokens are revoked (the current session is kept), every issued JWT is invalidated, and the user is notified.
+- **Change e-mail** (`changeEmailView` / `changeEmail` / `confirmEmailChangeView` / `confirmEmailChange`). A single-use link, hashed at rest, goes to the **new** address and the **current** address is warned immediately. The confirmation GET only renders a page; the POST applies the change and moves the login identity.
+- **Unlink an OAuth provider** (`unlinkOauth`). Refused when it would leave no way to sign in: a usable password, another provider or a passkey must remain.
+- **Delete the account** (`deleteAccountView` / `deleteAccount` / `confirmDeleteAccountView` / `confirmDeleteAccount`). This is GDPR anonymisation: a password account is deleted right after its current password is verified, and a password-less account confirms by e-mail.
+- **Password-less accounts** re-authenticate with a **recent interactive sign-in** (within `AuthSecurity::$passwordConfirmationLifetime`) instead of a current password, so a stolen long-lived session cannot plant a password or move the account away. `Session` now records the time of interactive sign-ins (`Session::AUTHENTICATED_AT_KEY`); remember-me auto-logins do not count.
+- Confirmation links must belong to the signed-in user. New views (`security-*` keys in `Auth::$views`, each with a fallback for published configs) and links from the security overview to the screens the app registered. The documented route group (`auth:session` filter) replaces the old docblock, which pointed at methods that did not exist and at a non-existent `session` filter.
+
+#### Security notification e-mails
+- **`Libraries\SecurityNotifier`** (`service('securityNotifier')`) e-mails the user when:
+  - the password changes;
+  - an e-mail change is requested (to the current address) or completed (to the previous address);
+  - the account is deleted;
+  - two-factor authentication is turned off;
+  - a sign-in looks suspicious.
+- These notices are controlled by the new `AuthSecurity::$securityNotificationEmails` (**default `true`**). Accounts without an e-mail address are skipped, and delivery is swallow-and-log.
+- **`src/Config/Events.php`** registers a default `suspicious-login` listener (auto-discovered), so `$suspiciousLoginAlerts` now e-mails the user out of the box.
+- The `suspiciousLogin*` lang keys used by the existing alert template were missing, so it would have rendered raw keys. They are now defined in all 19 locales, as part of 55 new keys (English placeholders).
+
+#### GDPR
+- **`Services\UserAnonymizer`**, shared by `auth:gdpr anonymize` and self-service deletion. It runs in one transaction and also removes remember-me tokens, passkeys and the user's login history, which the command used to leave behind.
+- `TokenEmailSender::sendTokenEmail()` gains optional `$to` and `$identityExtra` parameters; `IdentityType::ACCOUNT_DELETE`; `AuthSecurity::$emailChangeLifetime` (default `HOUR`).
+
 #### Laravel-parity authentication & authorization
 - **Gates & Policies** — class- and closure-based authorization layer inspired by Laravel's `Gate` facade:
   - `Daycry\Auth\Authorization\Gate` (`define()`, `policy()`, `allows()`, `denies()`, `authorize()`, `forUser()`, `has()`).

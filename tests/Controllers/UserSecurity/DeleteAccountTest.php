@@ -19,8 +19,8 @@ use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Models\WebAuthnCredentialModel;
 use Daycry\Auth\Services\AuditLogger;
-use RuntimeException;
 use Tests\Support\CapturingEmail;
+use Tests\Support\FailingWebAuthnCredentialModel;
 use Tests\Support\SelfServiceTestCase;
 
 /**
@@ -34,11 +34,11 @@ final class DeleteAccountTest extends SelfServiceTestCase
 
         $form = $this->signedInAs($user)->get('account/security/delete');
         $form->assertStatus(200);
-        $form->assertSee('name="current_password"', null);
+        $form->assertSee('name="current_password"');
 
         $this->post('account/security/delete', ['current_password' => self::PASSWORD])->assertRedirect();
 
-        $this->assertSame(lang('Auth.deleteAccountSuccess'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.deleteAccountSuccess'), $this->flash('message'), $this->errorHint());
         $this->assertAnonymized($user);
         $this->assertFalse(auth()->loggedIn());
 
@@ -62,9 +62,10 @@ final class DeleteAccountTest extends SelfServiceTestCase
         $user = $this->oauthOnlyUser();
         model(UserIdentityModel::class)->createEmailIdentity($user, ['email' => 'social@example.com', 'password' => '']);
         $user = model(UserModel::class)->findById($user->id);
+        $this->assertInstanceOf(User::class, $user);
 
         $this->signedInAs($user)->post('account/security/delete')->assertRedirect();
-        $this->assertSame(lang('Auth.deleteAccountEmailSent'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.deleteAccountEmailSent'), $this->flash('message'), $this->errorHint());
         $this->assertSame($user->username, model(UserModel::class)->findById($user->id)->username, 'Nothing is deleted before confirmation');
 
         $token = $this->tokenFrom(CapturingEmail::sentTo('social@example.com'));
@@ -74,7 +75,7 @@ final class DeleteAccountTest extends SelfServiceTestCase
         $page->assertSee(lang('Auth.deleteAccountConfirmTitle'));
 
         $this->post('account/security/delete/confirm', ['token' => $token])->assertRedirect();
-        $this->assertSame(lang('Auth.deleteAccountSuccess'), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.deleteAccountSuccess'), $this->flash('message'), $this->errorHint());
         $this->assertAnonymized($user);
     }
 
@@ -107,12 +108,7 @@ final class DeleteAccountTest extends SelfServiceTestCase
     {
         $user = $this->userWithPassword('stays@example.com');
 
-        Factories::injectMock('models', WebAuthnCredentialModel::class, new class () extends WebAuthnCredentialModel {
-            public function delete($id = null, bool $purge = false): void
-            {
-                throw new RuntimeException('disk full');
-            }
-        });
+        Factories::injectMock('models', WebAuthnCredentialModel::class, new FailingWebAuthnCredentialModel());
 
         try {
             $this->signedInAs($user)->post('account/security/delete', ['current_password' => self::PASSWORD])->assertRedirect();

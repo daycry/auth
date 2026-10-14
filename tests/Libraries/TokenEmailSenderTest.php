@@ -18,6 +18,7 @@ use CodeIgniter\I18n\Time;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -73,7 +74,7 @@ final class TokenEmailSenderTest extends DatabaseTestCase
         $this->assertSame(['new@example.com'], array_column(CapturingEmail::$sent, 'to'));
 
         $identity = model(UserIdentityModel::class)->getIdentityBySecret(IdentityType::EMAIL_CHANGE->value, $raw);
-        $this->assertNotNull($identity);
+        $this->assertInstanceOf(UserIdentity::class, $identity);
         $this->assertSame(['new_email' => 'new@example.com'], json_decode((string) $identity->extra, true));
     }
 

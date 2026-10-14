@@ -228,6 +228,9 @@ public int $maxSimilarity = 50;
 ```php
 // How long a password reset token remains valid
 public int $passwordResetLifetime = HOUR; // Default: 1 hour
+
+// How long the self-service e-mail-change and account-deletion links stay valid
+public int $emailChangeLifetime = HOUR;
 ```
 
 The reset flow is handled by `PasswordResetController`. Users request a reset link, receive it by email, and click it within this window. See [Controllers](05-controllers.md#passwordresetcontroller) for the full setup.
@@ -861,8 +864,12 @@ public bool $recheckPwnedOnLogin = false;
 
 // Compare each successful login's IP / User-Agent against the user's last
 // 30 days of history. On anomalies fires the `suspicious-login` event +
-// audit entry. Wire your own listener for the email/Slack/push delivery.
+// audit entry, and (with $securityNotificationEmails) e-mails the user.
 public bool $suspiciousLoginAlerts = false;
+
+// First-party security e-mails: password changed, e-mail change requested /
+// done, account deleted, 2FA disabled, suspicious sign-in. Swallow-and-log.
+public bool $securityNotificationEmails = true;
 
 // Number of recent password hashes retained per user. The HistoryValidator
 // rejects new passwords matching any retained hash.

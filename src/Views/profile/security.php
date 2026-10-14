@@ -31,6 +31,31 @@
                 </div>
             <?php endif ?>
 
+            <!-- ── Account (only the self-service routes the app registered) ── -->
+            <?php
+            $accountLinks = array_filter([
+                'security-change-password' => lang('Auth.changePasswordTitle'),
+                'security-change-email'    => lang('Auth.changeEmailTitle'),
+                'security-delete-account'  => lang('Auth.deleteAccountTitle'),
+            ], static fn (string $label, string $route): bool => route_to($route) !== false, ARRAY_FILTER_USE_BOTH);
+?>
+            <?php if ($accountLinks !== []) : ?>
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header d-flex align-items-center gap-2">
+                        <i class="bi bi-person-gear fs-5"></i>
+                        <span class="fw-semibold">Account</span>
+                    </div>
+                    <div class="card-body d-flex flex-wrap gap-2">
+                        <?php foreach ($accountLinks as $route => $label) : ?>
+                            <a href="<?= url_to($route) ?>"
+                               class="btn <?= $route === 'security-delete-account' ? 'btn-outline-danger' : 'btn-outline-primary' ?>">
+                                <?= esc($label) ?>
+                            </a>
+                        <?php endforeach ?>
+                    </div>
+                </div>
+            <?php endif ?>
+
             <!-- ── TOTP 2FA ──────────────────────────────────────────────── -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header d-flex align-items-center gap-2">

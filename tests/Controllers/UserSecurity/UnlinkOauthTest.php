@@ -33,7 +33,7 @@ final class UnlinkOauthTest extends SelfServiceTestCase
 
         $this->signedInAs($user)->post('account/security/oauth/github/unlink')->assertRedirect();
 
-        $this->assertSame(lang('Auth.unlinkOauthSuccess', ['github']), $this->flash('message'), (string) $this->flash('error'));
+        $this->assertSame(lang('Auth.unlinkOauthSuccess', ['github']), $this->flash('message'), $this->errorHint());
         $this->assertFalse($this->isLinked($user, 'github'));
         $this->seeInDatabase($this->tables['audit_logs'], ['user_id' => $user->id, 'event_type' => AuditLogger::EVENT_OAUTH_UNLINKED]);
     }
@@ -72,7 +72,7 @@ final class UnlinkOauthTest extends SelfServiceTestCase
         $this->link($twoProviders, 'google');
 
         $this->signedInAs($twoProviders)->post('account/security/oauth/github/unlink')->assertRedirect();
-        $this->assertFalse($this->isLinked($twoProviders, 'github'), (string) $this->flash('error'));
+        $this->assertFalse($this->isLinked($twoProviders, 'github'), $this->errorHint());
 
         $withPasskey = $this->oauthOnlyUser('github');
         model(WebAuthnCredentialModel::class)->insert([
@@ -85,7 +85,7 @@ final class UnlinkOauthTest extends SelfServiceTestCase
         ]);
 
         $this->signedInAs($withPasskey)->post('account/security/oauth/github/unlink')->assertRedirect();
-        $this->assertFalse($this->isLinked($withPasskey, 'github'), (string) $this->flash('error'));
+        $this->assertFalse($this->isLinked($withPasskey, 'github'), $this->errorHint());
     }
 
     private function link(User $user, string $provider): void

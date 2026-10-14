@@ -23,8 +23,8 @@ use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Test\AuthenticationTesting;
 
 /**
- * Base for the UserSecurityController self-service endpoint tests: registers
- * the documented route group and captures outgoing e-mail.
+ * Base for the UserSecurityController tests: registers the route group
+ * documented in docs/05-controllers.md and captures outgoing e-mail.
  *
  * @internal
  */
@@ -45,6 +45,12 @@ abstract class SelfServiceTestCase extends DatabaseTestCase
         $controller = '\Daycry\Auth\Controllers\UserSecurityController::';
         $routes->group('account/security', ['filter' => 'auth:session'], static function ($routes) use ($controller): void {
             $routes->get('/', $controller . 'index', ['as' => 'security']);
+            $routes->post('sessions/revoke', $controller . 'revokeSession', ['as' => 'security-revoke-session']);
+            $routes->post('sessions/revoke-all', $controller . 'revokeAllSessions', ['as' => 'security-revoke-all']);
+            $routes->get('totp/setup', $controller . 'totpSetup', ['as' => 'totp-setup']);
+            $routes->post('totp/setup/confirm', $controller . 'totpSetupConfirm', ['as' => 'totp-setup-confirm']);
+            $routes->post('totp/disable', $controller . 'totpDisable', ['as' => 'totp-disable']);
+            $routes->get('activity', $controller . 'loginActivity', ['as' => 'security-activity']);
             $routes->get('password', $controller . 'changePasswordView', ['as' => 'security-change-password']);
             $routes->post('password', $controller . 'changePassword', ['as' => 'security-change-password-action']);
             $routes->get('email', $controller . 'changeEmailView', ['as' => 'security-change-email']);
@@ -120,5 +126,13 @@ abstract class SelfServiceTestCase extends DatabaseTestCase
         $value = session($key);
 
         return $value === null ? null : (string) $value;
+    }
+
+    /**
+     * The error flash as a string, for assertion messages ('' when none).
+     */
+    protected function errorHint(): string
+    {
+        return (string) session('error');
     }
 }

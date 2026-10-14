@@ -27,6 +27,7 @@ use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Services\UserAnonymizer;
 use RuntimeException;
 use Tests\Support\DatabaseTestCase;
+use Tests\Support\FailingWebAuthnCredentialModel;
 
 /**
  * @internal
@@ -67,18 +68,13 @@ final class UserAnonymizerTest extends DatabaseTestCase
     {
         $user = $this->userWithFootprint('rollback@example.com');
 
-        Factories::injectMock('models', WebAuthnCredentialModel::class, new class () extends WebAuthnCredentialModel {
-            public function delete($id = null, bool $purge = false): void
-            {
-                throw new RuntimeException('disk full');
-            }
-        });
+        Factories::injectMock('models', WebAuthnCredentialModel::class, new FailingWebAuthnCredentialModel());
 
         try {
             (new UserAnonymizer())->anonymize($user);
             $this->fail('Expected the failure to propagate.');
         } catch (RuntimeException $e) {
-            $this->assertSame('disk full', $e->getMessage());
+            $this->assertSame(FailingWebAuthnCredentialModel::MESSAGE, $e->getMessage());
         } finally {
             Factories::reset('models');
         }
