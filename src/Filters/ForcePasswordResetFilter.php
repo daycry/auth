@@ -15,7 +15,6 @@ namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
-use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
@@ -33,12 +32,12 @@ class ForcePasswordResetFilter implements FilterInterface
      *
      * @param array|null $arguments
      *
-     * @return RedirectResponse|void
+     * @return ResponseInterface|null
      */
     public function before(RequestInterface $request, $arguments = null)
     {
         if (! $request instanceof IncomingRequest) {
-            return;
+            return null;
         }
 
         if (auth()->getAuthenticator() instanceof Session) {
@@ -52,14 +51,19 @@ class ForcePasswordResetFilter implements FilterInterface
                 return redirect()->to($config->forcePasswordResetRedirect());
             }
         }
+
+        return null;
     }
 
     /**
      * We don't have anything to do here.
      *
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
+        return null;
     }
 }

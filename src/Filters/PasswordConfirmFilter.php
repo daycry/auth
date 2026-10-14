@@ -40,6 +40,8 @@ class PasswordConfirmFilter implements FilterInterface
      *                              seconds, e.g. `password-confirm:60` requires
      *                              a confirmation no older than 60 seconds for
      *                              that route regardless of the global setting.
+     *
+     * @return ResponseInterface|null
      */
     public function before(RequestInterface $request, $arguments = null)
     {
@@ -83,9 +85,12 @@ class PasswordConfirmFilter implements FilterInterface
 
     /**
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Nothing required.
+        return null;
     }
 }

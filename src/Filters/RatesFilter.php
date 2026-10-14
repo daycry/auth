@@ -15,7 +15,6 @@ namespace Daycry\Auth\Filters;
 
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
-use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Config\Services;
@@ -37,12 +36,12 @@ class RatesFilter implements FilterInterface
      *
      * @param array|null $arguments
      *
-     * @return RedirectResponse|void
+     * @return ResponseInterface|null
      */
     public function before(RequestInterface $request, $arguments = null)
     {
         if (! $request instanceof IncomingRequest) {
-            return;
+            return null;
         }
 
         helper('checkEndpoint');
@@ -80,6 +79,8 @@ class RatesFilter implements FilterInterface
                 lang('Auth.throttled', [$throttler->getTokenTime()]), // message
             );
         }
+
+        return null;
     }
 
     /**
@@ -159,9 +160,12 @@ class RatesFilter implements FilterInterface
      * We don't have anything to do here.
      *
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Nothing required
+        return null;
     }
 }

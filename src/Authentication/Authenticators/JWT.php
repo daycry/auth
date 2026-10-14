@@ -49,7 +49,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
      * Attempts to authenticate a user with the given $credentials.
      * Logs the user in with a successful check.
      *
-     * @param array{token?: string} $credentials
+     * @param array<string, mixed> $credentials Expects a `token` key
      */
     public function attempt(array $credentials = []): Result
     {
@@ -77,7 +77,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
      * In this case, $credentials has only a single valid value: token,
      * which is the plain text token to return.
      *
-     * @param array{token?: string} $credentials
+     * @param array<string, mixed> $credentials Expects a `token` key
      */
     public function check(array $credentials = []): Result
     {

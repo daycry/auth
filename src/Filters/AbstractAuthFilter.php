@@ -16,7 +16,6 @@ namespace Daycry\Auth\Filters;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
-use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 
@@ -31,12 +30,12 @@ abstract class AbstractAuthFilter implements FilterInterface
      *
      * @param array|null $arguments
      *
-     * @return RedirectResponse|Response|void
+     * @return ResponseInterface|null
      */
     public function before(RequestInterface $request, $arguments = null)
     {
         if (empty($arguments)) {
-            return;
+            return null;
         }
 
         if (! auth()->loggedIn()) {
@@ -44,7 +43,7 @@ abstract class AbstractAuthFilter implements FilterInterface
         }
 
         if ($this->isAuthorized($arguments)) {
-            return;
+            return null;
         }
 
         return $this->redirectToDeniedUrl($request);
@@ -102,10 +101,13 @@ abstract class AbstractAuthFilter implements FilterInterface
      * We don't have anything to do here.
      *
      * @param array|null $arguments
+     *
+     * @return ResponseInterface|null
      */
-    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null): void
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         // Nothing required
+        return null;
     }
 
     /**

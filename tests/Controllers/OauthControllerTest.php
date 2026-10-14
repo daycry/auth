@@ -16,13 +16,17 @@ namespace Tests\Controllers;
 use CodeIgniter\Config\Factories;
 use CodeIgniter\Test\ControllerTestTrait;
 use CodeIgniter\Test\DatabaseTestTrait;
+use CodeIgniter\Test\TestResponse;
 use Config\Services;
 use Daycry\Auth\Auth;
 use Daycry\Auth\Config\AuthOAuth;
 use Daycry\Auth\Controllers\OauthController;
+use Daycry\Auth\Exceptions\AuthenticationException;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
 use Mockery;
+use RuntimeException;
 use Tests\Support\TestCase;
+use Throwable;
 
 /**
  * @internal
@@ -105,5 +109,45 @@ final class OauthControllerTest extends TestCase
 
         $this->assertStringContainsString('http://example.com/oauth/authorize', (string) $location);
         $this->assertStringContainsString('client_id=demoapp', (string) $location);
+    }
+
+    public function testCallbackShowsUserFacingAuthenticationMessage(): void
+    {
+        $result = $this->callbackFailingWith(new AuthenticationException('Visible to the user'));
+
+        $this->assertTrue($result->isRedirect());
+        $this->assertSame('Visible to the user', session('error'));
+    }
+
+    public function testCallbackHidesInternalErrorDetails(): void
+    {
+        // A database/provider/misconfiguration error must not leak its
+        // message (SQL, URLs, class names) into the flash shown to the user.
+        $result = $this->callbackFailingWith(new RuntimeException('SQLSTATE[HY000]: secret internals'));
+
+        $this->assertTrue($result->isRedirect());
+        $this->assertSame(lang('Auth.badAttempt'), session('error'));
+    }
+
+    private function callbackFailingWith(Throwable $exception): TestResponse
+    {
+        $manager = Mockery::mock(OauthManager::class);
+        $manager->shouldReceive('setProvider')->with('testprovider')->andReturnSelf();
+        $manager->shouldReceive('handleCallback')->andThrow($exception);
+
+        $controller = new class () extends OauthController {
+            /**
+             * @var mixed The OauthManager test double
+             */
+            public static $manager;
+
+            protected function createManager(): OauthManager
+            {
+                return self::$manager;
+            }
+        };
+        $controller::$manager = $manager;
+
+        return $this->controller($controller::class)->execute('callback', 'testprovider');
     }
 }

@@ -36,9 +36,9 @@ class CustomCLI extends CLI
      * // Do not provide options but requires a valid email
      * $email = CLI::prompt('What is your email?', null, 'required|valid_email');
      *
-     * @param string            $field      Output "field" question
-     * @param array|string      $options    String to a default value, array to a list of options (the first option will be the default value)
-     * @param array|string|null $validation Validation rules
+     * @param string       $field      Output "field" question
+     * @param array|string $options    String to a default value, array to a list of options (the first option will be the default value)
+     * @param mixed        $validation Validation rules (array|string|null; anything else throws)
      *
      * @return string The user input
      *

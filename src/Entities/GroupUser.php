@@ -14,13 +14,11 @@ declare(strict_types=1);
 namespace Daycry\Auth\Entities;
 
 use Daycry\Auth\Models\GroupModel;
+use Daycry\Auth\Traits\BelongsToUser;
 
 class GroupUser extends Entity
 {
-    /**
-     * User $user
-     */
-    private ?User $user = null;
+    use BelongsToUser;
 
     /**
      * Group $group
@@ -38,21 +36,6 @@ class GroupUser extends Entity
         'deleted_at',
         'until_at',
     ];
-
-    /**
-     * Get User
-     */
-    public function getUser()
-    {
-        if ($this->user instanceof User) {
-            return $this->user;
-        }
-
-        $userProvider = model(service('settings')->get('Auth.userProvider'));
-        $this->user   = $userProvider->where('id', $this->attributes['user_id'])->first();
-
-        return $this->user;
-    }
 
     /**
      * Get Group

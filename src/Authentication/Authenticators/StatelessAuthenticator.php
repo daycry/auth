@@ -15,6 +15,7 @@ namespace Daycry\Auth\Authentication\Authenticators;
 
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Result;
 
 /**
  * Base class for stateless authenticators (AccessToken, JWT).
@@ -35,6 +36,16 @@ abstract class StatelessAuthenticator extends Base
      * Returns an empty string when no token is present.
      */
     abstract protected function getTokenFromRequest(): string;
+
+    /**
+     * Attempts to authenticate with the given credentials (the request
+     * token when none is given). Used by loggedIn().
+     *
+     * @param array<string, mixed> $credentials Expects a `token` key
+     *
+     * @throws AuthenticationException
+     */
+    abstract public function attempt(array $credentials = []): Result;
 
     /**
      * Logs the given user in by saving them to the class.

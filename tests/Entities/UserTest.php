@@ -456,6 +456,27 @@ final class UserTest extends DatabaseTestCase
         $this->assertSame('foo', $groups[0]);
     }
 
+    public function testPivotEntitiesResolveTheirUser(): void
+    {
+        $group      = fake(GroupModel::class, ['name' => 'foo']);
+        $permission = fake(PermissionModel::class, ['name' => 'foo.bar']);
+
+        $groupUser      = fake(GroupUserModel::class, ['group_id' => $group->id, 'user_id' => $this->user->id, 'until_at' => null]);
+        $permissionUser = fake(PermissionUserModel::class, ['permission_id' => $permission->id, 'user_id' => $this->user->id, 'until_at' => null]);
+
+        foreach ([$groupUser, $permissionUser] as $pivot) {
+            $user = $pivot->getUser();
+
+            $this->assertInstanceOf(User::class, $user);
+            $this->assertSame($this->user->id, $user->id);
+            // Memoized: the same instance is returned on the next call.
+            $this->assertSame($user, $pivot->getUser());
+        }
+
+        $this->assertSame('foo', $groupUser->getGroup()->name);
+        $this->assertSame('foo.bar', $permissionUser->getPermission()->name);
+    }
+
     public function testAddUserGroups(): void
     {
         fake(GroupModel::class, ['name' => 'foo']);

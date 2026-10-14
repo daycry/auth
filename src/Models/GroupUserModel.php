@@ -13,32 +13,20 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\GroupUser;
 use Daycry\Auth\Entities\User;
 
-class GroupUserModel extends BaseModel
+class GroupUserModel extends PivotModel
 {
-    protected $table;
-    protected $primaryKey     = 'id';
-    protected $returnType     = GroupUser::class;
-    protected $useSoftDeletes = false;
-    protected $allowedFields  = [
+    protected $returnType    = GroupUser::class;
+    protected $allowedFields = [
         'user_id',
         'group_id',
         'until_at',
     ];
-    protected $useTimestamps = true;
-    protected $createdField  = 'created_at';
-    protected $updatedField  = 'updated_at';
-    protected $deletedField  = 'deleted_at';
-
-    protected function initialize(): void
-    {
-        parent::initialize();
-
-        $this->table = $this->tables['groups_users'];
-    }
+    protected string $tableKey      = 'groups_users';
+    protected string $ownerColumn   = 'user_id';
+    protected string $relatedColumn = 'group_id';
 
     /**
      * Returns all active user groups (permanent or not yet expired).
@@ -47,16 +35,7 @@ class GroupUserModel extends BaseModel
      */
     public function getForUser(User $user): array
     {
-        $now = Time::now()->format('Y-m-d H:i:s');
-
-        return $this->where('user_id', $user->id)
-            ->where($this->deletedField)
-            ->groupStart()
-            ->where('until_at IS NULL')
-            ->orWhere('until_at >', $now)
-            ->groupEnd()
-            ->orderBy($this->primaryKey)
-            ->findAll();
+        return $this->findActiveFor($user->id);
     }
 
     /**
@@ -64,11 +43,7 @@ class GroupUserModel extends BaseModel
      */
     public function deleteAll($userId): void
     {
-        $return = $this->builder()
-            ->where('user_id', $userId)
-            ->delete();
-
-        $this->checkQueryReturn($return);
+        $this->deleteForOwner($userId);
     }
 
     /**
@@ -77,11 +52,6 @@ class GroupUserModel extends BaseModel
      */
     public function deleteNotIn($userId, $cache): void
     {
-        $return = $this->builder()
-            ->where('user_id', $userId)
-            ->whereNotIn('group_id', $cache)
-            ->delete();
-
-        $this->checkQueryReturn($return);
+        $this->deleteForOwner($userId, $cache);
     }
 }

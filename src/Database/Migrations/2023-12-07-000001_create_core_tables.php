@@ -16,6 +16,7 @@ namespace Daycry\Auth\Database\Migrations;
 use CodeIgniter\Database\Forge;
 use CodeIgniter\Database\Migration;
 use CodeIgniter\Database\RawSql;
+use Daycry\Auth\Config\Auth;
 
 class CreateCoreTables extends Migration
 {

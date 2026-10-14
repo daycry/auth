@@ -33,6 +33,9 @@ abstract class Base
     protected ?string $ipAddress = null;
     protected ?string $userAgent = null;
 
+    /**
+     * @param array<string, mixed> $credentials
+     */
     abstract public function check(array $credentials): Result;
 
     abstract public function login(User $user, bool $actions = true): void;
@@ -63,10 +66,9 @@ abstract class Base
     }
 
     /**
-     * Check if the user is logged in
+     * Checks the credentials and logs the user in on success.
      *
-     * @param string|null $username The user's name
-     * @param string|null $password The user's password
+     * @param array<string, mixed> $credentials
      */
     protected function checkLogin(array $credentials): Result
     {
