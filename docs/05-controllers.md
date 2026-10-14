@@ -433,10 +433,10 @@ This is called automatically by:
 
 | Trigger | Effect |
 |---------|--------|
-| `Bannable::ban()` | Banning a user revokes their issued access tokens. |
-| `Services\PasswordChangeRecorder::record()` | A password reset / change revokes issued access tokens. |
+| `Bannable::ban()` | Banning a user revokes their issued access **and refresh** tokens. |
+| `Services\PasswordChangeRecorder::record()` | A password reset / change revokes issued access **and refresh** tokens. |
 
-Because the check is purely arithmetic against a single column, revocation is immediate and requires no denylist or token storage.
+Because the access-token check is purely arithmetic against a single column, revocation is immediate and requires no denylist. The user's refresh tokens are soft-revoked at the same time, so a stolen refresh token cannot mint a fresh access token afterwards; `refresh()` also refuses banned users.
 
 ### Security Notes
 

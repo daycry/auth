@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Models;
 
 use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Services\AuditLogger;
 
 /**
@@ -73,6 +74,26 @@ class JwtTokenRepository
         $this->identityModel->revokeIdentityById($identityId);
 
         $metadata = ['identity_id' => $identityId];
+
+        if ($reason !== null) {
+            $metadata['reason'] = $reason;
+        }
+
+        (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, $metadata);
+    }
+
+    /**
+     * Soft-revokes every outstanding JWT refresh token of a user, so none of
+     * them can mint new access tokens (ban, password change).
+     *
+     * @param int         $userId User primary key
+     * @param string|null $reason Optional reason recorded in the audit log
+     */
+    public function softRevokeAllRefreshTokens(int $userId, ?string $reason = null): void
+    {
+        $this->identityModel->revokeIdentitiesByUserAndType($userId, IdentityType::JWT_REFRESH->value);
+
+        $metadata = ['scope' => 'all'];
 
         if ($reason !== null) {
             $metadata['reason'] = $reason;

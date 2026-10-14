@@ -196,10 +196,12 @@ class User extends Entity
     }
 
     /**
-     * Revokes every JWT access token already issued to this user by bumping the
-     * `token_version` counter (atomically). Tokens minted under the previous
-     * version fail validation. Use for "log out everywhere" and is called
-     * automatically on ban and password change.
+     * Revokes every JWT already issued to this user: bumps the `token_version`
+     * counter (atomically), so access tokens minted under the previous version
+     * fail validation, and soft-revokes all JWT refresh tokens — otherwise a
+     * stolen refresh token would keep minting access tokens that carry the
+     * *new* version. Use for "log out everywhere"; called automatically on ban
+     * and password change. API access tokens (X-API-KEY) are not affected.
      */
     public function revokeIssuedTokens(): void
     {
@@ -210,5 +212,7 @@ class User extends Entity
 
         // Reflect the bump on the in-memory entity.
         $this->token_version = (int) ($this->token_version ?? 0) + 1;
+
+        service('jwtTokenRepository')->softRevokeAllRefreshTokens((int) $this->id, 'tokens_revoked');
     }
 }
