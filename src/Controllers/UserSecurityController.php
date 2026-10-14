@@ -496,6 +496,39 @@ class UserSecurityController extends BaseAuthController
     }
 
     /**
+     * Disconnects an OAuth provider from the account. Refused when it is the
+     * last way to sign in: a usable password, another linked provider or a
+     * passkey (stored in its own table) must remain.
+     */
+    public function unlinkOauth(string $provider): RedirectResponse
+    {
+        $user          = auth()->user();
+        $type          = IdentityType::oauthProvider($provider);
+        $identityModel = model(UserIdentityModel::class);
+        $identity      = $identityModel->getIdentityByType($user, $type);
+
+        if ($identity === null) {
+            return redirect()->back()->with('error', lang('Auth.unlinkOauthNotFound', [$provider]));
+        }
+
+        $otherProviders = array_filter(
+            $identityModel->getIdentities($user),
+            static fn (UserIdentity $i): bool => str_starts_with((string) $i->type, 'oauth_') && $i->type !== $type,
+        );
+
+        if (! $this->hasUsablePassword($user) && $otherProviders === [] && ! $user->hasWebAuthnCredentials()) {
+            return redirect()->back()->with('error', lang('Auth.unlinkOauthLastMethod'));
+        }
+
+        $identityModel->delete($identity->id);
+
+        (new AuditLogger())->record(AuditLogger::EVENT_OAUTH_UNLINKED, (int) $user->id, ['provider' => $provider]);
+        Events::trigger('oauth-unlinked', $user, $provider);
+
+        return redirect()->back()->with('message', lang('Auth.unlinkOauthSuccess', [$provider]));
+    }
+
+    /**
      * Re-authentication for a sensitive change: the current password on a
      * password account, a recent interactive sign-in on a password-less one.
      *
