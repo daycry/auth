@@ -222,3 +222,19 @@ Email assertions use CI4's mock email, matching existing email tests.
 | 5 | `TokenEmailSender` extensible | PARTIAL | Params appended after `$tokenGenerator`; `extra` json_encoded; `setTo($to ?? user->email)`. |
 | 6 | Listener home | **WRONG** | Moved from `Registrar` to a new procedural `src/Config/Events.php`. |
 | — | Audit constants / session helpers | CLEARED | All referenced constants + `terminateAllForUser`/`purgeRememberTokensByUserId`/`setEmail` exist as assumed. |
+
+## Implementation deviations (2026-10-14)
+
+Recorded when the feature was implemented (branch `feat/self-service-account-endpoints`); the code and `docs/05-controllers.md` are authoritative.
+
+| Spec said | Implemented | Why |
+|---|---|---|
+| `hasPassword := getEmailIdentity() !== null` | An e-mail identity whose hash is **not** the empty password | OAuth accounts that confirm an e-mail get an identity with `hash('')`; counting it as a password would demand a current password they never had. |
+| Password-less accounts re-authenticate through the session alone | Setting a first password and changing the e-mail also require a **recent interactive sign-in** (`Session::AUTHENTICATED_AT_KEY`, within `$passwordConfirmationLifetime`) | A stolen long-lived session could otherwise plant a password or move the account; OAuth accounts usually have no current address to warn. |
+| Password-less delete and set-password assume a current e-mail | Both need an e-mail on file; otherwise the user is asked to add one | OAuth-created accounts have no e-mail (it stays in the social identity). |
+| `Services\SecurityNotifier` | `Libraries\SecurityNotifier` | deptrac: `Config\Services` (Config layer) may depend on Library, not Service. |
+| `service('userAnonymizer')` | `new UserAnonymizer()` (no service binding) | Same deptrac rule; the class stays in the Service layer. |
+| Farewell e-mail **before** anonymising | Sent **after** the anonymisation committed | A failure would otherwise announce a deletion that rolled back. |
+| Anonymizer parity with the CLI | Also deletes remember-me tokens, passkeys and the login history | Personal data the CLI used to leave behind; the CLI now delegates and gains the same behaviour. |
+| Route filter `session` | `auth:session` | There is no `session` filter alias. |
+| Confirm links usable by anyone holding the token | The token must belong to the **signed-in** user | Defense in depth against an intercepted link. |
