@@ -389,6 +389,7 @@ abstract class AbstractTranslationTestCase extends TestCase
             'Auth.suspiciousLoginFlags',
             'Auth.suspiciousLoginAdvice',
             'Auth.suspiciousLoginFooter',
+            'Auth.changeEmailInvalid',
         ];
 
         $excludedKeys  = array_unique(array_merge($excludedKeyTranslations, $this->excludedLocaleKeyTranslations));

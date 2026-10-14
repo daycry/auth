@@ -13,16 +13,24 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
+use CodeIgniter\Database\Exceptions\DatabaseException as FrameworkDatabaseException;
 use CodeIgniter\Events\Events;
+use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Entities\UserIdentity;
+use Daycry\Auth\Enums\IdentityType;
+use Daycry\Auth\Exceptions\DatabaseException;
+use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\RememberModel;
+use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Services\PasswordChangeRecorder;
@@ -308,14 +316,13 @@ class UserSecurityController extends BaseAuthController
         /** @var Passwords $passwords */
         $passwords = service('passwords');
 
-        if ($hasPassword) {
-            if (! $passwords->verify((string) $this->request->getPost('current_password'), (string) $user->getPasswordHash())) {
-                return redirect()->back()->with('error', lang('Auth.changePasswordCurrentInvalid'));
-            }
-        } elseif ((string) $user->email === '') {
+        if (! $hasPassword && (string) $user->email === '') {
             return redirect()->back()->with('error', lang('Auth.changePasswordNeedsEmail'));
-        } elseif (! $this->recentlyAuthenticated()) {
-            return redirect()->back()->with('error', lang('Auth.reauthRequired'));
+        }
+
+        $denied = $this->reauthenticate($user);
+        if ($denied instanceof RedirectResponse) {
+            return $denied;
         }
 
         $newPassword = (string) $this->request->getPost('new_password');
@@ -348,6 +355,217 @@ class UserSecurityController extends BaseAuthController
 
         return redirect()->route('security')
             ->with('message', lang($hasPassword ? 'Auth.changePasswordSuccess' : 'Auth.setPasswordSuccess'));
+    }
+
+    /**
+     * Form to request an e-mail address change.
+     */
+    public function changeEmailView(): string
+    {
+        $user = auth()->user();
+
+        return $this->view($this->viewFor('security-change-email'), [
+            'hasPassword'  => $this->hasUsablePassword($user),
+            'currentEmail' => (string) $user->email,
+        ]);
+    }
+
+    /**
+     * Requests an e-mail change: re-authenticates (current password, or a
+     * recent sign-in on a password-less account), e-mails a single-use
+     * confirmation link to the NEW address and warns the CURRENT one.
+     * Nothing changes until the link is confirmed.
+     */
+    public function changeEmail(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        $denied = $this->reauthenticate($user);
+        if ($denied instanceof RedirectResponse) {
+            return $denied;
+        }
+
+        $newEmail = strtolower(trim((string) $this->request->getPost('new_email')));
+
+        if (filter_var($newEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return redirect()->back()->with('error', lang('Auth.changeEmailInvalid'));
+        }
+
+        if ($newEmail === strtolower((string) $user->email)) {
+            return redirect()->back()->with('error', lang('Auth.changeEmailUnchanged'));
+        }
+
+        // Authenticated-only, low-severity enumeration surface (session +
+        // CSRF; add the `rates` filter to the route).
+        if ($this->emailBelongsToAnotherAccount($newEmail, $user)) {
+            return redirect()->back()->with('error', lang('Auth.changeEmailAlreadyUsed'));
+        }
+
+        try {
+            (new TokenEmailSender())->sendTokenEmail(
+                $user,
+                IdentityType::EMAIL_CHANGE->value,
+                (int) setting('AuthSecurity.emailChangeLifetime'),
+                lang('Auth.changeEmailSubject'),
+                $this->viewFor('email-change-email'),
+                [],
+                null,
+                $newEmail,
+                ['new_email' => $newEmail],
+            );
+        } catch (RuntimeException $e) {
+            log_message('error', 'E-mail change confirmation could not be sent: {message}', ['message' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', lang('Auth.unableSendEmailToUser', [$newEmail]));
+        }
+
+        service('securityNotifier')->emailChangeRequested($user, $newEmail);
+        (new AuditLogger())->record(AuditLogger::EVENT_EMAIL_CHANGE_REQUEST, (int) $user->id);
+
+        return redirect()->back()->with('message', lang('Auth.changeEmailSent'));
+    }
+
+    /**
+     * Confirmation page for the e-mailed link. GET never mutates (mail
+     * scanners and link prefetchers follow GET links); it renders a form that
+     * POSTs the token to confirmEmailChange().
+     */
+    public function confirmEmailChangeView(): RedirectResponse|string
+    {
+        $token = (string) $this->request->getGet('token');
+
+        [$identity, $error] = $this->pendingToken(IdentityType::EMAIL_CHANGE, $token, 'changeEmail');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        return $this->view($this->viewFor('security-confirm-email-change'), [
+            'token'    => $token,
+            'newEmail' => (string) ($this->identityExtra($identity)['new_email'] ?? ''),
+        ]);
+    }
+
+    /**
+     * Applies a confirmed e-mail change. The token is single-use and must
+     * belong to the signed-in user; the new address is re-checked.
+     */
+    public function confirmEmailChange(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        [$identity, $error] = $this->pendingToken(IdentityType::EMAIL_CHANGE, (string) $this->request->getPost('token'), 'changeEmail');
+        if ($identity === null) {
+            return redirect()->route('security')->with('error', $error);
+        }
+
+        // Consume first: the link is single-use whatever happens next.
+        model(UserIdentityModel::class)->delete($identity->id);
+
+        $newEmail = (string) ($this->identityExtra($identity)['new_email'] ?? '');
+
+        if (filter_var($newEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return redirect()->route('security')->with('error', lang('Auth.changeEmailTokenInvalid'));
+        }
+
+        if ($this->emailBelongsToAnotherAccount($newEmail, $user)) {
+            return redirect()->route('security')->with('error', lang('Auth.changeEmailAlreadyUsed'));
+        }
+
+        $oldEmail = (string) $user->email;
+
+        // Save the ENTITY: UserModel syncs the login identity (an array update
+        // would skip saveEmailIdentity and leave the old login address).
+        $user->setEmail($newEmail);
+
+        try {
+            model(UserModel::class)->save($user);
+        } catch (DatabaseException|FrameworkDatabaseException) {
+            // Lost a race on the unique (type, secret) index.
+            return redirect()->route('security')->with('error', lang('Auth.changeEmailAlreadyUsed'));
+        }
+
+        (new AuditLogger())->record(AuditLogger::EVENT_EMAIL_CHANGED, (int) $user->id);
+
+        if ($oldEmail !== '') {
+            service('securityNotifier')->emailChanged($user, $oldEmail);
+        }
+
+        Events::trigger('email-changed', $user, $oldEmail);
+
+        return redirect()->route('security')->with('message', lang('Auth.changeEmailSuccess'));
+    }
+
+    /**
+     * Re-authentication for a sensitive change: the current password on a
+     * password account, a recent interactive sign-in on a password-less one.
+     *
+     * @return RedirectResponse|null Null when the user is re-authenticated
+     */
+    protected function reauthenticate(User $user): ?RedirectResponse
+    {
+        if ($this->hasUsablePassword($user)) {
+            /** @var Passwords $passwords */
+            $passwords = service('passwords');
+
+            if (! $passwords->verify((string) $this->request->getPost('current_password'), (string) $user->getPasswordHash())) {
+                return redirect()->back()->with('error', lang('Auth.changePasswordCurrentInvalid'));
+            }
+
+            return null;
+        }
+
+        if (! $this->recentlyAuthenticated()) {
+            return redirect()->back()->with('error', lang('Auth.reauthRequired'));
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a self-service confirmation token of the signed-in user.
+     *
+     * @param string $langPrefix 'changeEmail' | 'deleteAccount' (selects the *TokenInvalid / *TokenExpired line)
+     *
+     * @return array{0: UserIdentity|null, 1: string|null} [identity, error message]
+     */
+    protected function pendingToken(IdentityType $type, string $token, string $langPrefix): array
+    {
+        $identityModel = model(UserIdentityModel::class);
+        $identity      = $token === '' ? null : $identityModel->getIdentityBySecret($type->value, $token);
+
+        if ($identity === null || (int) $identity->user_id !== (int) auth()->id()) {
+            return [null, lang('Auth.' . $langPrefix . 'TokenInvalid')];
+        }
+
+        if ($identity->expires !== null && Time::now()->isAfter($identity->expires)) {
+            $identityModel->delete($identity->id);
+
+            return [null, lang('Auth.' . $langPrefix . 'TokenExpired')];
+        }
+
+        return [$identity, null];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function identityExtra(UserIdentity $identity): array
+    {
+        $extra = json_decode((string) $identity->extra, true);
+
+        return is_array($extra) ? $extra : [];
+    }
+
+    /**
+     * Whether $email is the login address of an account other than $user.
+     */
+    protected function emailBelongsToAnotherAccount(string $email, User $user): bool
+    {
+        return model(UserIdentityModel::class)
+            ->where('type', IdentityType::EMAIL_PASSWORD->value)
+            ->where('secret', strtolower($email))
+            ->where('user_id !=', $user->id)
+            ->countAllResults() > 0;
     }
 
     /**

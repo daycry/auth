@@ -285,4 +285,7 @@ return [
     'suspiciousLoginFlags'                => 'Reasons',
     'suspiciousLoginAdvice'               => 'If this was not you: change your password immediately, review the active sessions on your account, and enable two-factor authentication.',
     'suspiciousLoginFooter'               => 'You are receiving this email because suspicious-login alerts are enabled for your account.',
+
+    // Self-service account management + security notices — newly added, pending translation
+    'changeEmailInvalid' => 'Please enter a valid email address.',
 ];

@@ -96,6 +96,10 @@ abstract class SelfServiceTestCase extends DatabaseTestCase
      */
     protected function signedInAs(User $user): static
     {
+        // Start from a clean slate so one test can switch accounts.
+        $_SESSION = [];
+        Services::resetSingle('auth');
+
         $this->actingAs($user);
         $this->withSession();
 
