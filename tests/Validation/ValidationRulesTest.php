@@ -98,7 +98,7 @@ final class ValidationRulesTest extends DatabaseTestCase
         $rules = $this->rules->getPasswordRules();
 
         $this->assertArrayHasKey('label', $rules);
-        $this->assertNotEmpty($rules['label']);
+        $this->assertNotSame('', (string) $rules['label']);
     }
 
     public function testGetPasswordConfirmRulesHasRequiredAndMatchesRules(): void
@@ -115,6 +115,6 @@ final class ValidationRulesTest extends DatabaseTestCase
         $rules = $this->rules->getPasswordConfirmRules();
 
         $this->assertArrayHasKey('label', $rules);
-        $this->assertNotEmpty($rules['label']);
+        $this->assertNotSame('', (string) $rules['label']);
     }
 }

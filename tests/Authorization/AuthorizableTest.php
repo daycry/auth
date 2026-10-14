@@ -92,7 +92,7 @@ final class AuthorizableTest extends DatabaseTestCase
         ]);
 
         $this->user->removeGroup('admin');
-        $this->assertEmpty($this->user->getGroups());
+        $this->assertSame([], $this->user->getGroups());
         $this->dontSeeInDatabase($this->tables['groups_users'], [
             'user_id'  => $this->user->id,
             'group_id' => 'admin',
@@ -192,7 +192,7 @@ final class AuthorizableTest extends DatabaseTestCase
         ]);
 
         $this->user->removePermission('admin.access');
-        $this->assertEmpty($this->user->getPermissions());
+        $this->assertSame([], $this->user->getPermissions());
         $this->dontSeeInDatabase($this->tables['permissions_users'], [
             'user_id'       => $this->user->id,
             'permission_id' => $adminAccess->id,
@@ -342,22 +342,27 @@ final class AuthorizableTest extends DatabaseTestCase
         $currentLocale = Locale::getDefault();
         Locale::setDefault('fa');
 
-        Time::setTestNow('March 10, 2017', 'America/Chicago');
+        // Freeze time in the app timezone (UTC): since CI4 4.7.5 the model
+        // formats Time::now() in the test-now timezone instead of the default.
+        Time::setTestNow('March 10, 2017 06:00:00', 'UTC');
 
-        $this->user->addGroup('admin');
+        try {
+            $this->user->addGroup('admin');
 
-        $this->seeInDatabase($this->tables['groups_users'], [
-            'id'         => 1,
-            'user_id'    => $this->user->id,
-            'group_id'   => 1,
-            'until_at'   => null,
-            'created_at' => '2017-03-10 06:00:00',
-            'updated_at' => '2017-03-10 06:00:00',
-            'deleted_at' => null,
-        ]);
-
-        Locale::setDefault($currentLocale);
-        Time::setTestNow();
+            $this->seeInDatabase($this->tables['groups_users'], [
+                'id'         => 1,
+                'user_id'    => $this->user->id,
+                'group_id'   => 1,
+                'until_at'   => null,
+                'created_at' => '2017-03-10 06:00:00',
+                'updated_at' => '2017-03-10 06:00:00',
+                'deleted_at' => null,
+            ]);
+        } finally {
+            // Always restore global state so a failure cannot leak into later tests.
+            Locale::setDefault($currentLocale);
+            Time::setTestNow();
+        }
     }
 
     public function testBanningUser(): void

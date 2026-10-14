@@ -40,7 +40,7 @@ final class HasAccessTokensTest extends DatabaseTestCase
         $user  = $this->makeUser();
         $token = $user->generateAccessToken('mobile');
 
-        $this->assertNotEmpty($token->raw_token);
+        $this->assertNotSame('', (string) $token->raw_token);
     }
 
     public function testGetAccessTokenReturnsNullForBlankInput(): void

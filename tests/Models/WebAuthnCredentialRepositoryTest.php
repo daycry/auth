@@ -71,7 +71,7 @@ final class WebAuthnCredentialRepositoryTest extends DatabaseTestCase
         $record = $this->makeRecord('example.com', (string) $user->uuid);
         $entity = $repo->store((int) $user->id, $record, 'My Key');
 
-        $this->assertNotEmpty($entity->credential_id);
+        $this->assertNotSame('', (string) $entity->credential_id);
         $this->assertSame('My Key', $entity->name);
         $this->assertSame(1, $repo->countActiveForUser((int) $user->id));
 

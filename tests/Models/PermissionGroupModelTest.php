@@ -63,7 +63,7 @@ final class PermissionGroupModelTest extends DatabaseTestCase
             'until_at'      => $until,
         ]);
 
-        return (int) $permId;
+        return $permId;
     }
 
     public function testGetForGroupReturnsRowsWithoutExpiry(): void

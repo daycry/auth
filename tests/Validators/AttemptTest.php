@@ -37,9 +37,4 @@ final class AttemptTest extends DatabaseTestCase
         $response = service('response');
         AttemptValidator::check($response);
     }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-    }
 }

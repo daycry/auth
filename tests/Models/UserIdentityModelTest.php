@@ -205,7 +205,7 @@ final class UserIdentityModelTest extends DatabaseTestCase
         $this->identityModel->revokeIdentityById((int) $id);
 
         $row = $this->identityModel->find($id);
-        $this->assertNotEmpty($row->revoked_at);
+        $this->assertNotSame('', (string) $row->revoked_at);
     }
 
     public function testRevokeIdentitiesByUserAndTypeRevokesOnlyMatchingRows(): void
@@ -236,9 +236,9 @@ final class UserIdentityModelTest extends DatabaseTestCase
 
         $this->identityModel->revokeIdentitiesByUserAndType((int) $user->id, IdentityType::ACCESS_TOKEN->value);
 
-        $this->assertNotEmpty($this->identityModel->find($a)->revoked_at, 'A must be revoked');
+        $this->assertNotSame('', (string) $this->identityModel->find($a)->revoked_at, 'A must be revoked');
         $this->assertSame('2020-01-01 00:00:00', (string) $this->identityModel->find($b)->revoked_at, 'B revocation date untouched');
-        $this->assertEmpty($this->identityModel->find($c)->revoked_at, 'C of different type not affected');
+        $this->assertNull($this->identityModel->find($c)->revoked_at, 'C of different type not affected');
     }
 
     public function testCreateJwtRefreshTokenAndGet(): void
@@ -305,7 +305,7 @@ final class UserIdentityModelTest extends DatabaseTestCase
         $this->identityModel->forceGlobalPasswordReset();
 
         $rows = $this->identityModel->where('type', Session::ID_TYPE_EMAIL_PASSWORD)->findAll();
-        $this->assertNotEmpty($rows);
+        $this->assertNotSame([], $rows);
 
         foreach ($rows as $row) {
             $this->assertSame(1, (int) $row->force_reset);

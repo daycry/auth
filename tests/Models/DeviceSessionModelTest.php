@@ -51,7 +51,7 @@ final class DeviceSessionModelTest extends DatabaseTestCase
         $this->assertSame((int) $user->id, (int) $session->user_id);
         $this->assertSame('sid-1', $session->session_id);
         $this->assertSame('203.0.113.1', $session->ip_address);
-        $this->assertNotEmpty($session->uuid);
+        $this->assertNotSame('', (string) $session->uuid);
         $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/i', (string) $session->uuid);
     }
 
@@ -302,8 +302,8 @@ final class DeviceSessionModelTest extends DatabaseTestCase
         }
 
         // The two active sessions are now terminated.
-        $this->assertNotEmpty($byId['sid-1']);
-        $this->assertNotEmpty($byId['sid-3']);
+        $this->assertNotSame('', (string) $byId['sid-1']);
+        $this->assertNotSame('', (string) $byId['sid-3']);
 
         // The pre-terminated session keeps its ORIGINAL timestamp (the
         // where('logged_out_at') guard means it was never re-touched).

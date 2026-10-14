@@ -87,8 +87,6 @@ class Auth
 
     /**
      * Sets the Authenticator alias that should be used for this request.
-     *
-     * @return $this
      */
     public function setAuthenticator(?string $alias = null): self
     {
@@ -129,7 +127,7 @@ class Auth
     {
         $user = $this->user();
 
-        return ($user !== null) ? $user->id : null;
+        return $user?->id;
     }
 
     public function authenticate(array $credentials): Result

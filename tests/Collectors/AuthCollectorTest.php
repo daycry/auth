@@ -64,7 +64,7 @@ final class AuthCollectorTest extends DatabaseTestCase
         $this->assertStringContainsString('|', $titleDetails);
 
         // Should be a non-empty string
-        $this->assertNotEmpty($titleDetails);
+        $this->assertNotSame('', $titleDetails);
     }
 
     public function testDisplayWhenNotLoggedIn(): void
@@ -115,7 +115,7 @@ final class AuthCollectorTest extends DatabaseTestCase
 
         // Should return a data URI for an image
         $this->assertStringStartsWith('data:image/png;base64,', $icon);
-        $this->assertNotEmpty($icon);
+        $this->assertNotSame('', $icon);
 
         // Should be a valid base64 string
         $base64Data = substr($icon, strpos($icon, ',') + 1);

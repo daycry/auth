@@ -267,9 +267,7 @@ class UserCommand extends BaseCommand
             unset($data['username']);
         }
 
-        if ($email === null) {
-            $email = $this->prompt('Email', null, $this->validationRules['email']['rules'], config('Auth')->DBGroup);
-        }
+        $email ??= $this->prompt('Email', null, $this->validationRules['email']['rules'], config('Auth')->DBGroup);
         $data['email'] = $email;
 
         $password = $this->prompt(
@@ -573,9 +571,7 @@ class UserCommand extends BaseCommand
      */
     private function addgroup($group = null, $username = null, $email = null): void
     {
-        if ($group === null) {
-            $group = $this->prompt('Group', null, 'required');
-        }
+        $group ??= $this->prompt('Group', null, 'required');
 
         $user = $this->findUser('Add user to group', $username, $email);
 
@@ -605,9 +601,7 @@ class UserCommand extends BaseCommand
      */
     private function removegroup($group = null, $username = null, $email = null): void
     {
-        if ($group === null) {
-            $group = $this->prompt('Group', null, 'required');
-        }
+        $group ??= $this->prompt('Group', null, 'required');
 
         $user = $this->findUser('Remove user from group', $username, $email);
 

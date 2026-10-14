@@ -20,11 +20,13 @@ use CodeIgniter\Entity\Cast\BaseCast;
  *
  * Stores values as JSON. Provides backward-compatible reading of
  * legacy PHP-serialized data (read-only fallback, never writes serialized).
+ *
+ * @extends BaseCast<array<array-key, mixed>|null, string|null>
  */
 final class SerializeCast extends BaseCast
 {
     /**
-     * @param string $value
+     * @param string|null $value
      */
     public static function get($value, array $params = []): ?array
     {
@@ -46,7 +48,7 @@ final class SerializeCast extends BaseCast
     }
 
     /**
-     * @param bool|int|list<mixed>|string $value
+     * @param array<array-key, mixed>|bool|int|string|null $value
      */
     public static function set($value, array $params = []): ?string
     {

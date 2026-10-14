@@ -99,7 +99,7 @@ The route requires an authenticated user, stashes the current user (session key 
 
 ## Upgrading to the next release (`Unreleased`)
 
-The `Unreleased` section in `CHANGELOG.md` adds 13 features and a handful of internal improvements. **No breaking changes** — all new behaviour is opt-in.
+The `Unreleased` section in `CHANGELOG.md` adds 13 features and a handful of internal improvements. **No breaking API changes** — all new behaviour is opt-in (one dependency note: `daycry/jobs` is no longer installed for you, see step 3).
 
 ### Required steps
 
@@ -139,6 +139,12 @@ The `Unreleased` section in `CHANGELOG.md` adds 13 features and a handful of int
 
    The deprecated names will be removed in v6.
 
+3. **Require `daycry/jobs` yourself if you use it** — it is no longer installed by this package (it moved from `require` to `suggest`, since the library never used it). If your application schedules tasks with it, add it explicitly:
+
+   ```bash
+   composer require daycry/jobs
+   ```
+
 ### Optional — opt-in to new features
 
 Each of these defaults to "off / unchanged" — adopt only what fits your security posture.
@@ -162,6 +168,7 @@ Each of these defaults to "off / unchanged" — adopt only what fits your securi
 - The audit log starts capturing events immediately for: TOTP enable/disable, password changes, lockouts, group/permission grants & revokes, token revocations, JWT logout. Use `auth:audit` to read.
 - `OauthManager::handleCallback()` now compares the OAuth `state` with `hash_equals()` (timing-safe) — drop-in replacement.
 - `UserLockoutManager::recordFailedAttempt()` now increments `failed_login_count` atomically — drop-in replacement.
+- `checkIp()` / `CheckIpInRange` now match IPv6 allow-list entries correctly (exact CIDR, bare address = `/128`) and reject malformed addresses instead of matching them. If you relied on an IPv6 entry "matching everything", list the real ranges.
 - `DeviceSessionRecorder` no longer propagates DB errors — they are logged and swallowed so a misconfigured tracking table can't break login.
 
 ### Login identifiers are now stored lowercase

@@ -91,8 +91,6 @@ class UserModel extends BaseModel implements UserProviderInterface
 
     /**
      * Mark the next find* query to include identities
-     *
-     * @return $this
      */
     public function withIdentities(): self
     {
@@ -189,7 +187,7 @@ class UserModel extends BaseModel implements UserProviderInterface
      * Override the BaseModel's `insert()` method.
      * If you pass User object, also inserts Email Identity.
      *
-     * @param array|User $data
+     * @param array<int|string, mixed>|object|null $data User entity or row data
      *
      * @return int|string|true Insert ID if $returnID is true
      *
@@ -212,7 +210,7 @@ class UserModel extends BaseModel implements UserProviderInterface
      * If you pass User object, also updates Email Identity.
      *
      * @param array|int|list<int|string>|RawSql|string|null $id
-     * @param array|User                                    $data
+     * @param array<int|string, mixed>|object|null          $data User entity or row data
      *
      * @return true if the update is successful
      *
@@ -254,7 +252,7 @@ class UserModel extends BaseModel implements UserProviderInterface
      * Override the BaseModel's `save()` method.
      * If you pass User object, also updates Email Identity.
      *
-     * @param array|User $data
+     * @param array<int|string, mixed>|object $data User entity or row data
      *
      * @return true if the save is successful
      *
@@ -283,9 +281,7 @@ class UserModel extends BaseModel implements UserProviderInterface
 
         $user = $this->tempUser;
 
-        if ($user->id === null) {
-            $user->id = $data['id'] ?? $this->db->insertID();
-        }
+        $user->id ??= $data['id'] ?? $this->db->insertID();
 
         $email        = $user->getEmail();
         $password     = $user->getPassword();
@@ -301,15 +297,13 @@ class UserModel extends BaseModel implements UserProviderInterface
         $identityModel = model(UserIdentityModel::class);
         $identity      = $identityModel->getIdentityByType($user, Session::ID_TYPE_EMAIL_PASSWORD);
 
-        if ($identity === null) {
-            // Reuse the just-created identity instead of re-querying it. The
-            // returned entity has its primary key set and original synced, so
-            // the save() below runs as an UPDATE rather than a duplicate INSERT.
-            $identity = $identityModel->createEmailIdentity($user, [
-                'email'    => $email,
-                'password' => '',
-            ]);
-        }
+        // Reuse the just-created identity instead of re-querying it. The
+        // returned entity has its primary key set and original synced, so
+        // the save() below runs as an UPDATE rather than a duplicate INSERT.
+        $identity ??= $identityModel->createEmailIdentity($user, [
+            'email'    => $email,
+            'password' => '',
+        ]);
 
         if ($email !== null && $email !== '' && $email !== '0') {
             $identity->secret = $email;

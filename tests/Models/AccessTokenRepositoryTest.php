@@ -51,7 +51,7 @@ final class AccessTokenRepositoryTest extends DatabaseTestCase
 
         $token = $this->repo->generateAccessToken($user, 'mobile', ['users.read']);
 
-        $this->assertNotEmpty($token->raw_token);
+        $this->assertNotSame('', (string) $token->raw_token);
         $this->assertSame('mobile', $token->name);
         $this->assertSame(['users.read'], $token->scopes);
     }
@@ -102,8 +102,8 @@ final class AccessTokenRepositoryTest extends DatabaseTestCase
 
         $this->repo->softRevokeAccessToken($user, $token->raw_token);
 
-        $row = $this->identityModel->find($token->id);
-        $this->assertNotEmpty($row->revoked_at);
+        $row = $this->identityModel->find((int) $token->id);
+        $this->assertNotSame('', (string) $row->revoked_at);
     }
 
     public function testSoftRevokeAccessTokenNoOpsForUnknownToken(): void
@@ -122,8 +122,8 @@ final class AccessTokenRepositoryTest extends DatabaseTestCase
 
         $this->repo->softRevokeAccessTokenBySecret($user, hash('sha256', $token->raw_token));
 
-        $row = $this->identityModel->find($token->id);
-        $this->assertNotEmpty($row->revoked_at);
+        $row = $this->identityModel->find((int) $token->id);
+        $this->assertNotSame('', (string) $row->revoked_at);
     }
 
     public function testSoftRevokeAllAccessTokensRevokesAllForUser(): void
@@ -135,8 +135,8 @@ final class AccessTokenRepositoryTest extends DatabaseTestCase
 
         $this->repo->softRevokeAllAccessTokens($user);
 
-        $this->assertNotEmpty($this->identityModel->find($a->id)->revoked_at);
-        $this->assertNotEmpty($this->identityModel->find($b->id)->revoked_at);
+        $this->assertNotSame('', (string) $this->identityModel->find((int) $a->id)->revoked_at);
+        $this->assertNotSame('', (string) $this->identityModel->find((int) $b->id)->revoked_at);
         $this->assertNotInstanceOf(\Daycry\Auth\Entities\AccessToken::class, $this->repo->getAccessTokenByRawToken($a->raw_token));
         $this->assertNotInstanceOf(\Daycry\Auth\Entities\AccessToken::class, $this->repo->getAccessTokenByRawToken($b->raw_token));
     }

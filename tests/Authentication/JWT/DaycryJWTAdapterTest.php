@@ -35,7 +35,7 @@ final class DaycryJWTAdapterTest extends TestCase
         $token = $this->adapter->encode(42);
 
         $this->assertIsString($token);
-        $this->assertNotEmpty($token);
+        $this->assertNotSame('', $token);
     }
 
     public function testDecodeRoundTripInteger(): void

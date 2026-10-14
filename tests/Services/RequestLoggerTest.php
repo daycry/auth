@@ -14,9 +14,6 @@ declare(strict_types=1);
 namespace Tests\Services;
 
 use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\Router\Router;
-use Config\Services;
-use Daycry\Auth\Libraries\Logger;
 use Daycry\Auth\Services\RequestLogger;
 use Tests\Support\DatabaseTestCase;
 

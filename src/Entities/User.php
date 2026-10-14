@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Entities;
 
-use CodeIgniter\I18n\Time;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -140,9 +139,7 @@ class User extends Entity
      */
     public function getEmail(): ?string
     {
-        if ($this->email === null) {
-            $this->email = $this->getEmailIdentity()->secret ?? null;
-        }
+        $this->email ??= $this->getEmailIdentity()->secret ?? null;
 
         return $this->email;
     }
@@ -193,9 +190,7 @@ class User extends Entity
      */
     public function getPasswordHash(): ?string
     {
-        if ($this->password_hash === null) {
-            $this->password_hash = $this->getEmailIdentity()->secret2 ?? null;
-        }
+        $this->password_hash ??= $this->getEmailIdentity()->secret2 ?? null;
 
         return $this->password_hash;
     }

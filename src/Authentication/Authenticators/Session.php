@@ -134,8 +134,6 @@ class Session extends Base implements AuthenticatorInterface
 
     /**
      * Sets the $shouldRemember flag
-     *
-     * @return $this
      */
     public function remember(bool $shouldRemember = true): self
     {

@@ -76,6 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Atomic per-user lockout counter** — `UserLockoutManager::recordFailedAttempt()` now uses a SQL increment expression (`failed_login_count = failed_login_count + 1`) and re-reads the post-increment value before deciding whether to lock the account. The previous read-modify-write pattern could lose concurrent failed-attempt updates, allowing more attempts than `userMaxAttempts` before lockout under load.
 - **Timing-safe OAuth state comparison** — `OauthManager::handleCallback()` now compares the callback `state` against the session-stored value via `hash_equals()` instead of `!==`. Empty states and missing session values are also rejected explicitly. The check is followed by an empty-`code` guard.
+- **IP allow-list matching fails closed (`checkIp()` / `CheckIpInRange`)** — `checkIp()` routed every range to the IPv4 matcher, where an IPv6 or malformed address made `ip2long()` return `false` and the comparison collapse to `0 === 0`: **any IPv6 client matched any IPv6 CIDR entry** (`checkIp('2001:db9::1', ['2001:db8::/32'])` was `true`), and IPv6/garbage clients matched IPv4 ranges starting at `0.x.x.x`. Now:
+  - `checkIp()` sends entries containing `:` to the IPv6 matcher (bare address = `/128`, notation-independent; CIDR `2001:db8::/32`), and only an IPv6 client can match them.
+  - `CheckIpInRange::ipv4_in_range()` returns `false` for a malformed IP, range, dotted netmask or CIDR prefix (only `0`–`32` accepted).
+  - `CheckIpInRange::ipv6_in_range()` is rewritten as an exact 128-bit comparison (`inet_pton()` + prefix mask, `0`–`128`); it previously ignored both the prefix length and the last group after `::`. It still accepts the decimal form returned by `get_ipv6_full()`.
+  - `CheckIpInRange::get_ipv6_full()` now returns the exact decimal value (it lost precision through `base_convert()` floats) and an empty string for invalid input. No bcmath/gmp dependency.
 
 ### Performance
 
@@ -88,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`daycry/jobs` is no longer a hard dependency** — nothing in the library uses it, so it moved from `require` to `suggest` (it remains a convenient way to schedule `php spark auth:purge`). **Upgrade note:** if your application uses `daycry/jobs` but only had it installed transitively through this package, add it to your own `composer.json` (`composer require daycry/jobs`).
 - **`auth()` facade now throws on missing methods** — `Daycry\Auth\Auth::__call()` throws `\BadMethodCallException` when the resolved authenticator does not implement the called method, instead of silently returning `null`. Methods available on every authenticator (Session / AccessToken / JWT): `attempt`, `check`, `getLogCredentials`, `getUser`, `loggedIn`, `login`, `loginById`, `logout`, `recordActiveDate`. Session-only methods: `checkAction`, `completeLogin`, `forget`, `getAction`, `getPendingMessage`, `getPendingUser`, `hasAction`, `isAnonymous`, `isPending`, `remember`, `startLogin`, `startUpAction`.
 - **`User::can()` OR-semantics and wildcard fix** — `can(...string $permissions)` no longer aborts for group-less users when evaluating the variadic OR list, and scope wildcards (`posts.*`) now apply to **directly-assigned user** permissions as well as group permissions. So `$user->addPermission('posts.*')` followed by `$user->can('posts.create')` now returns `true`. Matching (`*`, exact, `scope.*`) is now uniform across user-level and group-level permissions.
 - **Gate -> RBAC bridge** — a Gate ability whose name contains a scope (e.g. `users.edit`) with no registered closure/policy now falls back to `User::can()` when `AuthSecurity::$gateFallbackToRbac` is `true`, so `gate:users.edit` and `permission:users.edit` can share semantics. The `gate` filter honours this fallback.
@@ -140,6 +146,9 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 - Corrected `.gitattributes` (`deptrac.yaml`, `phpstan-baseline.neon`, and the `phpcpd` phar now `export-ignore`).
 - CI composer cache keyed on `composer.json`.
 - `composer.json`: minimum PHP raised to `^8.2`.
+- **Dependency sync** — refreshed all dependencies within existing constraints (CodeIgniter 4.7.5, `daycry/jwt` 3.2, `web-auth/webauthn-lib` 5.3.9, Guzzle 8 / PSR-7 3 transitively), clearing 15 security advisories (2 critical in the CodeIgniter dev dependency, Guzzle/PSR-7 host-confusion and cookie-scope issues). No runtime API change.
+- **Static analysis tooling adapted to the new versions** — Rector 2.7 removed the per-version PHPUnit sets (`PHPUNIT_100` → `COMPOSER_BASED`) and stopped running nine deprecated rules, now dropped from `rector.php`; `phpstan.neon.dist` registers the `settings` service for phpstan-codeigniter 2.x. The newly reported findings were fixed in code (dead assignments, redundant `??`, generic `@extends BaseCast<…>` on the entity casts, `UserModel`/`UserProviderInterface` docblocks aligned with CodeIgniter's `Model`, strict assertions instead of `assertEmpty()`/`assertNotEmpty()` in tests) and the PHPStan baseline was regenerated (369 → 220 entries).
+- **Test made independent of the CodeIgniter version** — CodeIgniter 4.7.5 formats model timestamps in the `Time::setTestNow()` timezone; the locale/`created_at` test now freezes time in UTC and restores the global locale/clock in a `finally` block so a failure can no longer cascade into unrelated tests.
 
 ### Documentation
 

@@ -19,6 +19,8 @@ use CodeIgniter\Entity\Cast\BaseCast;
  * Int Bool Cast
  *
  * DB column: int (0/1) <--> Class property: bool
+ *
+ * @extends BaseCast<bool, int>
  */
 final class IntBoolCast extends BaseCast
 {

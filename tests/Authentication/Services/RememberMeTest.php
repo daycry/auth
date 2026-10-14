@@ -53,7 +53,7 @@ final class RememberMeTest extends DatabaseTestCase
         $cookiePrefix = (string) (service('settings')->get('Cookie.prefix') ?? '');
         $cookieName   = $cookiePrefix . service('settings')->get('Auth.sessionConfig')['rememberCookieName'];
         service('superglobals')->unsetCookie($cookieName);
-        unset($_COOKIE[$cookieName], $_COOKIE[service('settings')->get('Auth.sessionConfig')['rememberCookieName']]);
+        service('superglobals')->unsetCookie(service('settings')->get('Auth.sessionConfig')['rememberCookieName']);
     }
 
     public function testRememberUserCreatesTokenInDatabase(): void

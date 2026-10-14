@@ -69,7 +69,7 @@ class RatesFilter implements FilterInterface
         $limited_uri = $this->buildLimitedUri($request, $router, $limitMethod);
 
         $ignoreLimits = false;
-        if ($userId = auth()->id()) {
+        if (auth()->id() !== null) {
             $ignoreLimits = auth()->user()->ignore_rates ?? false;
         }
 
