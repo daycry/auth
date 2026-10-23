@@ -631,8 +631,8 @@ class Session extends Base implements AuthenticatorInterface
         if ($userId !== null) {
             $user = $this->provider->findById($userId);
 
-            // Check identities for actions
-            if ($this->getIdentitiesForAction($user) !== []) {
+            // Check identities for actions (unknown or deleted ids have none)
+            if ($user !== null && $this->getIdentitiesForAction($user) !== []) {
                 // Make pending login state
                 $this->user = $user;
                 $this->setSessionKey('id', $user->id);

@@ -19,6 +19,7 @@ use Daycry\Auth\Exceptions\AuthorizationException;
 use Daycry\Auth\Models\GroupModel;
 use Daycry\Auth\Models\PermissionModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\AuditLogger;
 use Locale;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
@@ -103,6 +104,57 @@ final class AuthorizableTest extends DatabaseTestCase
             'user_id'  => $otherUser->id,
             'group_id' => 1,
         ]);
+    }
+
+    public function testSyncGroupsNormalisesCaseAndAuditsChanges(): void
+    {
+        fake(GroupModel::class, ['name' => 'beta']);
+        $this->user->addGroup('admin');
+
+        $this->user->syncGroups('BETA', 'Beta');
+
+        $this->assertSame(['beta'], $this->user->getGroups());
+        $this->seeInDatabase($this->tables['audit_logs'], [
+            'user_id'    => $this->user->id,
+            'event_type' => AuditLogger::EVENT_GROUP_REVOKED,
+        ]);
+        $this->assertSame(2, $this->db->table($this->tables['audit_logs'])
+            ->where('user_id', $this->user->id)
+            ->where('event_type', AuditLogger::EVENT_GROUP_ASSIGNED)
+            ->countAllResults());
+    }
+
+    public function testSyncGroupsWithNoGroupsDefinedThrowsUnknownGroup(): void
+    {
+        $this->db->table($this->tables['groups'])->emptyTable();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->user->syncGroups('admin');
+    }
+
+    public function testSyncPermissionsNormalisesCaseAndAuditsChanges(): void
+    {
+        fake(PermissionModel::class, ['name' => 'admin.access']);
+        fake(PermissionModel::class, ['name' => 'users.edit']);
+        $this->user->addPermission('admin.access');
+
+        $this->user->syncPermissions('Users.Edit');
+
+        $this->assertSame(['users.edit'], $this->user->getPermissions());
+        $this->seeInDatabase($this->tables['audit_logs'], [
+            'user_id'    => $this->user->id,
+            'event_type' => AuditLogger::EVENT_PERMISSION_REVOKED,
+        ]);
+    }
+
+    public function testSyncPermissionsWithNoPermissionsDefinedThrowsUnknownPermission(): void
+    {
+        $this->db->table($this->tables['permissions'])->emptyTable();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->user->syncPermissions('admin.access');
     }
 
     public function testAddPermissionWithNoExistingPermissions(): void

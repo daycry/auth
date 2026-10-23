@@ -200,6 +200,11 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $this->assertSame(1, $result->extraInfo()->id);
     }
 
+    public function testGetPayloadBeforeCheckIsNull(): void
+    {
+        $this->assertNull($this->auth->getPayload());
+    }
+
     public function testGetPayload(): void
     {
         $token = $this->generateJWT();

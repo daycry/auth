@@ -196,6 +196,22 @@ final class BaseControllerTraitTest extends DatabaseTestCase
         $this->assertInstanceOf(ResponseInterface::class, $result);
     }
 
+    /**
+     * `$this->{$method}()` inside the class can reach non-public helpers, so
+     * _remap must refuse them as if they did not exist.
+     */
+    public function testRemapRefusesNonPublicAndFrameworkMethods(): void
+    {
+        $this->controller->initController(service('request'), service('response'), service('logger'));
+
+        foreach (['getToken', 'setRequestUnauthorized', 'initController', 'finalizeRequest', '_remap'] as $method) {
+            $result = $this->controller->_remap($method);
+
+            $this->assertInstanceOf(ResponseInterface::class, $result);
+            $this->assertSame(404, $result->getStatusCode(), $method);
+        }
+    }
+
     public function testDestructor(): void
     {
         // Initialize the controller first

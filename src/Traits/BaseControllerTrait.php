@@ -24,6 +24,7 @@ use Daycry\Auth\Services\ExceptionHandler;
 use Daycry\Auth\Services\RequestLogger;
 use Daycry\Encryption\Encryption;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use Throwable;
 
 /**
@@ -139,12 +140,34 @@ trait BaseControllerTrait
     }
 
     /**
+     * Whether $method may be dispatched from a request.
+     *
+     * Only public, non-static endpoint methods qualify: `$this->{$method}()`
+     * would otherwise reach protected/private helpers when the method name
+     * comes from the URI (auto-routing).
+     */
+    protected function isRoutableMethod(string $method): bool
+    {
+        if (
+            str_starts_with($method, '_')
+            || in_array($method, ['initController', 'finalizeRequest'], true)
+            || ! method_exists($this, $method)
+        ) {
+            return false;
+        }
+
+        $reflection = new ReflectionMethod($this, $method);
+
+        return $reflection->isPublic() && ! $reflection->isStatic();
+    }
+
+    /**
      * Main request handler with exception management
      */
     public function _remap(string $method, ...$params)
     {
         try {
-            if (! method_exists($this, $method)) {
+            if (! $this->isRoutableMethod($method)) {
                 throw PageNotFoundException::forPageNotFound();
             }
 

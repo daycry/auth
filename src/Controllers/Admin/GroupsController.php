@@ -147,24 +147,10 @@ class GroupsController extends BaseAdminController
         $group->description = $description !== '' ? $description : null;
         $groupModel->save($group);
 
-        // Sync permissions for the group via PermissionGroupModel
-        /** @var PermissionGroupModel $pgModel */
-        $pgModel = model(PermissionGroupModel::class);
-
         // The form sends permission IDs (from the checkbox values)
-        $newPermIds = array_filter(array_map(intval(...), (array) $this->request->getPost('permissions')));
+        $newPermIds = array_values(array_filter(array_map(intval(...), (array) $this->request->getPost('permissions'))));
 
-        $pgModel->deleteAll($group->id);
-
-        if ($newPermIds !== []) {
-            $inserts = [];
-
-            foreach ($newPermIds as $permId) {
-                $inserts[] = ['group_id' => $group->id, 'permission_id' => $permId];
-            }
-
-            $pgModel->insertBatch($inserts);
-        }
+        service('groupPermissionRepository')->syncGroupPermissions($group->id, $newPermIds);
 
         return redirect()->route('admin-groups')
             ->with('message', "Group \"{$group->name}\" updated.");

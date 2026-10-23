@@ -32,7 +32,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
      */
     public const ID_TYPE_JWT = 'jwt';
 
-    protected mixed $payload;
+    protected mixed $payload = null;
 
     public function __construct(
         UserProviderInterface $provider,
@@ -183,10 +183,14 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
 
     private function parseHeader(?string $token): string
     {
-        if ($token !== null && str_starts_with($token, 'Bearer')) {
-            $token = trim(substr($token, 6));
+        $token = trim((string) $token);
+
+        // The auth scheme is case-insensitive (RFC 9110 §11.1) and must be
+        // followed by whitespace: "BearerX" is not a Bearer credential.
+        if (preg_match('/^Bearer(?:\s+(.*))?$/is', $token, $matches) === 1) {
+            return trim($matches[1] ?? '');
         }
 
-        return $token ?? '';
+        return $token;
     }
 }

@@ -80,15 +80,22 @@ abstract class Base
 
         if (! $result->isOK()) {
             if (service('settings')->get('AuthSecurity.recordLoginAttempt') >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE) {
-                // Record all failed login attempts.
-                $identifier = $this->getLogCredentials($credentials);
-                $this->loginModel->recordLoginAttempt(
-                    $this->authType,
-                    ($identifier) ?: null,
-                    false,
-                    $this->ipAddress,
-                    $this->userAgent ?: null,
-                );
+                // Record all failed login attempts. Credentials without a
+                // recognised identifier field have nothing to record against:
+                // they still fail with a Result instead of throwing.
+                try {
+                    $identifier = $this->getLogCredentials($credentials);
+
+                    $this->loginModel->recordLoginAttempt(
+                        $this->authType,
+                        ($identifier) ?: null,
+                        false,
+                        $this->ipAddress,
+                        $this->userAgent ?: null,
+                    );
+                } catch (InvalidArgumentException) {
+                    // No identifier field — nothing to log.
+                }
             }
 
             $this->user = null;

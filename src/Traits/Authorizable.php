@@ -151,14 +151,27 @@ trait Authorizable
     {
         $this->populateGroups();
 
+        // Normalised like addGroup()/removeGroup().
+        $groups      = array_values(array_unique(array_map(strtolower(...), $groups)));
+        $groupsNames = $this->groups !== null ? array_values($this->groups) : [];
+
         foreach ($groups as $group) {
-            if (! in_array($group, array_values($this->groups), true)) {
+            if (! in_array($group, $groupsNames, true)) {
                 throw AuthorizationException::forUnknownGroup($group);
             }
         }
 
+        $previous         = $this->groupCache;
         $this->groupCache = $groups;
         $this->saveGroups();
+
+        $this->auditChanges(
+            array_values(array_diff($groups, $previous)),
+            array_values(array_diff($previous, $groups)),
+            AuditLogger::EVENT_GROUP_ASSIGNED,
+            AuditLogger::EVENT_GROUP_REVOKED,
+            'groups',
+        );
 
         return $this;
     }
@@ -271,16 +284,47 @@ trait Authorizable
     {
         $this->populatePermissions();
 
+        // Normalised like addPermission()/removePermission().
+        $permissions      = array_values(array_unique(array_map(strtolower(...), $permissions)));
+        $permissionsNames = $this->permissions !== null ? array_values($this->permissions) : [];
+
         foreach ($permissions as $permission) {
-            if (! in_array($permission, array_values($this->permissions), true)) {
+            if (! in_array($permission, $permissionsNames, true)) {
                 throw AuthorizationException::forUnknownPermission($permission);
             }
         }
 
+        $previous               = $this->permissionsCache;
         $this->permissionsCache = $permissions;
         $this->savePermissions();
 
+        $this->auditChanges(
+            array_values(array_diff($permissions, $previous)),
+            array_values(array_diff($previous, $permissions)),
+            AuditLogger::EVENT_PERMISSION_GRANTED,
+            AuditLogger::EVENT_PERMISSION_REVOKED,
+            'permissions',
+        );
+
         return $this;
+    }
+
+    /**
+     * Records the audit entries for a sync: one for what was added and one
+     * for what was removed, each only when non-empty.
+     *
+     * @param list<string> $added
+     * @param list<string> $removed
+     */
+    private function auditChanges(array $added, array $removed, string $addedEvent, string $removedEvent, string $key): void
+    {
+        if ($added !== []) {
+            (new AuditLogger())->record($addedEvent, (int) $this->id, [$key => $added]);
+        }
+
+        if ($removed !== []) {
+            (new AuditLogger())->record($removedEvent, (int) $this->id, [$key => $removed]);
+        }
     }
 
     /**

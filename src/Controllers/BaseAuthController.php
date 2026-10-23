@@ -74,7 +74,7 @@ abstract class BaseAuthController extends BaseController implements AuthControll
      */
     protected function handleValidationError(?string $route = null): RedirectResponse
     {
-        $route ??= $this->request->getUri()->getPath();
+        $route ??= $this->request->getPath();
 
         return redirect()->to($route)
             ->withInput()

@@ -77,6 +77,20 @@ final class MagicCodeVerifyTest extends DatabaseTestCase
         $second->assertSessionHas('error');
     }
 
+    public function testValidCodeForBannedUserIsRefused(): void
+    {
+        $user = $this->makeUser('banned-otp@example.com');
+        $user->ban();
+        $this->seedCode((int) $user->id, '123456');
+
+        $result = $this->withSession(['magicCodeEmail' => 'banned-otp@example.com'])
+            ->post('login/magic-link/code', ['token' => '123456']);
+
+        $result->assertRedirectTo(route_to('magic-link'));
+        $result->assertSessionHas('error', lang('Auth.bannedUser'));
+        $this->assertArrayNotHasKey('id', $_SESSION[setting('Auth.sessionConfig')['field']] ?? []);
+    }
+
     public function testExpiredCodeIsRejected(): void
     {
         $user = $this->makeUser('otp@example.com');

@@ -144,6 +144,11 @@ class WebAuthnController extends BaseAuthController
             return $this->error($e->getMessage(), 422, 'unprocessable');
         }
 
+        // Password login refuses banned users in checkLogin(); login() does not.
+        if ($user->isBanned()) {
+            return $this->error($user->getBanMessage() ?? lang('Auth.bannedUser'), 403, 'banned');
+        }
+
         // A verified passkey (with user verification) is multi-factor: complete
         // the session directly without re-running the 'login' Action pipeline.
         auth()->login($user, false);

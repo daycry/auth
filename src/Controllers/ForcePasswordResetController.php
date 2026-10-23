@@ -19,6 +19,7 @@ use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Validation\ValidationRules;
 
 /**
  * Handles forced password resets for logged-in users
@@ -56,8 +57,12 @@ class ForcePasswordResetController extends BaseAuthController
 
         $postData = $this->request->getPost();
 
+        // Errors go back to the form itself. The `force_reset` redirect is
+        // where the filter sends flagged users and defaults to '/'.
+        $formUrl = $this->request->getPath();
+
         if (! $this->validateRequest($postData, $rules)) {
-            return $this->handleValidationError(config('Auth')->forcePasswordResetRedirect());
+            return $this->handleValidationError($formUrl);
         }
 
         $user            = auth()->user();
@@ -69,10 +74,14 @@ class ForcePasswordResetController extends BaseAuthController
         $passwords = service('passwords');
 
         if (! $passwords->verify($currentPassword, $user->getPasswordHash())) {
-            return $this->handleError(
-                config('Auth')->forcePasswordResetRedirect(),
-                lang('Auth.invalidCurrentPassword'),
-            );
+            return $this->handleError($formUrl, lang('Auth.invalidCurrentPassword'));
+        }
+
+        // Enforce the same password policy as registration.
+        $check = $passwords->check((string) $newPassword, $user);
+
+        if (! $check->isOK()) {
+            return $this->handleError($formUrl, (string) $check->reason());
         }
 
         // Capture the previous hash for password-history bookkeeping.
@@ -103,13 +112,15 @@ class ForcePasswordResetController extends BaseAuthController
     /**
      * Returns the rules that should be used for validation.
      *
-     * @return array<string, string>
+     * @return array<string, array<string, list<string>|string>|string>
      */
     protected function getValidationRules(): array
     {
+        $passwordRules = (new ValidationRules())->getPasswordRules();
+
         return [
             'current_password'     => 'required',
-            'new_password'         => 'required|min_length[8]',
+            'new_password'         => $passwordRules,
             'new_password_confirm' => 'required|matches[new_password]',
         ];
     }

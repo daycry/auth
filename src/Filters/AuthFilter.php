@@ -82,6 +82,10 @@ class AuthFilter implements FilterInterface
 
             $user = $authenticator->getUser();
 
+            if ($user === null) {
+                return;
+            }
+
             // Check if user is banned
             if ($user->isBanned()) {
                 $error = $user->getBanMessage() ?? lang('Auth.logOutBannedUser');
@@ -92,7 +96,7 @@ class AuthFilter implements FilterInterface
             }
 
             // Check if user needs activation
-            if ($user !== null && ! $user->isActivated()) {
+            if (! $user->isActivated()) {
                 $hasAction = $authenticator->startUpAction('register', $user);
                 if ($hasAction) {
                     return redirect()->route('auth-action-show')

@@ -249,6 +249,11 @@ class AccessTokenRepository
 
         if ($token !== null) {
             $this->identityModel->revokeIdentityById((int) $token->id);
+
+            (new AuditLogger())->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
+                'identity_id' => (int) $token->id,
+                'token_name'  => $token->name,
+            ]);
         }
     }
 

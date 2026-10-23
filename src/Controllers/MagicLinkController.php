@@ -19,6 +19,7 @@ use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
@@ -233,6 +234,17 @@ class MagicLinkController extends BaseAuthController
             return redirect()->route('magic-link')->with('error', lang('Auth.magicLinkExpired'));
         }
 
+        // A banned user must not get a session (password login refuses them
+        // in checkLogin(); loginById() does not check).
+        $user = $this->provider->findById($identity->user_id);
+
+        if ($user !== null && $user->isBanned()) {
+            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false, $user->id);
+            Events::trigger('failedLogin', ['magicLinkToken' => $token]);
+
+            return $this->bannedUserRedirect($user);
+        }
+
         /** @var Session $authenticator */
         $authenticator = auth('session')->getAuthenticator();
 
@@ -309,6 +321,13 @@ class MagicLinkController extends BaseAuthController
                 $lockout->resetOnSuccess($user);
                 session()->remove('magicCodeEmail');
 
+                if ($user->isBanned()) {
+                    $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, false, $user->id);
+                    Events::trigger('failedLogin', ['magicCode' => $code]);
+
+                    return $this->bannedUserRedirect($user);
+                }
+
                 $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
 
                 // Respect any pending post-auth action (mirrors verify()).
@@ -332,6 +351,15 @@ class MagicLinkController extends BaseAuthController
         Events::trigger('failedLogin', ['magicCode' => $code]);
 
         return redirect()->route('magic-link-code')->with('error', lang('Auth.magicCodeInvalid'));
+    }
+
+    /**
+     * Sends a banned user back to the magic-link form with the ban message.
+     */
+    protected function bannedUserRedirect(User $user): RedirectResponse
+    {
+        return redirect()->route('magic-link')
+            ->with('error', $user->getBanMessage() ?? lang('Auth.bannedUser'));
     }
 
     /**

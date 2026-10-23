@@ -182,6 +182,43 @@ final class OauthManagerTest extends TestCase
         ]);
     }
 
+    public function testHandleCallbackRefusesBannedUser(): void
+    {
+        $userModel = new UserModel();
+        $userModel->save(new User([
+            'username' => 'BannedSocial',
+            'email'    => 'banned-social@example.com',
+            'password' => 'password123',
+        ]));
+        $user = $userModel->findById($userModel->getInsertID());
+        $user->ban('No entry');
+
+        session()->set('oauth2state', 'valid_state');
+
+        $provider = Mockery::mock(AbstractProvider::class);
+        $provider->shouldReceive('getAccessToken')->andReturn(new AccessToken(['access_token' => 'test_token']));
+
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('social_banned');
+        $resourceOwner->shouldReceive('toArray')->andReturn([
+            'email'          => 'banned-social@example.com',
+            'name'           => 'Banned',
+            'email_verified' => true,
+        ]);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        try {
+            $this->manager->handleCallback('auth_code', 'valid_state');
+            $this->fail('A banned user must not be signed in through OAuth.');
+        } catch (AuthenticationException $e) {
+            $this->assertSame('No entry', $e->getMessage());
+        }
+
+        $this->assertFalse(auth('session')->loggedIn());
+    }
+
     public function testHandleCallbackRefusesLinkingUnverifiedEmailToExistingAccount(): void
     {
         // Pre-existing local (password) account.

@@ -345,6 +345,22 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         ]);
     }
 
+    public function testAttemptWithoutIdentifierFieldFailsInsteadOfThrowing(): void
+    {
+        $result = $this->auth->attempt(['password' => 'secret']);
+
+        $this->assertFalse($result->isOK());
+        $this->assertSame(lang('Auth.badAttempt'), $result->reason());
+
+        // Nothing to record the attempt against.
+        $this->seeNumRecords(0, $this->tables['logins'], []);
+    }
+
+    public function testHasActionWithUnknownUserIdIsFalse(): void
+    {
+        $this->assertFalse($this->auth->hasAction(999999));
+    }
+
     public function testAttemptSuccess(): void
     {
         model(UserIdentityModel::class)->createEmailIdentity($this->user, [

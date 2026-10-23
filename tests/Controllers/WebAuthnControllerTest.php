@@ -95,6 +95,32 @@ final class WebAuthnControllerTest extends DatabaseTestCase
         $loginVerify->assertJSONFragment(['status' => 'ok']);
     }
 
+    public function testPasswordlessLoginRefusesBannedUser(): void
+    {
+        $user = fake(UserModel::class);
+
+        $options = json_decode($this->withSession(['user' => ['id' => $user->id]])
+            ->post('webauthn/register/options', ['name' => 'Key'])->getJSON(), true);
+
+        $authn        = new VirtualAuthenticator('example.com', 'https://example.com');
+        $registerJson = $authn->register(json_encode($options, JSON_THROW_ON_ERROR));
+        $this->withSession($_SESSION)->withBodyFormat('json')->post('webauthn/register/verify', [
+            'credential' => json_decode($registerJson, true),
+        ])->assertStatus(201);
+
+        model(UserModel::class)->findById($user->id)->ban('Passkey ban');
+
+        $reqOptions    = json_decode($this->withSession([])->post('webauthn/login/options')->getJSON(), true);
+        $assertionJson = $authn->login(json_encode($reqOptions, JSON_THROW_ON_ERROR), (string) $user->uuid);
+        $loginVerify   = $this->withSession($_SESSION)->withBodyFormat('json')->post('webauthn/login/verify', [
+            'credential' => json_decode($assertionJson, true),
+        ]);
+
+        $loginVerify->assertStatus(403);
+        $loginVerify->assertJSONFragment(['error' => 'banned', 'message' => 'Passkey ban']);
+        $this->assertArrayNotHasKey('id', $_SESSION[setting('Auth.sessionConfig')['field']] ?? []);
+    }
+
     public function testDuplicateRegistrationReturns409(): void
     {
         $user = fake(UserModel::class);

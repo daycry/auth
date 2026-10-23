@@ -18,12 +18,14 @@ use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
+use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Validation\ValidationRules;
 
 /**
  * Handles password reset flow via email token.
@@ -150,23 +152,16 @@ class PasswordResetController extends BaseAuthController
      */
     public function resetAction(): RedirectResponse
     {
-        $rules = [
-            'token'            => 'required',
-            'password'         => 'required|min_length[8]',
-            'password_confirm' => 'required|matches[password]',
-        ];
+        $rules = $this->getResetValidationRules();
 
         $postData = $this->request->getPost();
+        $token    = (string) $this->request->getPost('token');
 
         if (! $this->validateRequest($postData, $rules)) {
-            $token = $this->request->getPost('token');
-
-            return redirect()->to(site_url('password-reset/verify?token=' . $token))
+            return redirect()->to($this->resetFormUrl($token))
                 ->withInput()
                 ->with('errors', $this->validator->getErrors());
         }
-
-        $token = $this->request->getPost('token');
 
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
@@ -193,12 +188,25 @@ class PasswordResetController extends BaseAuthController
                 ->with('error', lang('Auth.passwordResetTokenInvalid'));
         }
 
+        $password = (string) $this->request->getPost('password');
+
+        // Enforce the same password policy as registration (composition,
+        // personal-info, dictionary, pwned and history validators). Checked
+        // before the token is consumed so the user can retry with it.
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+        $check     = $passwords->check($password, $user);
+
+        if (! $check->isOK()) {
+            return redirect()->to($this->resetFormUrl($token))
+                ->with('error', $check->reason());
+        }
+
         // Capture the previous hash *before* we replace it — needed for
         // password-history bookkeeping.
         $previousHash = $user->password_hash ?? null;
 
         // Update the password
-        $password = $this->request->getPost('password');
         $user->setPassword($password);
 
         /** @var UserModel $userModel */
@@ -216,6 +224,33 @@ class PasswordResetController extends BaseAuthController
 
         return redirect()->route('login')
             ->with('message', lang('Auth.passwordResetSuccess'));
+    }
+
+    /**
+     * Returns the rules used to validate the reset form submission.
+     *
+     * The full password policy is applied afterwards through
+     * {@see Passwords::check()}, once the user is known.
+     *
+     * @return array<string, array<string, list<string>|string>|string>
+     */
+    protected function getResetValidationRules(): array
+    {
+        $rules = new ValidationRules();
+
+        return [
+            'token'            => 'required',
+            'password'         => $rules->getPasswordRules(),
+            'password_confirm' => $rules->getPasswordConfirmRules(),
+        ];
+    }
+
+    /**
+     * Returns the URL of the reset form for the given token.
+     */
+    protected function resetFormUrl(string $token): string
+    {
+        return site_url('password-reset/verify?token=' . rawurlencode($token));
     }
 
     /**

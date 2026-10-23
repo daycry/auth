@@ -42,8 +42,9 @@ class RegisterController extends BaseAuthController
 
         // Check if registration is allowed
         if (! setting('Auth.allowRegistration')) {
+            // Redirect to login: redirecting back to the register page would loop.
             return $this->handleError(
-                $this->request->getUri()->getPath(),
+                config('Auth')->loginRoute(),
                 lang('Auth.registerDisabled'),
             );
         }
@@ -71,7 +72,7 @@ class RegisterController extends BaseAuthController
         // Check if registration is allowed
         if (! setting('Auth.allowRegistration')) {
             return $this->handleError(
-                config('Auth')->registerRoute(),
+                config('Auth')->loginRoute(),
                 lang('Auth.registerDisabled'),
             );
         }

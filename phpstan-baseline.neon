@@ -747,7 +747,7 @@ parameters:
 		-
 			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\OauthManager::setProviderInstance() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
 			identifier: argument.type
-			count: 22
+			count: 23
 			path: tests/Libraries/OauthManagerTest.php
 
 		-

@@ -374,6 +374,11 @@ class OauthManager
             ]);
         }
 
+        // Password login refuses banned users in checkLogin(); login() does not.
+        if ($user->isBanned()) {
+            throw new AuthenticationException($user->getBanMessage() ?? lang('Auth.bannedUser'));
+        }
+
         auth()->login($user);
 
         return $user;

@@ -13,9 +13,11 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authorization;
 
+use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\I18n\Time;
 use Config\Database;
 use Daycry\Auth\Models\GroupUserModel;
+use Daycry\Auth\Models\PermissionGroupModel;
 use Daycry\Auth\Models\PermissionUserModel;
 
 /**
@@ -41,7 +43,7 @@ class GroupPermissionRepository
      */
     public function saveUserPivot($userId, string $type, $model, array $cache, array $existing): void
     {
-        $db  = Database::connect();
+        $db  = $this->connection();
         $new = array_diff($cache, $existing);
 
         $db->transStart();
@@ -71,5 +73,45 @@ class GroupPermissionRepository
         }
 
         $db->transComplete();
+    }
+
+    /**
+     * Replaces a group's permission set with $permissionIds in one
+     * transaction, so a failed insert never leaves the group without
+     * permissions.
+     *
+     * @param int|string       $groupId
+     * @param list<int|string> $permissionIds
+     */
+    public function syncGroupPermissions($groupId, array $permissionIds): void
+    {
+        /** @var PermissionGroupModel $model */
+        $model = model(PermissionGroupModel::class);
+        $db    = $this->connection();
+
+        $db->transStart();
+
+        $model->deleteAll($groupId);
+
+        if ($permissionIds !== []) {
+            $inserts = [];
+
+            foreach ($permissionIds as $permissionId) {
+                $inserts[] = ['group_id' => $groupId, 'permission_id' => $permissionId];
+            }
+
+            $model->insertBatch($inserts);
+        }
+
+        $db->transComplete();
+    }
+
+    /**
+     * The connection the auth models use (`Auth.DBGroup`), so the
+     * transaction wraps their queries.
+     */
+    protected function connection(): BaseConnection
+    {
+        return Database::connect(setting('Auth.DBGroup'));
     }
 }

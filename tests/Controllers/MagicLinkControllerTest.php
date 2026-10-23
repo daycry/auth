@@ -111,6 +111,23 @@ final class MagicLinkControllerTest extends DatabaseTestCase
         ]);
     }
 
+    public function testVerifyRefusesBannedUser(): void
+    {
+        model(UserModel::class)->findById($this->userId)->ban('Banned for testing');
+        $token = $this->seedMagicToken(3600);
+
+        $result = $this->get('login/verify-magic-link?token=' . $token);
+
+        $result->assertRedirectTo(route_to('magic-link'));
+        $result->assertSessionHas('error', 'Banned for testing');
+        $this->assertArrayNotHasKey('id', $_SESSION[setting('Auth.sessionConfig')['field']] ?? []);
+        $this->seeInDatabase($this->tables['logins'], [
+            'id_type' => Session::ID_TYPE_MAGIC_LINK,
+            'success' => 0,
+            'user_id' => $this->userId,
+        ]);
+    }
+
     public function testVerifyWithUnknownTokenIsRejected(): void
     {
         $result = $this->get('login/verify-magic-link?token=this-token-does-not-exist');

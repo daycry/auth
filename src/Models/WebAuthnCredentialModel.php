@@ -13,10 +13,9 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Model;
 use Daycry\Auth\Entities\WebAuthnCredential;
 
-class WebAuthnCredentialModel extends Model
+class WebAuthnCredentialModel extends BaseModel
 {
     protected $primaryKey     = 'id';
     protected $returnType     = WebAuthnCredential::class;
@@ -30,16 +29,11 @@ class WebAuthnCredentialModel extends Model
     protected $updatedField  = 'updated_at';
     protected $beforeInsert  = ['generateUuid'];
 
-    /**
-     * @var array<string, string>
-     */
-    protected array $tables;
-
     protected function initialize(): void
     {
         parent::initialize();
-        $this->tables = config('Auth')->tables;
-        $this->table  = $this->tables['webauthn_credentials'];
+
+        $this->table = $this->tables['webauthn_credentials'];
     }
 
     /**
