@@ -17,7 +17,6 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Passwords;
-use Daycry\Auth\Models\UserModel;
 
 /**
  * HTTP Basic authentication filter (RFC 7617).
@@ -75,6 +74,12 @@ class BasicAuthFilter implements FilterInterface
             return $this->challenge();
         }
 
+        if ($user->isBanned()) {
+            return service('response')
+                ->setStatusCode(403)
+                ->setBody($user->getBanMessage() ?? lang('Auth.bannedUser'));
+        }
+
         // Persist into the session unless the caller asked for stateless auth.
         $stateless = $arguments !== null && in_array('once', $arguments, true);
 
@@ -125,14 +130,11 @@ class BasicAuthFilter implements FilterInterface
      */
     protected function resolveUser(string $identifier)
     {
-        /** @var UserModel $userModel */
-        $userModel = model(UserModel::class);
-
         $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
             ? 'email'
             : 'username';
 
-        return $userModel->findByCredentials([$field => $identifier]);
+        return auth()->getProvider()->findByCredentials([$field => $identifier]);
     }
 
     /**

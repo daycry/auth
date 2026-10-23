@@ -151,15 +151,9 @@ trait Authorizable
     {
         $this->populateGroups();
 
-        // Normalised like addGroup()/removeGroup().
-        $groups      = array_values(array_unique(array_map(strtolower(...), $groups)));
-        $groupsNames = $this->groups !== null ? array_values($this->groups) : [];
-
-        foreach ($groups as $group) {
-            if (! in_array($group, $groupsNames, true)) {
-                throw AuthorizationException::forUnknownGroup($group);
-            }
-        }
+        // Case-insensitive, resolved to the stored name (the admin panel
+        // keeps names as typed, e.g. "Editors").
+        $groups = $this->resolveDefinedNames($groups, $this->groups ?? [], AuthorizationException::forUnknownGroup(...));
 
         $previous         = $this->groupCache;
         $this->groupCache = $groups;
@@ -284,15 +278,8 @@ trait Authorizable
     {
         $this->populatePermissions();
 
-        // Normalised like addPermission()/removePermission().
-        $permissions      = array_values(array_unique(array_map(strtolower(...), $permissions)));
-        $permissionsNames = $this->permissions !== null ? array_values($this->permissions) : [];
-
-        foreach ($permissions as $permission) {
-            if (! in_array($permission, $permissionsNames, true)) {
-                throw AuthorizationException::forUnknownPermission($permission);
-            }
-        }
+        // Case-insensitive, resolved to the stored name.
+        $permissions = $this->resolveDefinedNames($permissions, $this->permissions ?? [], AuthorizationException::forUnknownPermission(...));
 
         $previous               = $this->permissionsCache;
         $this->permissionsCache = $permissions;
@@ -307,6 +294,35 @@ trait Authorizable
         );
 
         return $this;
+    }
+
+    /**
+     * Maps each requested name to the defined name it matches
+     * case-insensitively, without duplicates.
+     *
+     * @param list<string>                             $requested
+     * @param array<int|string, string>                $defined   id => stored name
+     * @param callable(string): AuthorizationException $unknown
+     *
+     * @return list<string>
+     *
+     * @throws AuthorizationException When a name is not defined.
+     */
+    private function resolveDefinedNames(array $requested, array $defined, callable $unknown): array
+    {
+        $byLowerName = [];
+
+        foreach ($defined as $name) {
+            $byLowerName[strtolower($name)] ??= $name;
+        }
+
+        $resolved = [];
+
+        foreach ($requested as $name) {
+            $resolved[] = $byLowerName[strtolower($name)] ?? throw $unknown($name);
+        }
+
+        return array_values(array_unique($resolved));
     }
 
     /**

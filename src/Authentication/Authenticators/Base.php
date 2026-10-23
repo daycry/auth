@@ -109,32 +109,39 @@ abstract class Base
      * failures from RECORD_LOGIN_ATTEMPT_FAILURE, successes only at
      * RECORD_LOGIN_ATTEMPT_ALL.
      *
-     * Credentials without a recognised identifier field are not recorded.
-     * An attempt not tied to a user (unknown account, bad token) stores empty
+     * An anonymous failure without a recognised identifier field is not
+     * recorded. An attempt not tied to a user (unknown account, bad token) stores empty
      * identifier and user-agent values as NULL.
      *
      * @param array<string, mixed> $credentials
      */
     private function recordAttempt(array $credentials, bool $success, ?int $userId = null): void
     {
-        $threshold = $success
-            ? AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL
-            : AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE;
+        $setting = service('settings')->get('AuthSecurity.recordLoginAttempt');
+        $record  = $success
+            ? $setting === AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL
+            : $setting >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE;
 
-        if ((int) service('settings')->get('AuthSecurity.recordLoginAttempt') < $threshold) {
-            return;
-        }
-
-        try {
-            $identifier = $this->getLogCredentials($credentials);
-        } catch (InvalidArgumentException) {
+        if (! $record) {
             return;
         }
 
         $anonymous = $userId === null;
 
-        if (! $anonymous && $identifier === null) {
-            return;
+        if ($anonymous) {
+            try {
+                $identifier = $this->getLogCredentials($credentials);
+            } catch (InvalidArgumentException) {
+                return;
+            }
+        } else {
+            // check() accepted these credentials, so a valid identifier field
+            // exists; let a misconfiguration surface instead of hiding it.
+            $identifier = $this->getLogCredentials($credentials);
+
+            if ($identifier === null) {
+                return;
+            }
         }
 
         $this->loginModel->recordLoginAttempt(

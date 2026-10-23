@@ -52,7 +52,7 @@ Your class should extend the default one, so the method signatures the library c
 
 ## A Custom User Class
 
-Set `$returnType` on your user model and point `Auth::$userProvider` at it. Every hydration path then returns your class. That includes the hand-built ones: e-mail login (`findByCredentials()`) and the access-token lookup. Build an entity of the right class yourself with `UserModel::createUserEntity()`.
+Set `$returnType` on your user model and point `Auth::$userProvider` at it. Every authenticator and login flow then resolves users through that provider and returns your class: session, access-token, JWT (including refresh), basic-auth, magic link, OAuth and passkeys. That includes the hand-built hydration of e-mail login (`findByCredentials()`) and of the access-token lookup. Build an entity of the right class yourself with `UserModel::createUserEntity()`.
 
 ```php
 class User extends \Daycry\Auth\Entities\User
@@ -80,7 +80,7 @@ Every event, with its arguments, is listed in [Logging → Available Events](07-
 | `user-banned` / `user-unbanned` | `User $user` (+ `?string $message` for `user-banned`) |
 | `user-locked` | `User $user`, `string $lockedUntil` |
 | `two-factor-verified` / `two-factor-failed` | `User $user`, `string $type` (`totp`, `webauthn`) |
-| `access-token-created` | `User $user`, `AccessToken $token` |
+| `access-token-created` | `User $user`, `AccessToken $token` (a copy without `raw_token`) |
 | `access-token-revoked` | `User $user`, `?AccessToken $token` (null when all tokens were revoked) |
 
 ---

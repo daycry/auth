@@ -217,6 +217,37 @@ final class OauthManagerTest extends TestCase
         }
 
         $this->assertFalse(auth('session')->loggedIn());
+
+        // Refused before the social identity is stored.
+        $this->dontSeeInDatabase('auth_users_identities', ['secret' => 'social_banned']);
+    }
+
+    public function testLinkModeRefusesBannedUser(): void
+    {
+        $userModel = new UserModel();
+        $userModel->save(new User(['username' => 'BannedLinker', 'email' => 'banned-link@example.com', 'password' => 'password123']));
+        $user = $userModel->findById($userModel->getInsertID());
+        $user->ban('Link ban');
+
+        session()->set('oauth2state', 'valid_state');
+        session()->set('oauth_link_user_id', $user->id);
+
+        $provider = Mockery::mock(AbstractProvider::class);
+        $provider->shouldReceive('getAccessToken')->andReturn(new AccessToken(['access_token' => 'test_token']));
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('banned_link_id');
+        $resourceOwner->shouldReceive('toArray')->andReturn(['email' => 'banned-social@example.com', 'name' => 'Banned']);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        try {
+            $this->manager->handleCallback('auth_code', 'valid_state');
+            $this->fail('A banned user must not link a provider and sign in.');
+        } catch (AuthenticationException $e) {
+            $this->assertSame('Link ban', $e->getMessage());
+        }
+
+        $this->dontSeeInDatabase('auth_users_identities', ['secret' => 'banned_link_id']);
     }
 
     public function testHandleCallbackRefusesLinkingUnverifiedEmailToExistingAccount(): void

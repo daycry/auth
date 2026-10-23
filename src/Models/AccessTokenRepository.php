@@ -42,7 +42,12 @@ class AccessTokenRepository
     {
         $token = $this->identityModel->generateAccessToken($user, $name, $scopes);
 
-        Events::trigger('access-token-created', $user, $token);
+        // Listeners (audit, SIEM) get a copy without the plain-text bearer
+        // token; only the caller receives raw_token, once.
+        $eventToken = clone $token;
+        unset($eventToken->raw_token);
+
+        Events::trigger('access-token-created', $user, $eventToken);
 
         return $token;
     }

@@ -150,7 +150,10 @@ class GroupsController extends BaseAdminController
         // The form sends permission IDs (from the checkbox values)
         $newPermIds = array_values(array_filter(array_map(intval(...), (array) $this->request->getPost('permissions'))));
 
-        service('groupPermissionRepository')->syncGroupPermissions($group->id, $newPermIds);
+        if (! service('groupPermissionRepository')->syncGroupPermissions($group->id, $newPermIds)) {
+            return redirect()->back()->withInput()
+                ->with('error', "The permissions of group \"{$group->name}\" could not be saved.");
+        }
 
         return redirect()->route('admin-groups')
             ->with('message', "Group \"{$group->name}\" updated.");

@@ -21,12 +21,14 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
+use Tests\Support\ListensToEvents;
 
 /**
  * @internal
  */
 final class MagicCodeVerifyTest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FeatureTestTrait;
 
     protected $namespace = 'Daycry\Auth';
@@ -75,6 +77,29 @@ final class MagicCodeVerifyTest extends DatabaseTestCase
             ->post('login/magic-link/code', ['token' => '123456']);
         $second->assertRedirectTo(route_to('magic-link-code'));
         $second->assertSessionHas('error');
+    }
+
+    public function testSuspiciousLoginNewIpStillDetected(): void
+    {
+        setting('AuthSecurity.suspiciousLoginAlerts', true);
+        $user = $this->makeUser('newip@example.com');
+        $this->seedCode((int) $user->id, '654321');
+
+        $flags = null;
+        $this->listen('suspicious-login', static function (User $user, array $seen = []) use (&$flags): void {
+            $flags = $seen;
+        });
+
+        try {
+            $this->withSession(['magicCodeEmail' => 'newip@example.com'])
+                ->post('login/magic-link/code', ['token' => '654321']);
+        } finally {
+            $this->stopListening();
+            setting()->forget('AuthSecurity.suspiciousLoginAlerts');
+        }
+
+        $this->assertIsArray($flags);
+        $this->assertContains('new_ip', $flags);
     }
 
     public function testValidCodeForBannedUserIsRefused(): void

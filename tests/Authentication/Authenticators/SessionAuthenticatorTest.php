@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Authentication\Authenticators;
 
 use CodeIgniter\Config\Factories;
-use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\Test\Mock\MockEvents;
 use Config\Services;
@@ -29,12 +28,14 @@ use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
+use Tests\Support\ListensToEvents;
 
 /**
  * @internal
  */
 final class SessionAuthenticatorTest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FakeUser;
 
     private Session $auth;
@@ -134,6 +135,34 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $stamp = session()->get(Session::AUTHENTICATED_AT_KEY);
         $this->assertIsInt($stamp);
         $this->assertLessThanOrEqual(2, abs(time() - $stamp));
+    }
+
+    public function testRememberCookieDoesNotSignInABannedUser(): void
+    {
+        unset($_SESSION['user']);
+
+        /** @var RememberModel $rememberModel */
+        $rememberModel = model(RememberModel::class);
+        $expires       = date('Y-m-d H:i:s', time() + setting('Auth.sessionConfig')['rememberLength']);
+        $rememberModel->rememberUser($this->user, 'selector', hash('sha256', 'validator'), $expires);
+        service('superglobals')->setCookie('remember', 'selector:validator');
+
+        // Banned behind ban()'s back (e.g. a direct status update).
+        model(UserModel::class)->update($this->user->id, ['status' => 'banned']);
+
+        $this->assertFalse($this->auth->loggedIn());
+    }
+
+    public function testBanPurgesRememberMeTokens(): void
+    {
+        /** @var RememberModel $rememberModel */
+        $rememberModel = model(RememberModel::class);
+        $expires       = date('Y-m-d H:i:s', time() + setting('Auth.sessionConfig')['rememberLength']);
+        $rememberModel->rememberUser($this->user, 'selector', hash('sha256', 'validator'), $expires);
+
+        $this->user->ban();
+
+        $this->dontSeeInDatabase($this->tables['remember_tokens'], ['user_id' => $this->user->id]);
     }
 
     public function testLoggedInAsDeletedUserWithRememberCookie(): void
@@ -360,14 +389,14 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
     public function testFailedAttemptFiresFailedLoginWithoutThePassword(): void
     {
         $received = null;
-        Events::on('failedLogin', static function (array $credentials) use (&$received): void {
+        $this->listen('failedLogin', static function (array $credentials) use (&$received): void {
             $received = $credentials;
         });
 
         try {
             $this->auth->attempt(['email' => 'nobody@example.com', 'password' => 'secret']);
         } finally {
-            Events::removeAllListeners('failedLogin');
+            $this->stopListening();
         }
 
         $this->assertSame(['email' => 'nobody@example.com'], $received);

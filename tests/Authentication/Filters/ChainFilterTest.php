@@ -55,6 +55,17 @@ final class ChainFilterTest extends FilterTestCase
         $this->assertSame($this->user->id, auth()->user()->id);
     }
 
+    public function testBannedSessionIsNotAuthenticated(): void
+    {
+        $this->user->ban();
+        $_SESSION['user']['id'] = $this->user->id;
+
+        $result = $this->withSession(['user' => ['id' => $this->user->id]])
+            ->get('protected-route');
+
+        $result->assertRedirectTo('/login');
+    }
+
     public function testFilterSuccessTokens(): void
     {
         $token = $this->user->generateAccessToken('foo');

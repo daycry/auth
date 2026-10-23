@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Authentication\Actions;
 
 use CodeIgniter\Config\Factories;
-use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Test\Mock\MockEvents;
@@ -32,12 +31,14 @@ use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
+use Tests\Support\ListensToEvents;
 
 /**
  * @internal
  */
 final class Totp2FATest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FakeUser;
 
     private Session $authenticator;
@@ -448,10 +449,10 @@ final class Totp2FATest extends DatabaseTestCase
     public function testVerifyFiresTwoFactorEvents(): void
     {
         $seen = [];
-        Events::on('two-factor-failed', static function (User $user, string $type = '') use (&$seen): void {
+        $this->listen('two-factor-failed', static function (User $user, string $type = '') use (&$seen): void {
             $seen[] = 'failed:' . $type;
         });
-        Events::on('two-factor-verified', static function (User $user, string $type = '') use (&$seen): void {
+        $this->listen('two-factor-verified', static function (User $user, string $type = '') use (&$seen): void {
             $seen[] = 'verified:' . $type;
         });
 
@@ -461,8 +462,7 @@ final class Totp2FATest extends DatabaseTestCase
             (new Totp2FA())->verify($this->postToken('000000'));
             (new Totp2FA())->verify($this->postToken(TOTP::getCode($secret)));
         } finally {
-            Events::removeAllListeners('two-factor-failed');
-            Events::removeAllListeners('two-factor-verified');
+            $this->stopListening();
         }
 
         $this->assertSame(['failed:totp', 'verified:totp'], $seen);

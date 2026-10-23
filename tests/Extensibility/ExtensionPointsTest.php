@@ -33,6 +33,7 @@ use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
+use Tests\Support\ListensToEvents;
 
 /**
  * The documented ways to extend the library without copying its code:
@@ -43,6 +44,7 @@ use Tests\Support\FakeUser;
  */
 final class ExtensionPointsTest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FakeUser;
 
     protected function setUp(): void
@@ -54,9 +56,7 @@ final class ExtensionPointsTest extends DatabaseTestCase
 
     protected function tearDown(): void
     {
-        foreach (['user-banned', 'user-unbanned', 'user-locked', 'access-token-created', 'access-token-revoked'] as $event) {
-            Events::removeAllListeners($event);
-        }
+        $this->stopListening();
 
         parent::tearDown();
     }
@@ -168,10 +168,10 @@ final class ExtensionPointsTest extends DatabaseTestCase
     public function testBanAndUnbanFireEvents(): void
     {
         $seen = [];
-        Events::on('user-banned', static function (User $user, ?string $message = null) use (&$seen): void {
+        $this->listen('user-banned', static function (User $user, ?string $message = null) use (&$seen): void {
             $seen[] = ['banned', $user->id, $message];
         });
-        Events::on('user-unbanned', static function (User $user) use (&$seen): void {
+        $this->listen('user-unbanned', static function (User $user) use (&$seen): void {
             $seen[] = ['unbanned', $user->id, null];
         });
 
@@ -184,7 +184,7 @@ final class ExtensionPointsTest extends DatabaseTestCase
     public function testLockoutFiresUserLocked(): void
     {
         $locked = null;
-        Events::on('user-locked', static function (User $user, string $until = '') use (&$locked): void {
+        $this->listen('user-locked', static function (User $user, string $until = '') use (&$locked): void {
             $locked = [$user->id, $until];
         });
 
@@ -201,10 +201,10 @@ final class ExtensionPointsTest extends DatabaseTestCase
     public function testAccessTokenLifecycleFiresEvents(): void
     {
         $seen = [];
-        Events::on('access-token-created', static function (User $user, ?AccessTokenIdentity $token = null) use (&$seen): void {
+        $this->listen('access-token-created', static function (User $user, ?AccessTokenIdentity $token = null) use (&$seen): void {
             $seen[] = 'created:' . $token?->name;
         });
-        Events::on('access-token-revoked', static function (User $user, ?AccessTokenIdentity $token = null) use (&$seen): void {
+        $this->listen('access-token-revoked', static function (User $user, ?AccessTokenIdentity $token = null) use (&$seen): void {
             $seen[] = 'revoked:' . ($token->name ?? 'all');
         });
 
@@ -214,6 +214,19 @@ final class ExtensionPointsTest extends DatabaseTestCase
         $repository->softRevokeAllAccessTokens($this->user);
 
         $this->assertSame(['created:cli', 'revoked:cli', 'revoked:all'], $seen);
+        $this->assertNotNull($token->raw_token, 'the caller still receives the raw token');
+    }
+
+    public function testAccessTokenCreatedEventOmitsTheRawToken(): void
+    {
+        $raw = 'unset';
+        $this->listen('access-token-created', static function (User $user, ?AccessTokenIdentity $token = null) use (&$raw): void {
+            $raw = $token?->raw_token;
+        });
+
+        service('accessTokenRepository')->generateAccessToken($this->user, 'cli');
+
+        $this->assertNull($raw);
     }
 
     private function accessTokenAuthenticator(): AccessToken

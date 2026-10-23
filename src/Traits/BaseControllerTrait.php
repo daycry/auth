@@ -150,7 +150,7 @@ trait BaseControllerTrait
     {
         if (
             str_starts_with($method, '_')
-            || in_array($method, ['initController', 'finalizeRequest'], true)
+            || in_array(strtolower($method), ['initcontroller', 'finalizerequest'], true)
             || ! method_exists($this, $method)
         ) {
             return false;

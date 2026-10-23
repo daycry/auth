@@ -866,8 +866,8 @@ class Session extends Base implements AuthenticatorInterface
 
         $user = $this->provider->findById($token->user_id);
 
-        if ($user === null) {
-            // The user is deleted.
+        // A deleted or banned user must not be signed back in by the cookie.
+        if ($user === null || $user->isBanned()) {
             $this->userState = AuthenticationState::ANONYMOUS;
 
             // Remove remember-me cookie.

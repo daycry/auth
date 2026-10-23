@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Controllers;
 
-use CodeIgniter\Events\Events;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
@@ -23,6 +22,7 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
+use Tests\Support\ListensToEvents;
 
 /**
  * Covers the magic-link verify flow: the token is single-use, expiry is
@@ -32,6 +32,7 @@ use Tests\Support\DatabaseTestCase;
  */
 final class MagicLinkControllerTest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FeatureTestTrait;
 
     protected $namespace = 'Daycry\Auth';
@@ -116,17 +117,37 @@ final class MagicLinkControllerTest extends DatabaseTestCase
     public function testMagicLoginEventReceivesTheUser(): void
     {
         $loggedIn = null;
-        Events::on('magicLogin', static function (?User $user = null) use (&$loggedIn): void {
+        $this->listen('magicLogin', static function (?User $user = null) use (&$loggedIn): void {
             $loggedIn = $user?->id;
         });
 
         try {
             $this->get('login/verify-magic-link?token=' . $this->seedMagicToken(3600));
         } finally {
-            Events::removeAllListeners('magicLogin');
+            $this->stopListening();
         }
 
         $this->assertSame($this->userId, $loggedIn);
+    }
+
+    public function testSuspiciousLoginNewIpStillDetected(): void
+    {
+        setting('AuthSecurity.suspiciousLoginAlerts', true);
+
+        $flags = null;
+        $this->listen('suspicious-login', static function (User $user, array $seen = []) use (&$flags): void {
+            $flags = $seen;
+        });
+
+        try {
+            $this->get('login/verify-magic-link?token=' . $this->seedMagicToken(3600));
+        } finally {
+            $this->stopListening();
+            setting()->forget('AuthSecurity.suspiciousLoginAlerts');
+        }
+
+        $this->assertIsArray($flags);
+        $this->assertContains('new_ip', $flags);
     }
 
     public function testVerifyRefusesBannedUser(): void

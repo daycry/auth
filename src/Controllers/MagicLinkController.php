@@ -242,9 +242,13 @@ class MagicLinkController extends BaseAuthController
             return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
         }
 
+        $response = $this->completeMagicLogin($authenticator, $user);
+
+        // Recorded after the login: SuspiciousLoginDetector must only see the
+        // previous successful logins when it checks for a new IP.
         $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $token ?? '', true, $user->id);
 
-        return $this->completeMagicLogin($authenticator, $user);
+        return $response;
     }
 
     /**
@@ -305,14 +309,19 @@ class MagicLinkController extends BaseAuthController
                     return redirect()->route('magic-link')->with('error', $this->banMessage($user));
                 }
 
-                $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
-
                 // Respect any pending post-auth action (mirrors verify()).
                 if ($authenticator->hasAction($user->id)) {
+                    $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
+
                     return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
                 }
 
-                return $this->completeMagicLogin($authenticator, $user);
+                $response = $this->completeMagicLogin($authenticator, $user);
+
+                // After the login, as in verify(): keeps the new-IP check working.
+                $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
+
+                return $response;
             }
 
             // Existing user, bad/expired code → count the failed attempt.

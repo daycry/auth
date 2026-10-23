@@ -124,6 +124,22 @@ final class AuthorizableTest extends DatabaseTestCase
             ->countAllResults());
     }
 
+    public function testSyncResolvesNamesStoredWithCapitals(): void
+    {
+        // The admin panel stores names as typed.
+        fake(GroupModel::class, ['name' => 'Editors']);
+        fake(PermissionModel::class, ['name' => 'Reports.View']);
+
+        $this->user->syncGroups('Editors');
+        $this->user->syncPermissions('reports.view');
+
+        $this->assertSame(['Editors'], $this->user->getGroups());
+        $this->assertSame(['Reports.View'], $this->user->getPermissions());
+
+        $this->expectException(AuthorizationException::class);
+        $this->user->syncGroups('Editors', 'nope');
+    }
+
     public function testSyncGroupsWithNoGroupsDefinedThrowsUnknownGroup(): void
     {
         $this->db->table($this->tables['groups'])->emptyTable();

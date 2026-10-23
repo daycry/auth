@@ -51,7 +51,7 @@ Events::on('logout', static function (object $user): void {
 });
 
 // Runs after successful registration
-Events::on('registered', static function (object $user): void {
+Events::on('register', static function (object $user): void {
     // Send a welcome email, assign a default group, etc.
     service('email')
         ->setTo($user->email)
@@ -69,7 +69,7 @@ Events::on('registered', static function (object $user): void {
 |-------|-----------|----------|
 | `pre-login` | Before credentials are checked | `array $credentials` |
 | `login` | After successful login | `User $user` |
-| `failedLogin` | After a failed password login (`Session::attempt()`, including `basic-auth`) or magic-link/code verification | `array $credentials` (identifier fields, never the password; `magicLinkToken` / `magicCode` for magic logins) |
+| `failedLogin` | After a failed password login (`Session::attempt()`) or magic-link/code verification. Not fired by the `basic-auth` filter | `array $credentials` (identifier fields, never the password; `magicLinkToken` / `magicCode` for magic logins) |
 | `logout` | After logout | `User $user` |
 | `pre-register` | Before registration is processed | `array $postData` |
 | `register` | After successful registration | `User $user` |
@@ -83,8 +83,8 @@ Events::on('registered', static function (object $user): void {
 | `user-banned` | After `$user->ban()` | `User $user`, `?string $message` |
 | `user-unbanned` | After `$user->unBan()` | `User $user` |
 | `user-locked` | When repeated failures lock the account | `User $user`, `string $lockedUntil` |
-| `access-token-created` | After an access token is generated | `User $user`, `AccessToken $token` |
-| `access-token-revoked` | After an access token is revoked | `User $user`, `?AccessToken $token` (null: all tokens) |
+| `access-token-created` | After an access token is generated | `User $user`, `AccessToken $token` (without `raw_token`) |
+| `access-token-revoked` | After an access token is soft-revoked (`softRevoke*()`) | `User $user`, `?AccessToken $token` (null: all tokens) |
 | `remember-me-theft` | A remember-me selector matched with a wrong validator | `int $userId`, `string $selector` |
 | `oauth-unlinked` | After unlinking an OAuth provider | `User $user`, `string $provider` |
 | `oauth-login` | After successful OAuth login | `User $user`, `string $providerName` |
@@ -121,7 +121,7 @@ Events::on('failedLogin', static function (array $credentials): void {
 ### Welcome Email on Registration
 
 ```php
-Events::on('registered', static function (object $user): void {
+Events::on('register', static function (object $user): void {
     $emailService = service('email');
     $emailService->setTo($user->email)
                  ->setSubject('Welcome to ' . config('App')->appName)

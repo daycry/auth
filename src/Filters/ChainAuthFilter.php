@@ -58,6 +58,14 @@ class ChainAuthFilter implements FilterInterface
         foreach ($chain as $alias) {
             try {
                 if (auth($alias)->loggedIn()) {
+                    // A session banned after it started (AuthFilter does the
+                    // same); stateless logins already refuse banned users.
+                    if (auth($alias)->user()?->isBanned()) {
+                        auth($alias)->logout();
+
+                        continue;
+                    }
+
                     // Make sure Auth uses this Authenticator
                     auth()->setAuthenticator($alias);
 

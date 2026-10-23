@@ -393,7 +393,7 @@ parameters:
 		-
 			rawMessage: 'Call to method setCookie() of internal class CodeIgniter\Superglobals from outside its root namespace CodeIgniter.'
 			identifier: method.internalClass
-			count: 2
+			count: 3
 			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
 
 		-
@@ -741,7 +741,7 @@ parameters:
 		-
 			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\OauthManager::setProviderInstance() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
 			identifier: argument.type
-			count: 23
+			count: 24
 			path: tests/Libraries/OauthManagerTest.php
 
 		-

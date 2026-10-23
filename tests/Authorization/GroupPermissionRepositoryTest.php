@@ -31,8 +31,8 @@ final class GroupPermissionRepositoryTest extends DatabaseTestCase
         $add     = (int) model(PermissionModel::class)->insert(['name' => 'sync.add'], true);
 
         $repository = service('groupPermissionRepository');
-        $repository->syncGroupPermissions($groupId, [$keep, $drop]);
-        $repository->syncGroupPermissions($groupId, [$keep, $add]);
+        $this->assertTrue($repository->syncGroupPermissions($groupId, [$keep, $drop]));
+        $this->assertTrue($repository->syncGroupPermissions($groupId, [$keep, $add]));
 
         $table = $this->tables['permissions_groups'];
         $this->seeInDatabase($table, ['group_id' => $groupId, 'permission_id' => $keep]);

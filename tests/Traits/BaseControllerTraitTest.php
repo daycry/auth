@@ -204,7 +204,7 @@ final class BaseControllerTraitTest extends DatabaseTestCase
     {
         $this->controller->initController(service('request'), service('response'), service('logger'));
 
-        foreach (['getToken', 'setRequestUnauthorized', 'initController', 'finalizeRequest', '_remap'] as $method) {
+        foreach (['getToken', 'setRequestUnauthorized', 'initController', 'finalizeRequest', 'FINALIZEREQUEST', 'initcontroller', '_remap'] as $method) {
             $result = $this->controller->_remap($method);
 
             $this->assertInstanceOf(ResponseInterface::class, $result);

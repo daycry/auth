@@ -18,7 +18,6 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\WebAuthnCredential;
 use Daycry\Auth\Exceptions\WebAuthnDuplicateCredentialException;
 use Daycry\Auth\Exceptions\WebAuthnException;
-use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Models\WebAuthnCredentialRepository;
 use Symfony\Component\Serializer\SerializerInterface;
 use Throwable;
@@ -145,7 +144,7 @@ class WebAuthnManager
     {
         $allow = [];
         if ($email !== null && $email !== '') {
-            $user  = model(UserModel::class)->findByCredentials(['email' => $email]);
+            $user  = auth()->getProvider()->findByCredentials(['email' => $email]);
             $allow = $user !== null ? $this->repository->descriptorsForUser($user->id) : [];
 
             // Unknown e-mail, or an account without passkeys: answer with a
@@ -292,7 +291,7 @@ class WebAuthnManager
         $this->repository->updateCounter($updated);
 
         /** @var User|null $user */
-        $user = model(UserModel::class)->find($userId);
+        $user = auth()->getProvider()->findById($userId);
         if ($user === null) {
             throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));
         }

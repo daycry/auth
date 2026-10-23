@@ -17,7 +17,6 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Interfaces\JWTAdapterInterface;
-use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Validation\ValidationRules;
 
 /**
@@ -108,9 +107,7 @@ class JwtController extends BaseAuthController
         // Revoke the used refresh token (rotation — one-time use)
         $repository->softRevokeRefreshToken((int) $identity->id, $userId, 'rotation');
 
-        /** @var UserModel $userModel */
-        $userModel = model(UserModel::class);
-        $user      = $userModel->findById($userId);
+        $user = auth()->getProvider()->findById($userId);
 
         // A banned user must not obtain new tokens, even if a refresh token
         // survived the ban (e.g. the status was changed outside User::ban()).

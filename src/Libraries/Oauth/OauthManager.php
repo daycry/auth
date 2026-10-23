@@ -320,6 +320,7 @@ class OauthManager
         if ($identity instanceof UserIdentity) {
             /** @var UserIdentity $identity */
             $user = $identity->user();
+            $this->assertNotBanned($user);
 
             // Update token and profile data on re-login
             $this->refreshIdentity($identity, $token, $extraJson);
@@ -338,21 +339,31 @@ class OauthManager
                 if (! $emailVerified && ! $allowUnverified) {
                     throw new AuthenticationException(lang('Auth.oauthEmailUnverified'));
                 }
+
+                $this->assertNotBanned($user);
             } else {
                 $user = $this->registerUser($provider, $email);
             }
 
-            $this->createIdentity((int) $user->id, $socialId, $name ?? $email, $token, $extraJson);
-        }
-
-        // Password login refuses banned users in checkLogin(); login() does not.
-        if ($user->isBanned()) {
-            throw new AuthenticationException($user->getBanMessage() ?? lang('Auth.bannedUser'));
+            $this->createIdentity((int) $user->id, $socialId, (string) ($name ?? $email), $token, $extraJson);
         }
 
         auth()->login($user);
 
         return $user;
+    }
+
+    /**
+     * Refuses a banned user before anything is stored or signed in.
+     * Password login refuses them in checkLogin(); login() does not check.
+     *
+     * @throws AuthenticationException
+     */
+    protected function assertNotBanned(User $user): void
+    {
+        if ($user->isBanned()) {
+            throw new AuthenticationException($user->getBanMessage() ?? lang('Auth.bannedUser'));
+        }
     }
 
     /**
@@ -457,6 +468,8 @@ class OauthManager
         if (! $user instanceof User) {
             throw new AuthenticationException(lang('Auth.invalidUser'));
         }
+
+        $this->assertNotBanned($user);
 
         $existing = $repo->findByProviderAndSocialId($this->providerName, $socialId);
 

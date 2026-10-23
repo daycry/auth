@@ -82,8 +82,10 @@ class GroupPermissionRepository
      *
      * @param int|string       $groupId
      * @param list<int|string> $permissionIds
+     *
+     * @return bool False when the transaction was rolled back
      */
-    public function syncGroupPermissions($groupId, array $permissionIds): void
+    public function syncGroupPermissions($groupId, array $permissionIds): bool
     {
         /** @var PermissionGroupModel $model */
         $model = model(PermissionGroupModel::class);
@@ -104,6 +106,8 @@ class GroupPermissionRepository
         }
 
         $db->transComplete();
+
+        return $db->transStatus();
     }
 
     /**

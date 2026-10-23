@@ -59,6 +59,10 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
      */
     public function attempt(array $credentials = []): Result
     {
+        // Unused here; still loaded because applications may rely on checkIp()
+        // being available after token authentication.
+        helper(['checkIp']);
+
         return $this->checkLogin($this->resolveTokenCredentials($credentials));
     }
 
