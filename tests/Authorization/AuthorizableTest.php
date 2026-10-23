@@ -140,6 +140,16 @@ final class AuthorizableTest extends DatabaseTestCase
         $this->user->syncGroups('Editors', 'nope');
     }
 
+    public function testSyncPrefersTheExactNameWhenNamesDifferOnlyInCase(): void
+    {
+        fake(GroupModel::class, ['name' => 'Editors']);
+        fake(GroupModel::class, ['name' => 'editors']);
+
+        $this->user->syncGroups('editors');
+
+        $this->assertSame(['editors'], $this->user->getGroups());
+    }
+
     public function testSyncGroupsWithNoGroupsDefinedThrowsUnknownGroup(): void
     {
         $this->db->table($this->tables['groups'])->emptyTable();

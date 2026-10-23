@@ -105,9 +105,13 @@ class GroupPermissionRepository
             $model->insertBatch($inserts);
         }
 
+        // Read before transComplete(): in non-strict mode it resets the
+        // status to true after rolling back.
+        $succeeded = $db->transStatus();
+
         $db->transComplete();
 
-        return $db->transStatus();
+        return $succeeded;
     }
 
     /**

@@ -297,8 +297,9 @@ trait Authorizable
     }
 
     /**
-     * Maps each requested name to the defined name it matches
-     * case-insensitively, without duplicates.
+     * Maps each requested name to the defined name it matches, without
+     * duplicates: an exact match wins, otherwise the first case-insensitive one
+     * (names that differ only in case can coexist on case-sensitive databases).
      *
      * @param list<string>                             $requested
      * @param array<int|string, string>                $defined   id => stored name
@@ -319,7 +320,9 @@ trait Authorizable
         $resolved = [];
 
         foreach ($requested as $name) {
-            $resolved[] = $byLowerName[strtolower($name)] ?? throw $unknown($name);
+            $resolved[] = in_array($name, $defined, true)
+                ? $name
+                : $byLowerName[strtolower($name)] ?? throw $unknown($name);
         }
 
         return array_values(array_unique($resolved));

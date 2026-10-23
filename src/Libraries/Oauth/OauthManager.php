@@ -312,7 +312,7 @@ class OauthManager
         session()->remove('oauth_link_user_id');
 
         if ($linkUserId > 0) {
-            return $this->linkProviderToUser($linkUserId, $socialId, $name, $email, $extraJson, $token);
+            return $this->linkProviderToUser($linkUserId, $socialId, $name === null ? null : (string) $name, $email, $extraJson, $token);
         }
 
         $identity = $repo->findByProviderAndSocialId($this->providerName, $socialId);
