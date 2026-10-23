@@ -76,3 +76,5 @@ deptrac:
       - Model
       - Library
       - Entity
+      # Config\Services is the service locator: it builds the Service classes.
+      - Service

@@ -63,19 +63,18 @@ class OauthManager
     }
 
     /**
-     * Lazy-initialise the OAuth token repository.
+     * The OAuth identity repository: `service('oauthTokenRepository')`, so
+     * overriding that binding swaps the storage used here.
      */
-    private function getRepository(): OAuthTokenRepository
+    protected function getRepository(): OAuthTokenRepository
     {
-        return $this->repository ??= new OAuthTokenRepository(
-            $this->getIdentityModel(),
-        );
+        return $this->repository ??= service('oauthTokenRepository');
     }
 
     /**
      * Centralised model() call — avoids repeating it across methods.
      */
-    private function getIdentityModel(): UserIdentityModel
+    protected function getIdentityModel(): UserIdentityModel
     {
         /** @var UserIdentityModel */
         return model(UserIdentityModel::class);
@@ -423,7 +422,7 @@ class OauthManager
      *
      * @throws LogicException When the configured provider cannot register users.
      */
-    private function registerUser(UserProviderInterface $provider, string $email): User
+    protected function registerUser(UserProviderInterface $provider, string $email): User
     {
         if (! $provider instanceof UserModel) {
             throw new LogicException(
@@ -448,7 +447,7 @@ class OauthManager
      * user (explicit linking). Refuses when the social account is already bound
      * to a different local user.
      */
-    private function linkProviderToUser(int $userId, string $socialId, ?string $name, string $email, string $extraJson, AccessTokenInterface $token): User
+    protected function linkProviderToUser(int $userId, string $socialId, ?string $name, string $email, string $extraJson, AccessTokenInterface $token): User
     {
         $repo     = $this->getRepository();
         $provider = auth()->getProvider();
@@ -483,7 +482,7 @@ class OauthManager
      *
      * @return array<string, mixed>
      */
-    private function fetchProfileFields(AccessTokenInterface $token, ResourceOwnerInterface $resourceOwner): array
+    protected function fetchProfileFields(AccessTokenInterface $token, ResourceOwnerInterface $resourceOwner): array
     {
         $providerConfig = $this->config->providers[$this->providerName] ?? [];
         $fields         = $providerConfig['fields'] ?? [];

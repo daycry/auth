@@ -20,11 +20,9 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
-use Daycry\Auth\Services\PasswordChangeRecorder;
 use Daycry\Auth\Validation\ValidationRules;
 
 /**
@@ -79,7 +77,7 @@ class PasswordResetController extends BaseAuthController
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
         if ($user !== null) {
-            $sender = new TokenEmailSender();
+            $sender = service('tokenEmailSender');
 
             try {
                 $sender->sendTokenEmail(
@@ -213,12 +211,12 @@ class PasswordResetController extends BaseAuthController
         $userModel = model(UserModel::class);
         $userModel->save($user);
 
-        (new PasswordChangeRecorder())->record($user, $previousHash);
+        service('passwordChangeRecorder')->record($user, $previousHash);
 
         // Delete the reset token identity
         $identityModel->delete($identity->id);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_RESET, (int) $user->id);
+        service('auditLogger')->record(AuditLogger::EVENT_PASSWORD_RESET, (int) $user->id);
 
         Events::trigger('passwordReset', $user);
 

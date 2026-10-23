@@ -179,7 +179,7 @@ class GroupsController extends BaseAdminController
 
     // ── Private helpers ───────────────────────────────────────────
 
-    private function findGroupOr404(int $id): Group|RedirectResponse
+    protected function findGroupOr404(int $id): Group|RedirectResponse
     {
         /** @var GroupModel $groupModel */
         $groupModel = model(GroupModel::class);

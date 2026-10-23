@@ -94,7 +94,7 @@ class RatesFilter implements FilterInterface
      *
      * @return array{0: int, 1: int} [limit, time]
      */
-    private function applyArguments($arguments, int $limit, int $time): array
+    protected function applyArguments($arguments, int $limit, int $time): array
     {
         if (! is_array($arguments) || $arguments === []) {
             return [$limit, $time];
@@ -115,7 +115,7 @@ class RatesFilter implements FilterInterface
      * Converts a period argument to seconds. Accepts a numeric value (seconds)
      * or a named unit; falls back to $default for anything unrecognised.
      */
-    private function parsePeriod(string $period, int $default): int
+    protected function parsePeriod(string $period, int $default): int
     {
         if (is_numeric($period)) {
             return (int) $period;
@@ -136,7 +136,7 @@ class RatesFilter implements FilterInterface
      *
      * @param mixed $router
      */
-    private function buildLimitedUri(RequestInterface $request, $router, string $limitMethod): string
+    protected function buildLimitedUri(RequestInterface $request, $router, string $limitMethod): string
     {
         switch ($limitMethod) {
             case 'IP_ADDRESS':

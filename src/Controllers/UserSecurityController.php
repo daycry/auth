@@ -25,7 +25,6 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\DatabaseException;
-use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
@@ -33,8 +32,6 @@ use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
-use Daycry\Auth\Services\PasswordChangeRecorder;
-use Daycry\Auth\Services\UserAnonymizer;
 use Throwable;
 
 /**
@@ -300,7 +297,7 @@ class UserSecurityController extends BaseAuthController
 
         session()->set('password_confirmed_at', time());
 
-        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_CONFIRMED, (int) $user->id);
+        service('auditLogger')->record(AuditLogger::EVENT_PASSWORD_CONFIRMED, (int) $user->id);
 
         $intended = (string) (session()->getTempdata('passwordConfirmIntendedUrl') ?? '');
         session()->removeTempdata('passwordConfirmIntendedUrl');
@@ -366,13 +363,13 @@ class UserSecurityController extends BaseAuthController
         model(UserModel::class)->save($user);
 
         // History, password_changed_at, JWT access + refresh revocation.
-        (new PasswordChangeRecorder())->record($user, $previousHash);
+        service('passwordChangeRecorder')->record($user, $previousHash);
 
         // Sign out everywhere else; keep this session.
         model(DeviceSessionModel::class)->terminateAllForUser($user, session_id());
         model(RememberModel::class)->purgeRememberTokensByUserId($user->id);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_CHANGED, (int) $user->id);
+        service('auditLogger')->record(AuditLogger::EVENT_PASSWORD_CHANGED, (int) $user->id);
         service('securityNotifier')->passwordChanged($user);
         Events::trigger('password-changed', $user);
 
@@ -425,7 +422,7 @@ class UserSecurityController extends BaseAuthController
         }
 
         try {
-            (new TokenEmailSender())->sendTokenEmail(
+            service('tokenEmailSender')->sendTokenEmail(
                 $user,
                 IdentityType::EMAIL_CHANGE->value,
                 (int) setting('AuthSecurity.emailChangeLifetime'),
@@ -443,7 +440,7 @@ class UserSecurityController extends BaseAuthController
         }
 
         service('securityNotifier')->emailChangeRequested($user, $newEmail);
-        (new AuditLogger())->record(AuditLogger::EVENT_EMAIL_CHANGE_REQUEST, (int) $user->id);
+        service('auditLogger')->record(AuditLogger::EVENT_EMAIL_CHANGE_REQUEST, (int) $user->id);
 
         return redirect()->back()->with('message', lang('Auth.changeEmailSent'));
     }
@@ -507,7 +504,7 @@ class UserSecurityController extends BaseAuthController
             return redirect()->route('security')->with('error', lang('Auth.changeEmailAlreadyUsed'));
         }
 
-        (new AuditLogger())->record(AuditLogger::EVENT_EMAIL_CHANGED, (int) $user->id);
+        service('auditLogger')->record(AuditLogger::EVENT_EMAIL_CHANGED, (int) $user->id);
 
         if ($oldEmail !== '') {
             service('securityNotifier')->emailChanged($user, $oldEmail);
@@ -545,7 +542,7 @@ class UserSecurityController extends BaseAuthController
 
         $identityModel->delete($identity->id);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_OAUTH_UNLINKED, (int) $user->id, ['provider' => $provider]);
+        service('auditLogger')->record(AuditLogger::EVENT_OAUTH_UNLINKED, (int) $user->id, ['provider' => $provider]);
         Events::trigger('oauth-unlinked', $user, $provider);
 
         return redirect()->back()->with('message', lang('Auth.unlinkOauthSuccess', [$provider]));
@@ -585,7 +582,7 @@ class UserSecurityController extends BaseAuthController
         }
 
         try {
-            (new TokenEmailSender())->sendTokenEmail(
+            service('tokenEmailSender')->sendTokenEmail(
                 $user,
                 IdentityType::ACCOUNT_DELETE->value,
                 (int) setting('AuthSecurity.emailChangeLifetime'),
@@ -641,7 +638,7 @@ class UserSecurityController extends BaseAuthController
         $user->getEmail();
 
         try {
-            (new UserAnonymizer())->anonymize($user, 'self-service', $userId);
+            service('userAnonymizer')->anonymize($user, 'self-service', $userId);
         } catch (Throwable $e) {
             log_message('error', 'Self-service account deletion failed for user {id}: {message}', ['id' => $userId, 'message' => $e->getMessage()]);
 

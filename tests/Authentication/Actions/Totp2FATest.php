@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Actions;
 
 use CodeIgniter\Config\Factories;
+use CodeIgniter\Events\Events;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Test\Mock\MockEvents;
@@ -23,6 +24,7 @@ use Daycry\Auth\Authentication\Actions\Totp2FA;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Enums\TotpState;
 use Daycry\Auth\Libraries\TOTP;
@@ -441,6 +443,29 @@ final class Totp2FATest extends DatabaseTestCase
             'user_id' => $this->user->id,
             'type'    => IdentityType::TOTP->value,
         ]);
+    }
+
+    public function testVerifyFiresTwoFactorEvents(): void
+    {
+        $seen = [];
+        Events::on('two-factor-failed', static function (User $user, string $type = '') use (&$seen): void {
+            $seen[] = 'failed:' . $type;
+        });
+        Events::on('two-factor-verified', static function (User $user, string $type = '') use (&$seen): void {
+            $seen[] = 'verified:' . $type;
+        });
+
+        try {
+            $secret = $this->setUpConfirmedTotpPendingSession();
+
+            (new Totp2FA())->verify($this->postToken('000000'));
+            (new Totp2FA())->verify($this->postToken(TOTP::getCode($secret)));
+        } finally {
+            Events::removeAllListeners('two-factor-failed');
+            Events::removeAllListeners('two-factor-verified');
+        }
+
+        $this->assertSame(['failed:totp', 'verified:totp'], $seen);
     }
 
     public function testVerifyDoesNotCompleteLoginWhenAccountIsLockedOut(): void

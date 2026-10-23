@@ -138,7 +138,7 @@ trait HasTotp
             $identity->name = TotpState::CONFIRMED->value;
             $model->save($identity);
 
-            (new AuditLogger())->record(AuditLogger::EVENT_TOTP_ENABLED, (int) $this->id);
+            service('auditLogger')->record(AuditLogger::EVENT_TOTP_ENABLED, (int) $this->id);
         }
     }
 
@@ -155,7 +155,7 @@ trait HasTotp
         $this->totpBackupCodeModel()->purgeForUser($this);
 
         if ($hadTotp) {
-            (new AuditLogger())->record(AuditLogger::EVENT_TOTP_DISABLED, (int) $this->id);
+            service('auditLogger')->record(AuditLogger::EVENT_TOTP_DISABLED, (int) $this->id);
         }
     }
 

@@ -43,15 +43,12 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
     }
 
     /**
-     * Lazy-resolve the access token repository — keeps the constructor
-     * signature stable while routing token lookups through the repository
-     * pattern instead of the deprecated UserIdentityModel methods.
+     * The access token repository: `service('accessTokenRepository')`, so
+     * overriding that binding also changes how tokens authenticate.
      */
-    private function tokenRepository(): AccessTokenRepository
+    protected function tokenRepository(): AccessTokenRepository
     {
-        return $this->accessTokenRepository ??= new AccessTokenRepository(
-            $this->userIdentityModel,
-        );
+        return $this->accessTokenRepository ??= service('accessTokenRepository');
     }
 
     /**

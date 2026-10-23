@@ -23,7 +23,6 @@ use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\PasswordHistoryModel;
 use Daycry\Auth\Models\TotpBackupCodeModel;
 use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Services\UserAnonymizer;
 use Throwable;
 
 /**
@@ -146,7 +145,7 @@ class GdprCommand extends BaseCommand
 
             // Identities, sessions, passkeys, codes, history and login records
             // are removed and the row anonymised, in one transaction.
-            (new UserAnonymizer())->anonymize($user, 'cli');
+            service('userAnonymizer')->anonymize($user, 'cli');
 
             $this->write('User ' . $userId . ' anonymised. Identities and tokens removed.', 'green');
 

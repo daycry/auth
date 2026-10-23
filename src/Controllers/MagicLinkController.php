@@ -20,7 +20,6 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -115,7 +114,7 @@ class MagicLinkController extends BaseAuthController
 
             if ($user !== null) {
                 try {
-                    (new TokenEmailSender())->sendTokenEmail(
+                    service('tokenEmailSender')->sendTokenEmail(
                         $user,
                         Session::ID_TYPE_MAGIC_CODE,
                         setting('AuthSecurity.magicCodeLifetime'),
@@ -138,7 +137,7 @@ class MagicLinkController extends BaseAuthController
         // and send failures both fall through to the generic message page).
         if ($user !== null) {
             try {
-                (new TokenEmailSender())->sendTokenEmail(
+                service('tokenEmailSender')->sendTokenEmail(
                     $user,
                     Session::ID_TYPE_MAGIC_LINK,
                     setting('AuthSecurity.magicLinkLifetime'),
@@ -360,7 +359,7 @@ class MagicLinkController extends BaseAuthController
         // logged in via a magic link.
         session()->setTempdata('magicLogin', true);
 
-        Events::trigger('magicLogin');
+        Events::trigger('magicLogin', $user);
 
         return redirect()->to(config('Auth')->loginRedirect());
     }

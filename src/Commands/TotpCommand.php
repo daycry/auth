@@ -58,7 +58,7 @@ class TotpCommand extends BaseCommand
         try {
             $user->disableTotp();
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_TOTP_ADMIN_RESET,
                 (int) $user->id,
                 ['initiator' => 'cli'],

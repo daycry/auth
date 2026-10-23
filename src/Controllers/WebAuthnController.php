@@ -33,17 +33,26 @@ class WebAuthnController extends BaseAuthController
         return [];
     }
 
-    private function enabled(): bool
+    /**
+     * Whether passkeys are enabled (`AuthSecurity::$webauthnEnabled`).
+     */
+    protected function enabled(): bool
     {
         return (bool) (setting('AuthSecurity.webauthnEnabled') ?? false);
     }
 
-    private function manager(): WebAuthnManager
+    /**
+     * The ceremony manager (`service('webAuthnManager')`).
+     */
+    protected function manager(): WebAuthnManager
     {
         return service('webAuthnManager');
     }
 
-    private function error(string $message, int $status, string $code = 'error'): ResponseInterface
+    /**
+     * A JSON error response carrying a fresh CSRF token.
+     */
+    protected function error(string $message, int $status, string $code = 'error'): ResponseInterface
     {
         return $this->response->setStatusCode($status)->setJSON([
             'status'  => 'error',
@@ -63,7 +72,7 @@ class WebAuthnController extends BaseAuthController
      *
      * @return array<string, mixed>
      */
-    private function withToken(array $payload): array
+    protected function withToken(array $payload): array
     {
         $payload['token'] = csrf_hash();
 
@@ -191,7 +200,7 @@ class WebAuthnController extends BaseAuthController
      * Extracts the browser PublicKeyCredential JSON from the request body
      * (accepts a `credential` field or the raw body).
      */
-    private function credentialJson(): ?string
+    protected function credentialJson(): ?string
     {
         $body = $this->request->getJSON(true);
         if (is_array($body) && isset($body['credential'])) {

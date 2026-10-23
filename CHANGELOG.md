@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Extension points
+- **New service bindings**: `auditLogger`, `tokenEmailSender`, `passwordChangeRecorder` and `userAnonymizer`. The library resolves them through `service()`, which replaces about 40 `new` calls, so overriding one in `app/Config/Services.php` changes it everywhere.
+- The `accessTokenRepository` and `oauthTokenRepository` bindings are now actually used by the `tokens` authenticator and by `OauthManager`. Before, both built their own repository, so overriding the binding had no effect on authentication.
+- **The configured User class is honoured** by the hand-built hydration paths: e-mail login (`UserModel::findByCredentials()`) and the access-token lookup. The new `UserModel::createUserEntity()` builds an entity of the model's `$returnType`.
+- **Protected hooks** that were `private`:
+  - `Session`: `createLockoutManager()`, `createDeviceSessionRecorder()`, `createActionCoordinator()`, `beginSession()`, `issueRememberMeToken()`, `maybeFireSuspiciousLogin()`, `maybeRecheckPwnedOnLogin()`.
+  - `AccessToken::tokenRepository()`.
+  - `OauthManager`: `getRepository()`, `getIdentityModel()`, `registerUser()`, `linkProviderToUser()`, `fetchProfileFields()`.
+  - `WebAuthnController` helpers.
+  - The admin `find*Or404()` methods.
+  - The helpers of `AuthFilter`, `AbstractAuthFilter`, `BasicAuthFilter`, `RatesFilter`, `PasswordConfirmFilter` and `TokenScopeFilter`.
+- **New events**: `user-banned` / `user-unbanned`, `user-locked`, `two-factor-verified` / `two-factor-failed`, `access-token-created` / `access-token-revoked`. `magicLogin` now receives the `User`, as documented.
+- New guide: [Extending the Library](https://github.com/daycry/auth/blob/development/docs/16-extending.md).
+
 #### Self-service account management (`UserSecurityController`)
 - **Change password** (`changePasswordView` / `changePassword`), or **set a first password** on a password-less (OAuth-created) account. On success, other device sessions and remember-me tokens are revoked (the current session is kept), every issued JWT is invalidated, and the user is notified.
 - **Change e-mail** (`changeEmailView` / `changeEmail` / `confirmEmailChangeView` / `confirmEmailChange`). A single-use link, hashed at rest, goes to the **new** address and the **current** address is warned immediately. The confirmation GET only renders a page; the POST applies the change and moves the login identity.
@@ -170,6 +184,9 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 | `allowUnverifiedEmailLink` | unset (`false`) | When the social account's e-mail matches an existing local (password) account, auto-linking is normally only performed if the provider asserts the e-mail is verified. Set `true` per provider to allow the merge even for providers that cannot assert verification (Facebook, GitHub). |
 
 ### Fixed
+
+- **`failedLogin` was never fired for password logins** — only the magic-link flows fired it, although the docs (and their "alert on repeated failures" example) promised it for every failed attempt. `Session::attempt()` now fires it on failure, with the identifier fields and never the password; this includes `basic-auth`. The events table also named `registered` where the event is `register`.
+- **`EmailActivator` subclasses did not require activation** — `Activatable` only looked for "Activator" in the configured class name. It now also recognises `EmailActivator` and its subclasses.
 
 - **Magic-link verify with a stale token** — a token whose account no longer exists threw an uncaught `AuthenticationException`; it is now reported as `Auth.magicTokenNotFound`. A malformed query (`?token[]=…`) is treated as an unknown token instead of raising a `TypeError`.
 - **Redirect loop when registration is disabled** — with `allowRegistration = false`, `RegisterController::registerView()` redirected to the register page itself. Both register endpoints now redirect to the login page with `Auth.registerDisabled`.

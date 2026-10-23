@@ -13,11 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Controllers;
 
+use CodeIgniter\Events\Events;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
@@ -109,6 +111,22 @@ final class MagicLinkControllerTest extends DatabaseTestCase
             'user_id' => $this->userId,
             'type'    => Session::ID_TYPE_MAGIC_LINK,
         ]);
+    }
+
+    public function testMagicLoginEventReceivesTheUser(): void
+    {
+        $loggedIn = null;
+        Events::on('magicLogin', static function (?User $user = null) use (&$loggedIn): void {
+            $loggedIn = $user?->id;
+        });
+
+        try {
+            $this->get('login/verify-magic-link?token=' . $this->seedMagicToken(3600));
+        } finally {
+            Events::removeAllListeners('magicLogin');
+        }
+
+        $this->assertSame($this->userId, $loggedIn);
     }
 
     public function testVerifyRefusesBannedUser(): void

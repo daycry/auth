@@ -52,7 +52,7 @@ abstract class AbstractAuthFilter implements FilterInterface
     /**
      * Handle unauthenticated requests
      */
-    private function handleUnauthenticated()
+    protected function handleUnauthenticated()
     {
         if (auth()->getAuthenticator() instanceof Session) {
             // Set the entrance url to redirect a user after successful login

@@ -166,7 +166,7 @@ class RememberMe
 
         $this->rememberModel->purgeRememberTokensByUserId($userId);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_SUSPICIOUS_LOGIN, $userId, [
+        service('auditLogger')->record(AuditLogger::EVENT_SUSPICIOUS_LOGIN, $userId, [
             'reason'   => 'remember_me_validator_mismatch',
             'selector' => (string) $token->selector,
         ]);

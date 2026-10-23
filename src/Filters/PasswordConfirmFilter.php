@@ -72,7 +72,11 @@ class PasswordConfirmFilter implements FilterInterface
             ->with('error', lang('Auth.passwordConfirmRequired'));
     }
 
-    private function confirmedRecently(int $lifetime): bool
+    /**
+     * Whether the password was confirmed within the last $lifetime seconds.
+     * Override to accept another proof of presence (e.g. a passkey).
+     */
+    protected function confirmedRecently(int $lifetime): bool
     {
         $confirmedAt = session('password_confirmed_at');
 

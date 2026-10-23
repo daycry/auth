@@ -75,6 +75,19 @@ class UserModel extends BaseModel implements UserProviderInterface
     }
 
     /**
+     * Builds a user entity of this model's `$returnType`, so a custom User
+     * class is honoured where rows are hydrated by hand (joined queries).
+     *
+     * @param array<string, mixed> $data
+     */
+    public function createUserEntity(array $data = []): User
+    {
+        $class = is_a($this->returnType, User::class, true) ? $this->returnType : User::class;
+
+        return new $class($data);
+    }
+
+    /**
      * Mark the next find* query to include identities
      */
     public function withIdentities(): self
@@ -418,7 +431,7 @@ class UserModel extends BaseModel implements UserProviderInterface
             $password_hash = $data['password_hash'];
             unset($data['password_hash']);
 
-            $user                = new User($data);
+            $user                = $this->createUserEntity($data);
             $user->email         = $email;
             $user->password_hash = $password_hash;
             $user->syncOriginal();

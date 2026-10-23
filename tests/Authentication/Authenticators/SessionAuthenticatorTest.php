@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication\Authenticators;
 
 use CodeIgniter\Config\Factories;
+use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\Test\Mock\MockEvents;
 use Config\Services;
@@ -354,6 +355,22 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
 
         // Nothing to record the attempt against.
         $this->seeNumRecords(0, $this->tables['logins'], []);
+    }
+
+    public function testFailedAttemptFiresFailedLoginWithoutThePassword(): void
+    {
+        $received = null;
+        Events::on('failedLogin', static function (array $credentials) use (&$received): void {
+            $received = $credentials;
+        });
+
+        try {
+            $this->auth->attempt(['email' => 'nobody@example.com', 'password' => 'secret']);
+        } finally {
+            Events::removeAllListeners('failedLogin');
+        }
+
+        $this->assertSame(['email' => 'nobody@example.com'], $received);
     }
 
     public function testHasActionWithUnknownUserIdIsFalse(): void

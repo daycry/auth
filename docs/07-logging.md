@@ -69,12 +69,24 @@ Events::on('registered', static function (object $user): void {
 |-------|-----------|----------|
 | `pre-login` | Before credentials are checked | `array $credentials` |
 | `login` | After successful login | `User $user` |
-| `failedLogin` | After a failed login attempt | `array $credentials` |
+| `failedLogin` | After a failed password login (`Session::attempt()`, including `basic-auth`) or magic-link/code verification | `array $credentials` (identifier fields, never the password; `magicLinkToken` / `magicCode` for magic logins) |
 | `logout` | After logout | `User $user` |
 | `pre-register` | Before registration is processed | `array $postData` |
-| `registered` | After successful registration | `User $user` |
+| `register` | After successful registration | `User $user` |
 | `passwordReset` | After password successfully reset | `User $user` |
-| `magicLogin` | After magic link login | `User $user` |
+| `password-changed` | After a self-service password change | `User $user` |
+| `email-changed` | After a confirmed e-mail change | `User $user`, `string $oldEmail` |
+| `account-deleted` | After self-service account deletion | `int $userId` |
+| `magicLogin` | After magic link / code login | `User $user` |
+| `two-factor-verified` | After a correct second factor (`Totp2FA`, `Webauthn2FA`) | `User $user`, `string $type` |
+| `two-factor-failed` | After a wrong second factor | `User $user`, `string $type` |
+| `user-banned` | After `$user->ban()` | `User $user`, `?string $message` |
+| `user-unbanned` | After `$user->unBan()` | `User $user` |
+| `user-locked` | When repeated failures lock the account | `User $user`, `string $lockedUntil` |
+| `access-token-created` | After an access token is generated | `User $user`, `AccessToken $token` |
+| `access-token-revoked` | After an access token is revoked | `User $user`, `?AccessToken $token` (null: all tokens) |
+| `remember-me-theft` | A remember-me selector matched with a wrong validator | `int $userId`, `string $selector` |
+| `oauth-unlinked` | After unlinking an OAuth provider | `User $user`, `string $provider` |
 | `oauth-login` | After successful OAuth login | `User $user`, `string $providerName` |
 | `oauth-profile-fetched` | After profile fields resolved from OAuth provider | `User $user`, `string $providerName`, `array $profileData` |
 | `suspicious-login` | After a successful login flagged as anomalous (when `AuthSecurity::$suspiciousLoginAlerts = true`) | `User $user`, `list<string> $flags`, `string $ipAddress`, `string $userAgent` |

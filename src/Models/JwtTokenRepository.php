@@ -79,7 +79,7 @@ class JwtTokenRepository
             $metadata['reason'] = $reason;
         }
 
-        (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, $metadata);
+        service('auditLogger')->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, $metadata);
     }
 
     /**
@@ -99,6 +99,6 @@ class JwtTokenRepository
             $metadata['reason'] = $reason;
         }
 
-        (new AuditLogger())->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, $metadata);
+        service('auditLogger')->record(AuditLogger::EVENT_REFRESH_TOKEN_REVOKED, $userId, $metadata);
     }
 }

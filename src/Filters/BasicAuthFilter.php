@@ -97,7 +97,7 @@ class BasicAuthFilter implements FilterInterface
      *
      * @return array{0: string, 1: string}|null
      */
-    private function extractCredentials(string $header): ?array
+    protected function extractCredentials(string $header): ?array
     {
         if ($header === '' || ! str_starts_with(strtolower($header), strtolower('Basic '))) {
             return null;
@@ -123,7 +123,7 @@ class BasicAuthFilter implements FilterInterface
      * Resolves a user by email when the identifier looks like an email,
      * otherwise by username. Returns null when no match is found.
      */
-    private function resolveUser(string $identifier)
+    protected function resolveUser(string $identifier)
     {
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
@@ -138,7 +138,7 @@ class BasicAuthFilter implements FilterInterface
     /**
      * Returns a 401 response with the standard `WWW-Authenticate` challenge.
      */
-    private function challenge(): ResponseInterface
+    protected function challenge(): ResponseInterface
     {
         $realm = (string) config('Auth')->basicAuthRealm;
 

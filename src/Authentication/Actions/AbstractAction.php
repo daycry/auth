@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Actions;
 
+use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -120,6 +121,8 @@ abstract class AbstractAction implements ActionInterface
             // configured threshold is reached.
             $lockoutManager->recordFailedAttempt($user);
 
+            Events::trigger('two-factor-failed', $user, $this->type);
+
             session()->setFlashdata('error', lang($errorKey));
 
             return $this->view(setting('Auth.views')[$viewKey]);
@@ -131,6 +134,8 @@ abstract class AbstractAction implements ActionInterface
         $this->getIdentityModel()->deleteIdentitiesByType($user, $this->type);
 
         $authenticator->completeLogin($user);
+
+        Events::trigger('two-factor-verified', $user, $this->type);
 
         if ($afterLogin !== null) {
             $afterLogin($user);

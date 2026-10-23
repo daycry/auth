@@ -21,6 +21,7 @@ use Daycry\Auth\Authorization\GroupPermissionRepository;
 use Daycry\Auth\Config\Auth as AuthConfig;
 use Daycry\Auth\Libraries\Logger;
 use Daycry\Auth\Libraries\SecurityNotifier;
+use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\WebAuthn\ChallengeManager;
 use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
 use Daycry\Auth\Models\AccessTokenRepository;
@@ -29,6 +30,9 @@ use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\WebAuthnCredentialModel;
 use Daycry\Auth\Models\WebAuthnCredentialRepository;
+use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Services\UserAnonymizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
@@ -116,6 +120,59 @@ class Services extends BaseService
         }
 
         return new SecurityNotifier();
+    }
+
+    /**
+     * Audit trail writer used across the library. Override this binding to
+     * ship audit events elsewhere (SIEM, queue) or enrich them.
+     */
+    public static function auditLogger(bool $getShared = true): AuditLogger
+    {
+        if ($getShared) {
+            return self::getSharedInstance('auditLogger');
+        }
+
+        return new AuditLogger();
+    }
+
+    /**
+     * Single-use token e-mails (magic link/code, password reset, e-mail
+     * change, account deletion). Override this binding to queue them or use
+     * another transport.
+     */
+    public static function tokenEmailSender(bool $getShared = true): TokenEmailSender
+    {
+        if ($getShared) {
+            return self::getSharedInstance('tokenEmailSender');
+        }
+
+        return new TokenEmailSender();
+    }
+
+    /**
+     * Post-password-change bookkeeping (history, password_changed_at, token
+     * revocation). Override this binding to add side effects.
+     */
+    public static function passwordChangeRecorder(bool $getShared = true): PasswordChangeRecorder
+    {
+        if ($getShared) {
+            return self::getSharedInstance('passwordChangeRecorder');
+        }
+
+        return new PasswordChangeRecorder();
+    }
+
+    /**
+     * GDPR anonymisation shared by `auth:gdpr anonymize` and self-service
+     * account deletion. Override this binding to scrub app-owned data too.
+     */
+    public static function userAnonymizer(bool $getShared = true): UserAnonymizer
+    {
+        if ($getShared) {
+            return self::getSharedInstance('userAnonymizer');
+        }
+
+        return new UserAnonymizer();
     }
 
     /**

@@ -147,5 +147,6 @@ nav:
       - Audit & Compliance: 13-audit-and-compliance.md
       - CLI Commands: 14-cli-commands.md
   - Reference:
+      - Extending: 16-extending.md
       - Testing: 08-testing.md
       - Migration: 12-migration.md

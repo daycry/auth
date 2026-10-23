@@ -205,7 +205,7 @@ class Totp2FA extends AbstractAction
 
             $this->writeTrustedCookie((string) $session->uuid, $lifetime);
 
-            (new AuditLogger())->record(AuditLogger::EVENT_TRUSTED_DEVICE_ADDED, (int) $user->id, [
+            service('auditLogger')->record(AuditLogger::EVENT_TRUSTED_DEVICE_ADDED, (int) $user->id, [
                 'device_uuid'   => (string) $session->uuid,
                 'lifetime_secs' => $lifetime,
             ]);

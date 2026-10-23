@@ -83,6 +83,6 @@ class UserAnonymizer
             throw $e;
         }
 
-        (new AuditLogger())->record(AuditLogger::EVENT_USER_ANONYMIZED, $userId, ['initiator' => $initiator], $actorId);
+        service('auditLogger')->record(AuditLogger::EVENT_USER_ANONYMIZED, $userId, ['initiator' => $initiator], $actorId);
     }
 }

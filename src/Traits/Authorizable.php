@@ -99,7 +99,7 @@ trait Authorizable
         if (count($this->groupCache) > $groupCount) {
             $this->saveGroups();
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_GROUP_ASSIGNED,
                 (int) $this->id,
                 ['groups' => $added],
@@ -130,7 +130,7 @@ trait Authorizable
         $this->saveGroups();
 
         if ($removed !== []) {
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_GROUP_REVOKED,
                 (int) $this->id,
                 ['groups' => $removed],
@@ -232,7 +232,7 @@ trait Authorizable
         if (count($this->permissionsCache) > $permissionCount) {
             $this->savePermissions();
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_PERMISSION_GRANTED,
                 (int) $this->id,
                 ['permissions' => $added],
@@ -263,7 +263,7 @@ trait Authorizable
         $this->savePermissions();
 
         if ($removed !== []) {
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_PERMISSION_REVOKED,
                 (int) $this->id,
                 ['permissions' => $removed],
@@ -319,11 +319,11 @@ trait Authorizable
     private function auditChanges(array $added, array $removed, string $addedEvent, string $removedEvent, string $key): void
     {
         if ($added !== []) {
-            (new AuditLogger())->record($addedEvent, (int) $this->id, [$key => $added]);
+            service('auditLogger')->record($addedEvent, (int) $this->id, [$key => $added]);
         }
 
         if ($removed !== []) {
-            (new AuditLogger())->record($removedEvent, (int) $this->id, [$key => $removed]);
+            service('auditLogger')->record($removedEvent, (int) $this->id, [$key => $removed]);
         }
     }
 

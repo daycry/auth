@@ -105,11 +105,36 @@ class Session extends Base implements AuthenticatorInterface
 
         parent::__construct($provider, $request, $userIdentityModel, $loginModel);
 
-        $this->lockoutManager    = new UserLockoutManager($provider);
-        $this->deviceRecorder    = new DeviceSessionRecorder();
-        $this->actionCoordinator = new PendingActionCoordinator($userIdentityModel);
+        $this->lockoutManager    = $this->createLockoutManager($provider);
+        $this->deviceRecorder    = $this->createDeviceSessionRecorder();
+        $this->actionCoordinator = $this->createActionCoordinator($userIdentityModel);
 
         $this->checkSecurityConfig();
+    }
+
+    /**
+     * Creates the per-user lockout manager. Override to customise lockout.
+     */
+    protected function createLockoutManager(UserProviderInterface $provider): UserLockoutManager
+    {
+        return new UserLockoutManager($provider);
+    }
+
+    /**
+     * Creates the device-session recorder. Override to customise tracking.
+     */
+    protected function createDeviceSessionRecorder(): DeviceSessionRecorder
+    {
+        return new DeviceSessionRecorder();
+    }
+
+    /**
+     * Creates the post-auth action coordinator. Override to customise how
+     * pending actions are found and started.
+     */
+    protected function createActionCoordinator(UserIdentityModel $userIdentityModel): PendingActionCoordinator
+    {
+        return new PendingActionCoordinator($userIdentityModel);
     }
 
     public static function instance(UserProviderInterface $provider): static
@@ -174,7 +199,16 @@ class Session extends Base implements AuthenticatorInterface
      */
     public function attempt(array $credentials = []): Result
     {
-        return $this->checkLogin($credentials);
+        $result = $this->checkLogin($credentials);
+
+        if (! $result->isOK()) {
+            // Listeners get the identifier fields, never the password.
+            unset($credentials['password']);
+
+            Events::trigger('failedLogin', $credentials);
+        }
+
+        return $result;
     }
 
     /**
@@ -255,7 +289,7 @@ class Session extends Base implements AuthenticatorInterface
      * Failures inside the validator are caught — login MUST NOT break if HIBP
      * is unreachable; the worst-case is "no recheck this login".
      */
-    private function maybeRecheckPwnedOnLogin(User $user, string $givenPassword): void
+    protected function maybeRecheckPwnedOnLogin(User $user, string $givenPassword): void
     {
         if (! (bool) (setting('AuthSecurity.recheckPwnedOnLogin') ?? false)) {
             return;
@@ -472,7 +506,7 @@ class Session extends Base implements AuthenticatorInterface
      * Shared session-establishment tail: start the login session and issue the
      * remember-me token if requested.
      */
-    private function beginSession(User $user): void
+    protected function beginSession(User $user): void
     {
         $this->startLogin($user);
 
@@ -589,7 +623,7 @@ class Session extends Base implements AuthenticatorInterface
      * Runs the {@see SuspiciousLoginDetector} when the feature is enabled.
      * Failures are logged but never propagate.
      */
-    private function maybeFireSuspiciousLogin(User $user): void
+    protected function maybeFireSuspiciousLogin(User $user): void
     {
         if (! (bool) (setting('AuthSecurity.suspiciousLoginAlerts') ?? false)) {
             return;
@@ -608,7 +642,7 @@ class Session extends Base implements AuthenticatorInterface
                 return;
             }
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_SUSPICIOUS_LOGIN,
                 (int) $user->id,
                 ['flags' => $flags, 'ip' => $ip, 'user_agent' => $ua],
@@ -655,7 +689,11 @@ class Session extends Base implements AuthenticatorInterface
         return $this->setAuthAction();
     }
 
-    private function issueRememberMeToken(): void
+    /**
+     * Issues (or clears) the remember-me cookie after a login and runs the
+     * optional purge of expired tokens.
+     */
+    protected function issueRememberMeToken(): void
     {
         if ($this->shouldRemember && setting('Auth.sessionConfig')['allowRemembering']) {
             $this->rememberMe->rememberUser($this->user);

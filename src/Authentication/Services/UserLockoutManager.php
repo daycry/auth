@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Authentication\Services;
 
 use CodeIgniter\Database\BaseConnection;
+use CodeIgniter\Events\Events;
 use CodeIgniter\I18n\Time;
 use Config\Database;
 use Daycry\Auth\Config\Auth as AuthConfig;
@@ -93,7 +94,7 @@ class UserLockoutManager
         // Lockout has expired — reset counter automatically
         $this->provider->update($user->id, ['failed_login_count' => 0, 'locked_until' => null]);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_USER_UNLOCKED, (int) $user->id, [
+        service('auditLogger')->record(AuditLogger::EVENT_USER_UNLOCKED, (int) $user->id, [
             'reason' => 'lockout_expired',
         ]);
 
@@ -147,10 +148,12 @@ class UserLockoutManager
                 ->where('id', $user->id)
                 ->update(['locked_until' => $lockedUntil]);
 
-            (new AuditLogger())->record(AuditLogger::EVENT_USER_LOCKED, (int) $user->id, [
+            service('auditLogger')->record(AuditLogger::EVENT_USER_LOCKED, (int) $user->id, [
                 'failed_login_count' => $count,
                 'locked_until'       => $lockedUntil,
             ]);
+
+            Events::trigger('user-locked', $user, $lockedUntil);
         }
     }
 
