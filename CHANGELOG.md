@@ -122,6 +122,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Internal de-duplication (no behaviour change)** — shared logic moved to protected helpers you can call or override:
+  - `StatelessAuthenticator`: `resolveTokenCredentials()`, `noTokenResult()` and a single `getLogCredentials()` (SHA-256 fingerprint) for `AccessToken` and `JWT`.
+  - `Authentication\Actions\AbstractAction`: `verifySecondFactor()` (lockout → verify → reset → `completeLogin()`, used by `Totp2FA` and `Webauthn2FA`), `insertPendingMarker()` and `sendActionEmail()` (used by `Email2FA` and `EmailActivator`).
+  - `Commands\BaseCommand::resolveTargetUser()` for the `-e`/`-i` options of `auth:sessions`, `auth:totp`, `auth:tokens` and `auth:gdpr`.
+  - `OauthManager::buildIdentityExtra()`, `refreshIdentity()` and `createIdentity()`, shared by social login and explicit linking.
+  - `MagicLinkController::magicLinkDisabled()`, `failLinkVerification()` and `completeMagicLogin()`.
+  - `Entities\PivotEntity` plus the `BelongsToGroup` / `BelongsToPermission` traits for `GroupUser`, `PermissionUser` and `PermissionGroup`, and the `GeneratesUuid` model trait for `UserModel`, `DeviceSessionModel` and `WebAuthnCredentialModel`.
+  - Private helpers in `Base` (login-attempt recording), `Session` (pending-action state, device-session tracking) and `Authorizable` (permission-cache settings); the unused `Authorizable::getGroupPermissions()` is gone.
+- **`auth:tokens revoke --type jwt_refresh` is audited** — it now revokes through `JwtTokenRepository::softRevokeAllRefreshTokens()` (`token.refresh_revoked`, reason `cli`), like the access-token branch. An unknown `--type` is rejected before the user lookup.
+- `AccessToken::attempt()` no longer loads the unused `checkIp` helper.
 - **`syncGroups()` / `syncPermissions()` normalise like `add*()`/`remove*()`** — names are lower-cased and de-duplicated (`syncGroups('Admin')` used to throw "unknown group" while `addGroup('Admin')` worked), they no longer throw a `TypeError` when no groups/permissions exist, and the changes are now audited (`group.assigned` / `group.revoked`, `permission.granted` / `permission.revoked`).
 - **JWT `Authorization` scheme is case-insensitive** — `bearer <token>` is accepted (RFC 9110 §11.1), and `Bearer` must be followed by whitespace (`BearerX…` is no longer stripped into a token).
 - **`daycry/jobs` is no longer a hard dependency** — nothing in the library uses it, so it moved from `require` to `suggest` (it remains a convenient way to schedule `php spark auth:purge`). **Upgrade note:** if your application uses `daycry/jobs` but only had it installed transitively through this package, add it to your own `composer.json` (`composer require daycry/jobs`).
@@ -161,6 +171,7 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 
 ### Fixed
 
+- **Magic-link verify with a stale token** — a token whose account no longer exists threw an uncaught `AuthenticationException`; it is now reported as `Auth.magicTokenNotFound`. A malformed query (`?token[]=…`) is treated as an unknown token instead of raising a `TypeError`.
 - **Redirect loop when registration is disabled** — with `allowRegistration = false`, `RegisterController::registerView()` redirected to the register page itself. Both register endpoints now redirect to the login page with `Auth.registerDisabled`.
 - **Forced password reset errors left the form** — validation and wrong-current-password errors redirected to `Auth::$redirects['force_reset']` (default `'/'`) instead of back to the form.
 - **Admin group permission sync is transactional** — `Admin\GroupsController::update()` deleted all of a group's permissions and re-inserted them outside a transaction; it now uses the new `GroupPermissionRepository::syncGroupPermissions()`. `GroupPermissionRepository` also opened its transaction on the default connection instead of `Auth.DBGroup`.
@@ -182,6 +193,7 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 
 ### Tooling
 
+- `UserModelGeneratorTest` deletes and regenerates the library's own `src/Models/UserModel.php`; it now keeps the original in memory and restores it in `tearDown()` and at shutdown, instead of a `.bak` copy that an interrupted run could leave behind together with a deleted model.
 - Fixed `deduplicate` script paths.
 - Corrected `.gitattributes` (`deptrac.yaml`, `phpstan-baseline.neon`, and the `phpcpd` phar now `export-ignore`).
 - CI composer cache keyed on `composer.json`.

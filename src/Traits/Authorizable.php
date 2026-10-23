@@ -509,33 +509,10 @@ trait Authorizable
     }
 
     /**
-     * User for populate all permissions
-     */
-    private function getGroupPermissions(Group $group): array
-    {
-        $groupPermissionsModel = $this->permissionGroupModel();
-        $groupPermissions      = $groupPermissionsModel->getForGroup($group);
-
-        $ids = [];
-
-        foreach ($groupPermissions as $groupPermission) {
-            $ids[] = $groupPermission->permission_id;
-        }
-
-        $permissionModel = $this->permissionModel();
-
-        if ($ids !== []) {
-            return $permissionModel->getByIds($ids);
-        }
-
-        return [];
-    }
-
-    /**
      * Loads all permissions for all of the user's groups in two queries
      * (one for permission_group rows, one for permission names) and
      * populates $groupPermissionsCache. This eliminates the N+1 problem
-     * where can() previously called getGroupPermissions() per group.
+     * where can() used to load each group's permissions separately.
      */
     private function eagerLoadGroupPermissions(): void
     {
@@ -617,7 +594,7 @@ trait Authorizable
         }
 
         // Try persistent cache first
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             /** @var array{groups: array<int, string>, groupCache: list<string>, groupPermissionsCache: array<string, list<string>>}|null $cached */
             $cached = cache($this->getPermissionCacheKey('groups'));
 
@@ -649,13 +626,12 @@ trait Authorizable
         }
 
         // Store in persistent cache
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
-            $ttl = (int) (service('settings')->get('AuthSecurity.permissionCacheTTL') ?? 300);
+        if ($this->permissionCacheEnabled()) {
             cache()->save($this->getPermissionCacheKey('groups'), [
                 'groups'                => $this->groups,
                 'groupCache'            => $this->groupCache,
                 'groupPermissionsCache' => $this->groupPermissionsCache,
-            ], $ttl);
+            ], $this->permissionCacheTtl());
         }
     }
 
@@ -671,7 +647,7 @@ trait Authorizable
         }
 
         // Try persistent cache first
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             /** @var array{permissions: array<int, string>, permissionsCache: list<string>}|null $cached */
             $cached = cache($this->getPermissionCacheKey('permissions'));
 
@@ -696,13 +672,28 @@ trait Authorizable
         $this->permissionsCache = array_column($this->getAllUserPermissions(), 'name');
 
         // Store in persistent cache
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
-            $ttl = (int) (service('settings')->get('AuthSecurity.permissionCacheTTL') ?? 300);
+        if ($this->permissionCacheEnabled()) {
             cache()->save($this->getPermissionCacheKey('permissions'), [
                 'permissions'      => $this->permissions,
                 'permissionsCache' => $this->permissionsCache,
-            ], $ttl);
+            ], $this->permissionCacheTtl());
         }
+    }
+
+    /**
+     * Whether `AuthSecurity::$permissionCacheEnabled` is on.
+     */
+    private function permissionCacheEnabled(): bool
+    {
+        return (bool) service('settings')->get('AuthSecurity.permissionCacheEnabled');
+    }
+
+    /**
+     * `AuthSecurity::$permissionCacheTTL` in seconds (default 300).
+     */
+    private function permissionCacheTtl(): int
+    {
+        return (int) (service('settings')->get('AuthSecurity.permissionCacheTTL') ?? 300);
     }
 
     /**
@@ -747,7 +738,7 @@ trait Authorizable
         $this->saveGroupsOrPermissions('group_id', $model, $cache, $existing);
 
         // Invalidate persistent cache after DB write
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             cache()->delete($this->getPermissionCacheKey('groups'));
         }
 
@@ -775,7 +766,7 @@ trait Authorizable
         $this->saveGroupsOrPermissions('permission_id', $model, $cache, $existing);
 
         // Invalidate persistent cache after DB write
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             cache()->delete($this->getPermissionCacheKey('permissions'));
         }
     }

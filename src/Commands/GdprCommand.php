@@ -23,7 +23,6 @@ use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\PasswordHistoryModel;
 use Daycry\Auth\Models\TotpBackupCodeModel;
 use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\UserAnonymizer;
 use Throwable;
 
@@ -63,24 +62,9 @@ class GdprCommand extends BaseCommand
     public function run(array $params): int
     {
         $action = $params[0] ?? '';
-        $email  = (string) ($params['e'] ?? '');
-        $id     = (string) ($params['i'] ?? '');
-
-        if ($email === '' && $id === '') {
-            $this->error('Specify -e <email> or -i <id>.');
-
-            return 1;
-        }
-
-        /** @var UserModel $userModel */
-        $userModel = model(UserModel::class);
-        $user      = $id !== ''
-            ? $userModel->findById((int) $id)
-            : $userModel->findByCredentials(['email' => $email]);
+        $user   = $this->resolveTargetUser($params);
 
         if (! $user instanceof User) {
-            $this->error('User not found.');
-
             return 1;
         }
 

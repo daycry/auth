@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Actions;
 
-use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Entities\User;
@@ -73,54 +72,20 @@ class Totp2FA extends AbstractAction
      */
     public function verify(IncomingRequest $request)
     {
-        $authenticator = $this->getSessionAuthenticator();
-
-        $user = $authenticator->getPendingUser();
-
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
-
-        $lockoutManager = $authenticator->getLockoutManager();
-
-        // Apply the same per-user brute-force lockout that guards password
-        // login. Without this the second factor is infinitely guessable once
-        // the first factor has been passed.
-        $lockoutResult = $lockoutManager->isLockedOut($user);
-
-        if ($lockoutResult !== null) {
-            session()->setFlashdata('error', $lockoutResult->reason());
-
-            return $this->view(setting('Auth.views')['action_totp_2fa_verify']);
-        }
-
         $code = (string) $request->getPost('token');
 
-        if (! $this->verifyCodeForUser($user, $code)) {
-            // Count the failed second-factor attempt; the account locks once the
-            // configured threshold is reached, just like password failures.
-            $lockoutManager->recordFailedAttempt($user);
-
-            session()->setFlashdata('error', lang('Auth.invalidTotpToken'));
-
-            return $this->view(setting('Auth.views')['action_totp_2fa_verify']);
-        }
-
-        // Successful second factor — clear the failure counter.
-        $lockoutManager->resetOnSuccess($user);
-
-        // Remove the pending marker and complete login
-        $this->getIdentityModel()->deleteIdentitiesByType($user, $this->type);
-
-        $authenticator->completeLogin($user);
-
-        // Trust-this-device: only honoured *after* completeLogin() so a
-        // fresh device session UUID is available.
-        if ((bool) $request->getPost('trust_device')) {
-            $this->markCurrentDeviceTrusted($user);
-        }
-
-        return redirect()->to(config('Auth')->loginRedirect());
+        return $this->verifySecondFactor(
+            fn (User $user): bool => $this->verifyCodeForUser($user, $code),
+            'action_totp_2fa_verify',
+            'Auth.invalidTotpToken',
+            function (User $user) use ($request): void {
+                // Trust-this-device: only honoured *after* completeLogin() so a
+                // fresh device session UUID is available.
+                if ((bool) $request->getPost('trust_device')) {
+                    $this->markCurrentDeviceTrusted($user);
+                }
+            },
+        );
     }
 
     /**
@@ -151,15 +116,7 @@ class Totp2FA extends AbstractAction
             return '';
         }
 
-        $identityModel->insert([
-            'user_id' => $user->id,
-            'type'    => $this->type,
-            'name'    => 'totp_pending',
-            'secret'  => 'totp',
-            'extra'   => lang('Auth.needTotp'),
-        ]);
-
-        return 'totp';
+        return $this->insertPendingMarker($user, 'totp_pending', 'totp', 'Auth.needTotp');
     }
 
     /**

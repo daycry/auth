@@ -337,25 +337,30 @@ class Session extends Base implements AuthenticatorInterface
         // On success - remove the identity
         $this->userIdentityModel->deleteIdentitiesByType($user, $identity->type);
 
-        // Clean up our session
-        $this->removeSessionKey('auth_action');
-        $this->removeSessionKey('auth_action_message');
-
         $this->user = $user;
 
+        // Also clears the pending-action session keys.
         $this->completeLogin($user);
 
         return true;
     }
 
     /**
-     * Remove the key value in Session User Info
+     * Removes the pending post-auth action state in a single session write.
      */
-    private function removeSessionKey(string $key): void
+    private function clearAuthActionSession(): void
     {
         $sessionUserInfo = $this->getSessionUserInfo();
-        unset($sessionUserInfo[$key]);
+        unset($sessionUserInfo['auth_action'], $sessionUserInfo['auth_action_message']);
         session()->set(setting('Auth.sessionConfig')['field'], $sessionUserInfo);
+    }
+
+    /**
+     * Whether `Auth::$sessionConfig['trackDeviceSessions']` is on.
+     */
+    private function tracksDeviceSessions(): bool
+    {
+        return (bool) (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false);
     }
 
     /**
@@ -486,7 +491,7 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         // Terminate the device session record if tracking is enabled
-        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+        if ($this->tracksDeviceSessions()) {
             $this->deviceRecorder->terminateCurrentSession();
         }
 
@@ -561,8 +566,7 @@ class Session extends Base implements AuthenticatorInterface
         // This is critical for actions (e.g. Totp2FA) that call
         // completeLogin() directly after verifying their own code,
         // because those actions don't go through checkAction().
-        $this->removeSessionKey('auth_action');
-        $this->removeSessionKey('auth_action_message');
+        $this->clearAuthActionSession();
 
         $this->userState = AuthenticationState::LOGGED_IN;
 
@@ -658,15 +662,15 @@ class Session extends Base implements AuthenticatorInterface
 
             // Reset so it doesn't mess up future calls.
             $this->shouldRemember = false;
-        } elseif ($this->rememberMe->getRememberMeToken() !== null && $this->rememberMe->getRememberMeToken() !== '' && $this->rememberMe->getRememberMeToken() !== '0') {
+        } elseif (! in_array($this->rememberMe->getRememberMeToken(), [null, '', '0'], true)) {
             $this->rememberMe->removeKey();
 
             // @TODO delete the token record.
         }
 
-        // We'll give a 20% chance to need to do a purge since we
-        // don't need to purge THAT often, it's just a maintenance issue.
-        // to keep the table from getting out of control.
+        // Maintenance only (expiry is enforced at validation time), so it
+        // runs on a `rememberMePurgeChance` % chance (default 0: schedule
+        // `php spark auth:purge` instead).
         if (random_int(1, 100) <= (int) setting('AuthSecurity.rememberMePurgeChance')) {
             $this->rememberMe->purgeOldTokens();
         }
@@ -685,8 +689,7 @@ class Session extends Base implements AuthenticatorInterface
 
         if (! $activated) {
             // Action was skipped or not configured — clear any stale session state
-            $this->removeSessionKey('auth_action');
-            $this->removeSessionKey('auth_action_message');
+            $this->clearAuthActionSession();
 
             return false;
         }
@@ -745,7 +748,7 @@ class Session extends Base implements AuthenticatorInterface
             // "revoke" and concurrent-session eviction actually invalidate the
             // session instead of only flipping a DB column.
             if (
-                (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false)
+                $this->tracksDeviceSessions()
                 && ! $this->deviceRecorder->isCurrentSessionActive()
             ) {
                 $this->userState = AuthenticationState::ANONYMOUS;
@@ -877,7 +880,7 @@ class Session extends Base implements AuthenticatorInterface
         $this->setSessionKey('id', $user->id);
 
         // Track the device session if enabled
-        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+        if ($this->tracksDeviceSessions()) {
             $this->deviceRecorder->recordSession($user, $this->request->getIPAddress());
         }
 

@@ -62,13 +62,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
      */
     public function attempt(array $credentials = []): Result
     {
-        helper(['checkIp']);
-
-        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            $credentials = ['token' => $this->getTokenFromRequest()];
-        }
-
-        return $this->checkLogin($credentials);
+        return $this->checkLogin($this->resolveTokenCredentials($credentials));
     }
 
     /**
@@ -81,13 +75,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
     public function check(array $credentials = []): Result
     {
         if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            return new Result([
-                'success' => false,
-                'reason'  => lang(
-                    'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
-                ),
-            ]);
+            return $this->noTokenResult();
         }
 
         $token = $this->tokenRepository()->getAccessTokenByRawTokenWithUser($credentials['token']);
@@ -161,19 +149,6 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
         );
 
         $this->login($user);
-    }
-
-    public function getLogCredentials(array $credentials): mixed
-    {
-        $this->authType = self::ID_TYPE_ACCESS_TOKEN;
-
-        $token = $credentials['token'] ?? '';
-
-        // Never persist the raw, replayable bearer credential in the login log.
-        // Record a non-reversible SHA-256 fingerprint instead — this is the same
-        // hash the access token is stored under, so logs remain correlatable
-        // without being usable to authenticate.
-        return $token === '' ? '' : hash('sha256', (string) $token);
     }
 
     /**

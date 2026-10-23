@@ -48,6 +48,51 @@ abstract class StatelessAuthenticator extends Base
     abstract public function attempt(array $credentials = []): Result;
 
     /**
+     * Returns $credentials, or the request token when they carry none.
+     *
+     * @param array<string, mixed> $credentials
+     *
+     * @return array<string, mixed>
+     */
+    protected function resolveTokenCredentials(array $credentials): array
+    {
+        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
+            return ['token' => $this->getTokenFromRequest()];
+        }
+
+        return $credentials;
+    }
+
+    /**
+     * The failed Result for a request that carries no token.
+     */
+    protected function noTokenResult(): Result
+    {
+        return new Result([
+            'success' => false,
+            'reason'  => lang(
+                'Auth.noToken',
+                [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
+            ),
+        ]);
+    }
+
+    /**
+     * Never persists the raw, replayable bearer credential in the login log:
+     * records a non-reversible SHA-256 fingerprint instead (for access tokens
+     * the same hash they are stored under), so logs stay correlatable
+     * without being usable to authenticate.
+     */
+    public function getLogCredentials(array $credentials): mixed
+    {
+        $this->authType = $this->method;
+
+        $token = $credentials['token'] ?? '';
+
+        return $token === '' ? '' : hash('sha256', (string) $token);
+    }
+
+    /**
      * Logs the given user in by saving them to the class.
      */
     public function login(User $user, bool $actions = true): void

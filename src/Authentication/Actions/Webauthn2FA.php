@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authentication\Actions;
 
-use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
 use Daycry\Auth\Entities\User;
@@ -51,36 +50,14 @@ class Webauthn2FA extends AbstractAction
      */
     public function verify(IncomingRequest $request)
     {
-        $authenticator = $this->getSessionAuthenticator();
-        $user          = $authenticator->getPendingUser();
-
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
-
-        $lockoutManager = $authenticator->getLockoutManager();
-        $lockoutResult  = $lockoutManager->isLockedOut($user);
-
-        if ($lockoutResult !== null) {
-            session()->setFlashdata('error', $lockoutResult->reason());
-
-            return $this->view(setting('Auth.views')['webauthn_2fa_verify']);
-        }
-
         $credential = (string) $request->getPost('credential');
 
-        if ($credential === '' || ! service('webAuthnManager')->finishTwoFactor($user, $credential)) {
-            $lockoutManager->recordFailedAttempt($user);
-            session()->setFlashdata('error', lang('Auth.webauthnVerificationFailed'));
-
-            return $this->view(setting('Auth.views')['webauthn_2fa_verify']);
-        }
-
-        $lockoutManager->resetOnSuccess($user);
-        $this->getIdentityModel()->deleteIdentitiesByType($user, $this->type);
-        $authenticator->completeLogin($user);
-
-        return redirect()->to(config('Auth')->loginRedirect());
+        return $this->verifySecondFactor(
+            static fn (User $user): bool => $credential !== ''
+                && service('webAuthnManager')->finishTwoFactor($user, $credential),
+            'webauthn_2fa_verify',
+            'Auth.webauthnVerificationFailed',
+        );
     }
 
     public function createIdentity(User $user): string
@@ -92,14 +69,6 @@ class Webauthn2FA extends AbstractAction
             return '';
         }
 
-        $identityModel->insert([
-            'user_id' => $user->id,
-            'type'    => $this->type,
-            'name'    => 'webauthn_pending',
-            'secret'  => 'webauthn',
-            'extra'   => lang('Auth.needWebauthn'),
-        ]);
-
-        return 'webauthn';
+        return $this->insertPendingMarker($user, 'webauthn_pending', 'webauthn', 'Auth.needWebauthn');
     }
 }

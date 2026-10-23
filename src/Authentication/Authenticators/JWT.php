@@ -53,18 +53,10 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
      */
     public function attempt(array $credentials = []): Result
     {
-        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            $credentials = ['token' => $this->getTokenFromRequest()];
-        }
+        $credentials = $this->resolveTokenCredentials($credentials);
 
         if (empty($credentials['token'])) {
-            return new Result([
-                'success' => false,
-                'reason'  => lang(
-                    'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
-                ),
-            ]);
+            return $this->noTokenResult();
         }
 
         return $this->checkLogin($credentials);
@@ -82,13 +74,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
     public function check(array $credentials = []): Result
     {
         if (! array_key_exists('token', $credentials) || $credentials['token'] === '') {
-            return new Result([
-                'success' => false,
-                'reason'  => lang(
-                    'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
-                ),
-            ]);
+            return $this->noTokenResult();
         }
 
         // Check JWT
@@ -156,18 +142,6 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
     public function getPayload(): mixed
     {
         return $this->payload;
-    }
-
-    public function getLogCredentials(array $credentials): mixed
-    {
-        $this->authType = self::ID_TYPE_JWT;
-
-        $token = $credentials['token'] ?? '';
-
-        // Never persist the full signed JWT in the login log — it is a usable
-        // bearer credential until it expires. Record a non-reversible SHA-256
-        // fingerprint instead so log correlation is preserved without exposure.
-        return $token === '' ? '' : hash('sha256', (string) $token);
     }
 
     /**

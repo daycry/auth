@@ -22,6 +22,7 @@ use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Exceptions\ValidationException;
 use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Traits\GeneratesUuid;
 use Faker\Generator;
 
 /**
@@ -29,6 +30,8 @@ use Faker\Generator;
  */
 class UserModel extends BaseModel implements UserProviderInterface
 {
+    use GeneratesUuid;
+
     protected $table;
     protected $primaryKey     = 'id';
     protected $returnType     = User::class;
@@ -69,24 +72,6 @@ class UserModel extends BaseModel implements UserProviderInterface
         parent::initialize();
 
         $this->table = $this->tables['users'];
-    }
-
-    /**
-     * Generates a UUID v7 for new user records.
-     *
-     * Model event callback called by `beforeInsert`.
-     *
-     * @param array<string, mixed> $data
-     *
-     * @return array<string, mixed>
-     */
-    protected function generateUuid(array $data): array
-    {
-        if (empty($data['data']['uuid'])) {
-            $data['data']['uuid'] = service('uuid')->uuid7()->toRfc4122();
-        }
-
-        return $data;
     }
 
     /**

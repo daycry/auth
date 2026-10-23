@@ -303,22 +303,7 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.emailNotFoundInOauth'));
         }
 
-        $extraData = ['refresh_token' => $token->getRefreshToken()];
-
-        // Scopes (RFC 6749 §3.3: space-delimited)
-        $tokenValues = $token->getValues();
-        if (isset($tokenValues['scope'])) {
-            $extraData['scopes_granted'] = is_string($tokenValues['scope'])
-                ? explode(' ', $tokenValues['scope'])
-                : (array) $tokenValues['scope'];
-        }
-
-        if ($profileData !== []) {
-            $extraData['profile']            = $profileData;
-            $extraData['profile_fetched_at'] = Time::now()->toDateTimeString();
-        }
-
-        $extraJson = json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $extraJson = $this->buildIdentityExtra($token, $profileData);
 
         // Explicit linking mode: an authenticated user is attaching this provider
         // to their own account (initiated via OauthController::link). This skips
@@ -338,14 +323,7 @@ class OauthManager
             $user = $identity->user();
 
             // Update token and profile data on re-login
-            $identity->secret2 = $token->getToken();
-            $identity->extra   = $extraJson;
-
-            if ($token->getExpires()) {
-                $identity->expires = Time::createFromTimestamp($token->getExpires());
-            }
-
-            $repo->updateOAuthIdentity($identity);
+            $this->refreshIdentity($identity, $token, $extraJson);
         } else {
             $provider = auth()->getProvider();
             $user     = $provider->findByCredentials(['email' => $email]);
@@ -365,13 +343,7 @@ class OauthManager
                 $user = $this->registerUser($provider, $email);
             }
 
-            $repo->createOAuthIdentity((int) $user->id, $this->providerName, [
-                'name'    => $name ?? $email,
-                'secret'  => $socialId,
-                'secret2' => $token->getToken(),
-                'extra'   => $extraJson,
-                'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
-            ]);
+            $this->createIdentity((int) $user->id, $socialId, $name ?? $email, $token, $extraJson);
         }
 
         // Password login refuses banned users in checkLogin(); login() does not.
@@ -382,6 +354,62 @@ class OauthManager
         auth()->login($user);
 
         return $user;
+    }
+
+    /**
+     * Builds the identity's `extra` JSON: refresh token, granted scopes and,
+     * when resolved, the extra profile fields.
+     *
+     * @param array<string, mixed> $profileData
+     */
+    protected function buildIdentityExtra(AccessTokenInterface $token, array $profileData = []): string
+    {
+        $extraData = ['refresh_token' => $token->getRefreshToken()];
+
+        // Scopes (RFC 6749 §3.3: space-delimited)
+        $tokenValues = $token->getValues();
+        if (isset($tokenValues['scope'])) {
+            $extraData['scopes_granted'] = is_string($tokenValues['scope'])
+                ? explode(' ', $tokenValues['scope'])
+                : (array) $tokenValues['scope'];
+        }
+
+        if ($profileData !== []) {
+            $extraData['profile']            = $profileData;
+            $extraData['profile_fetched_at'] = Time::now()->toDateTimeString();
+        }
+
+        return json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Stores the provider's current access token, expiry and extra data on
+     * an existing OAuth identity.
+     */
+    protected function refreshIdentity(UserIdentity $identity, AccessTokenInterface $token, string $extraJson): void
+    {
+        $identity->secret2 = $token->getToken();
+        $identity->extra   = $extraJson;
+
+        if ($token->getExpires()) {
+            $identity->expires = Time::createFromTimestamp($token->getExpires());
+        }
+
+        $this->getRepository()->updateOAuthIdentity($identity);
+    }
+
+    /**
+     * Creates the current provider's OAuth identity for the user.
+     */
+    protected function createIdentity(int $userId, string $socialId, string $name, AccessTokenInterface $token, string $extraJson): void
+    {
+        $this->getRepository()->createOAuthIdentity($userId, $this->providerName, [
+            'name'    => $name,
+            'secret'  => $socialId,
+            'secret2' => $token->getToken(),
+            'extra'   => $extraJson,
+            'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
+        ]);
     }
 
     /**
@@ -440,22 +468,9 @@ class OauthManager
             }
 
             // Already linked to this user — refresh the stored token/profile.
-            $existing->secret2 = $token->getToken();
-            $existing->extra   = $extraJson;
-
-            if ($token->getExpires()) {
-                $existing->expires = Time::createFromTimestamp($token->getExpires());
-            }
-
-            $repo->updateOAuthIdentity($existing);
+            $this->refreshIdentity($existing, $token, $extraJson);
         } else {
-            $repo->createOAuthIdentity($userId, $this->providerName, [
-                'name'    => $name ?? $email,
-                'secret'  => $socialId,
-                'secret2' => $token->getToken(),
-                'extra'   => $extraJson,
-                'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
-            ]);
+            $this->createIdentity($userId, $socialId, $name ?? $email, $token, $extraJson);
         }
 
         auth()->login($user);

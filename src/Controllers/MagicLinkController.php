@@ -54,7 +54,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function loginView(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
+        if ($this->magicLinkDisabled()) {
             return $this->handleError(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
@@ -77,7 +77,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function loginAction(): RedirectResponse
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
+        if ($this->magicLinkDisabled()) {
             return $this->handleError(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
@@ -166,9 +166,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function messageView(): ResponseInterface
     {
-        $content = $this->view(setting('Auth.views')['magic-link-message']);
-
-        return $this->response->setBody($content);
+        return $this->response->setBody($this->displayMessage());
     }
 
     /**
@@ -177,7 +175,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function codeView(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
+        if ($this->magicLinkDisabled(true)) {
             return $this->handleError(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
@@ -198,27 +196,22 @@ class MagicLinkController extends BaseAuthController
      */
     public function verify(): RedirectResponse
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
+        if ($this->magicLinkDisabled()) {
             return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
         }
 
         $token = $this->request->getGet('token');
+        // A malformed query (e.g. token[]=x) is just an unknown token.
+        $token = is_string($token) ? $token : null;
 
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
 
         $identity = $identityModel->getIdentityBySecret(Session::ID_TYPE_MAGIC_LINK, $token);
 
-        $identifier = $token ?? '';
-
         // No token found?
         if ($identity === null) {
-            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false);
-
-            $credentials = ['magicLinkToken' => $token];
-            Events::trigger('failedLogin', $credentials);
-
-            return redirect()->route('magic-link')->with('error', lang('Auth.magicTokenNotFound'));
+            return $this->failLinkVerification($token, lang('Auth.magicTokenNotFound'));
         }
 
         // Delete the db entry so it cannot be used again.
@@ -226,48 +219,33 @@ class MagicLinkController extends BaseAuthController
 
         // Token expired?
         if (Time::now()->isAfter($identity->expires)) {
-            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false);
+            return $this->failLinkVerification($token, lang('Auth.magicLinkExpired'));
+        }
 
-            $credentials = ['magicLinkToken' => $token];
-            Events::trigger('failedLogin', $credentials);
+        $user = $this->provider->findById($identity->user_id);
 
-            return redirect()->route('magic-link')->with('error', lang('Auth.magicLinkExpired'));
+        // The account behind the token no longer exists.
+        if ($user === null) {
+            return $this->failLinkVerification($token, lang('Auth.magicTokenNotFound'));
         }
 
         // A banned user must not get a session (password login refuses them
         // in checkLogin(); loginById() does not check).
-        $user = $this->provider->findById($identity->user_id);
-
-        if ($user !== null && $user->isBanned()) {
-            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false, $user->id);
-            Events::trigger('failedLogin', ['magicLinkToken' => $token]);
-
-            return $this->bannedUserRedirect($user);
+        if ($user->isBanned()) {
+            return $this->failLinkVerification($token, $this->banMessage($user), $user->id);
         }
 
         /** @var Session $authenticator */
         $authenticator = auth('session')->getAuthenticator();
 
         // If an action has been defined
-        if ($authenticator->hasAction($identity->user_id)) {
+        if ($authenticator->hasAction($user->id)) {
             return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
         }
 
-        // Log the user in
-        $authenticator->loginById($identity->user_id);
+        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $token ?? '', true, $user->id);
 
-        $user = $authenticator->getUser();
-
-        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, true, $user->id);
-
-        // Give the developer a way to know the user
-        // logged in via a magic link.
-        session()->setTempdata('magicLogin', true);
-
-        Events::trigger('magicLogin');
-
-        // Get our login redirect url
-        return redirect()->to(config('Auth')->loginRedirect());
+        return $this->completeMagicLogin($authenticator, $user);
     }
 
     /**
@@ -278,7 +256,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function verifyCode(): RedirectResponse
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
+        if ($this->magicLinkDisabled(true)) {
             return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
         }
 
@@ -325,7 +303,7 @@ class MagicLinkController extends BaseAuthController
                     $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, false, $user->id);
                     Events::trigger('failedLogin', ['magicCode' => $code]);
 
-                    return $this->bannedUserRedirect($user);
+                    return redirect()->route('magic-link')->with('error', $this->banMessage($user));
                 }
 
                 $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
@@ -335,11 +313,7 @@ class MagicLinkController extends BaseAuthController
                     return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
                 }
 
-                $authenticator->loginById($user->id);
-                session()->setTempdata('magicLogin', true);
-                Events::trigger('magicLogin');
-
-                return redirect()->to(config('Auth')->loginRedirect());
+                return $this->completeMagicLogin($authenticator, $user);
             }
 
             // Existing user, bad/expired code → count the failed attempt.
@@ -354,12 +328,49 @@ class MagicLinkController extends BaseAuthController
     }
 
     /**
-     * Sends a banned user back to the magic-link form with the ban message.
+     * Whether magic-link logins are off (or, with $code, the code mode).
      */
-    protected function bannedUserRedirect(User $user): RedirectResponse
+    protected function magicLinkDisabled(bool $code = false): bool
     {
-        return redirect()->route('magic-link')
-            ->with('error', $user->getBanMessage() ?? lang('Auth.bannedUser'));
+        return ! setting('AuthSecurity.allowMagicLinkLogins')
+            || ($code && ! setting('AuthSecurity.magicLinkEnableCode'));
+    }
+
+    /**
+     * Records the failed link verification, fires `failedLogin` and sends the
+     * user back to the magic-link form with $error.
+     */
+    protected function failLinkVerification(?string $token, string $error, ?int $userId = null): RedirectResponse
+    {
+        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $token ?? '', false, $userId);
+
+        Events::trigger('failedLogin', ['magicLinkToken' => $token]);
+
+        return redirect()->route('magic-link')->with('error', $error);
+    }
+
+    /**
+     * Signs the verified user in and flags the session as a magic login.
+     */
+    protected function completeMagicLogin(Session $authenticator, User $user): RedirectResponse
+    {
+        $authenticator->loginById($user->id);
+
+        // Give the developer a way to know the user
+        // logged in via a magic link.
+        session()->setTempdata('magicLogin', true);
+
+        Events::trigger('magicLogin');
+
+        return redirect()->to(config('Auth')->loginRedirect());
+    }
+
+    /**
+     * The message shown to a banned user.
+     */
+    protected function banMessage(User $user): string
+    {
+        return $user->getBanMessage() ?? lang('Auth.bannedUser');
     }
 
     /**

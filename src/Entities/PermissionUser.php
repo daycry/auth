@@ -13,42 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Entities;
 
-use Daycry\Auth\Models\PermissionModel;
+use Daycry\Auth\Traits\BelongsToPermission;
 use Daycry\Auth\Traits\BelongsToUser;
 
-class PermissionUser extends Entity
+/**
+ * A permission granted directly to a user (`permissions_users` row).
+ */
+class PermissionUser extends PivotEntity
 {
+    use BelongsToPermission;
     use BelongsToUser;
-
-    /**
-     * Group $group
-     */
-    private ?Permission $permission = null;
-
-    /**
-     * @var         list<string>
-     * @phpstan-var list<string>
-     * @psalm-var list<string>
-     */
-    protected $dates = [
-        'created_at',
-        'updated_at',
-        'deleted_at',
-        'until_at',
-    ];
-
-    /**
-     * Get Permission
-     */
-    public function getPermission()
-    {
-        if ($this->permission instanceof Permission) {
-            return $this->permission;
-        }
-
-        $groupModel       = model(PermissionModel::class);
-        $this->permission = $groupModel->where('id', $this->attributes['permission_id'])->first();
-
-        return $this->permission;
-    }
 }

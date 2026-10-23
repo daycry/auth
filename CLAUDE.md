@@ -148,7 +148,7 @@ Base (abstract)
 
 `AccessToken` and `JWT` both override `loginById()` minimally; all shared stateless logic lives in `StatelessAuthenticator`. `Session` is independent because its lifecycle is fundamentally different.
 
-**Critical**: `loggedIn()` on stateless authenticators re-validates the token on **every call** (no in-memory cache between calls). Calling `auth()->loggedIn()` twice in a request hits the DB/JWT check twice.
+**Note**: `loggedIn()` on stateless authenticators validates the request token on the **first** call only; once a user is resolved it short-circuits on the in-memory `$this->user` (see `StatelessAuthenticator::loggedIn()`). Shared helpers for both live there too: `resolveTokenCredentials()`, `noTokenResult()`, `getLogCredentials()` (SHA-256 fingerprint).
 
 ### Session delegates to focused services
 

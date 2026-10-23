@@ -14,9 +14,12 @@ declare(strict_types=1);
 namespace Daycry\Auth\Models;
 
 use Daycry\Auth\Entities\WebAuthnCredential;
+use Daycry\Auth\Traits\GeneratesUuid;
 
 class WebAuthnCredentialModel extends BaseModel
 {
+    use GeneratesUuid;
+
     protected $primaryKey     = 'id';
     protected $returnType     = WebAuthnCredential::class;
     protected $useSoftDeletes = false;
@@ -34,20 +37,6 @@ class WebAuthnCredentialModel extends BaseModel
         parent::initialize();
 
         $this->table = $this->tables['webauthn_credentials'];
-    }
-
-    /**
-     * @param array{data: array<string, mixed>} $data
-     *
-     * @return array{data: array<string, mixed>}
-     */
-    protected function generateUuid(array $data): array
-    {
-        if (empty($data['data']['uuid'])) {
-            $data['data']['uuid'] = service('uuid')->uuid7()->toRfc4122();
-        }
-
-        return $data;
     }
 
     public function firstActiveByCredentialId(string $credentialId): ?WebAuthnCredential
