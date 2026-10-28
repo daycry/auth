@@ -1,6 +1,6 @@
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate?business=SYC5XDT23UZ5G&no_recurring=0&item_name=Thank+you%21&currency_code=EUR)
 
-# Daycry Auth
+# Daycry Auth: Authentication and Authorization for CodeIgniter 4
 
 <!-- Tests & coverage -->
 [![Tests](https://github.com/daycry/auth/actions/workflows/phpunit.yml/badge.svg?branch=main)](https://github.com/daycry/auth/actions/workflows/phpunit.yml)
@@ -97,7 +97,7 @@ composer require daycry/auth
 
 ### Requirements
 
-- PHP **8.1** or higher
+- PHP **8.2** or higher
 - CodeIgniter **4.4** or higher
 - Composer
 
