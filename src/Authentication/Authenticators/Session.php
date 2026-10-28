@@ -702,8 +702,6 @@ class Session extends Base implements AuthenticatorInterface
             $this->shouldRemember = false;
         } elseif (! in_array($this->rememberMe->getRememberMeToken(), [null, '', '0'], true)) {
             $this->rememberMe->removeKey();
-
-            // @TODO delete the token record.
         }
 
         // Maintenance only (expiry is enforced at validation time), so it
@@ -752,6 +750,20 @@ class Session extends Base implements AuthenticatorInterface
      */
     private function checkUserState(): void
     {
+        if ($this->getSessionKey('id') !== null && ! $this->getSessionKey('auth_action') && $this->sessionTimedOut()) {
+            if ($this->tracksDeviceSessions()) {
+                $this->deviceRecorder->terminateCurrentSession();
+            }
+            $this->rememberMe->removeKey();
+            $this->removeSessionUserInfo();
+            session()->remove([self::AUTHENTICATED_AT_KEY, 'auth_mfa_user', 'auth_mfa_at', 'password_confirmed_at', 'auth_step_up_user', 'auth_session_started_at', 'auth_last_activity_at']);
+            session()->set('auth_session_expired', true);
+            $this->user      = null;
+            $this->userState = AuthenticationState::ANONYMOUS;
+
+            return;
+        }
+
         if ($this->userState !== AuthenticationState::UNKNOWN) {
             // Checked already.
             return;
@@ -802,7 +814,7 @@ class Session extends Base implements AuthenticatorInterface
 
         // No User Info in Session.
         // Check remember-me token.
-        if (setting('Auth.sessionConfig')['allowRemembering']) {
+        if (setting('Auth.sessionConfig')['allowRemembering'] && ! session('auth_session_expired')) {
             if ($this->checkRememberMe()) {
                 $this->setAuthAction();
             }
@@ -811,6 +823,28 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         $this->userState = AuthenticationState::ANONYMOUS;
+    }
+
+    /**
+     * Authentication lifetime is independent of the PHP session storage TTL.
+     * Missing stamps on sessions created before this release are initialized
+     * on their first request, so enabling a timeout has a bounded grace period.
+     */
+    protected function sessionTimedOut(): bool
+    {
+        $config   = setting('Auth.sessionConfig');
+        $now      = time();
+        $started  = (int) (session('auth_session_started_at') ?? $now);
+        $last     = (int) (session('auth_last_activity_at') ?? $now);
+        $idle     = (int) ($config['idleTimeout'] ?? 0);
+        $absolute = (int) ($config['absoluteTimeout'] ?? 0);
+        if (($idle > 0 && $now - $last >= $idle) || ($absolute > 0 && $now - $started >= $absolute)) {
+            return true;
+        }
+        session()->set('auth_session_started_at', $started);
+        session()->set('auth_last_activity_at', $now);
+
+        return false;
     }
 
     /**
@@ -864,6 +898,15 @@ class Session extends Base implements AuthenticatorInterface
             return false;
         }
 
+        $absolute = (int) (setting('Auth.sessionConfig')['absoluteTimeout'] ?? 0);
+        $issued   = isset($token->created_at) ? strtotime((string) $token->created_at) : false;
+        if ($absolute > 0 && ($issued === false || time() - $issued >= $absolute)) {
+            $this->rememberMe->removeKey();
+            $this->userState = AuthenticationState::ANONYMOUS;
+
+            return false;
+        }
+
         $user = $this->provider->findById($token->user_id);
 
         // A deleted or banned user must not be signed back in by the cookie.
@@ -877,6 +920,12 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         $this->startLogin($user);
+
+        // Refreshing the cookie may extend its storage TTL, but never the
+        // absolute authentication lifetime measured from its initial issue.
+        if ($absolute > 0) {
+            session()->set('auth_session_started_at', $issued);
+        }
 
         $this->rememberMe->refresh($token);
 
@@ -905,6 +954,10 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         $this->user = $user;
+
+        session()->remove(['auth_mfa_user', 'auth_mfa_at', 'password_confirmed_at', 'auth_step_up_user', self::AUTHENTICATED_AT_KEY, 'auth_session_expired']);
+        session()->set('auth_session_started_at', time());
+        session()->set('auth_last_activity_at', time());
 
         // Regenerate the session ID to help protect against session fixation
         if (ENVIRONMENT !== 'testing') {

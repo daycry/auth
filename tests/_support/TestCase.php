@@ -17,6 +17,7 @@ use CodeIgniter\Config\Factories;
 use CodeIgniter\Settings\Config\Settings as SettingsConfig;
 use CodeIgniter\Settings\Settings;
 use CodeIgniter\Test\CIUnitTestCase;
+use CodeIgniter\Test\Mock\MockCache;
 use Config\Encryption;
 use Config\Security;
 use Config\Services;
@@ -35,6 +36,9 @@ abstract class TestCase extends CIUnitTestCase
         $this->resetServices();
 
         parent::setUp();
+
+        // Rate buckets and permission caches are isolated between tests.
+        Services::injectMock('cache', new MockCache());
 
         // Use Array Settings Handler
         /** @var SettingsConfig $configSettings */

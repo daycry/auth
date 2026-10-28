@@ -152,4 +152,27 @@ final class PasswordConfirmFilterTest extends FilterTestCase
 
         $result->assertStatus(302);
     }
+
+    public function testFutureConfirmationDoesNotPass(): void
+    {
+        $user   = fake(UserModel::class);
+        $result = $this->withSession([
+            'user'                  => ['id' => $user->id],
+            'password_confirmed_at' => time() + 3600,
+        ])->get('protected-route');
+
+        $result->assertStatus(302);
+    }
+
+    public function testConfirmationBoundToAnotherUserDoesNotPass(): void
+    {
+        $user   = fake(UserModel::class);
+        $result = $this->withSession([
+            'user'                  => ['id' => $user->id],
+            'password_confirmed_at' => time(),
+            'auth_step_up_user'     => 'other-user',
+        ])->get('protected-route');
+
+        $result->assertStatus(302);
+    }
 }

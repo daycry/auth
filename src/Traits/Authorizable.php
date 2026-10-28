@@ -742,8 +742,6 @@ trait Authorizable
      */
     private function saveGroups(): void
     {
-        $model = $this->groupUserModel();
-
         $names = $this->groupCache;
 
         $cache = [];
@@ -754,7 +752,7 @@ trait Authorizable
 
         $existing = array_column($this->getAllUserGroups(), 'id');
 
-        $this->saveGroupsOrPermissions('group_id', $model, $cache, $existing);
+        service('groupPermissionRepository')->saveUserGroups($this->id, $cache, $existing);
 
         // Invalidate persistent cache after DB write
         if ($this->permissionCacheEnabled()) {
@@ -770,8 +768,6 @@ trait Authorizable
      */
     private function savePermissions(): void
     {
-        $model = $this->permissionUserModel();
-
         $names = $this->permissionsCache;
 
         $cache = [];
@@ -782,22 +778,11 @@ trait Authorizable
 
         $existing = array_column($this->getAllUserPermissions(), 'id');
 
-        $this->saveGroupsOrPermissions('permission_id', $model, $cache, $existing);
+        service('groupPermissionRepository')->saveUserPermissions($this->id, $cache, $existing);
 
         // Invalidate persistent cache after DB write
         if ($this->permissionCacheEnabled()) {
             cache()->delete($this->getPermissionCacheKey('permissions'));
         }
-    }
-
-    /**
-     * @param         GroupUserModel|PermissionUserModel $model
-     * @phpstan-param 'group_id'|'permission_id'         $type
-     */
-    private function saveGroupsOrPermissions(string $type, $model, array $cache, array $existing): void
-    {
-        // Persistence (and its transaction) lives in the repository, so the
-        // entity itself no longer opens DB transactions.
-        service('groupPermissionRepository')->saveUserPivot($this->id, $type, $model, $cache, $existing);
     }
 }

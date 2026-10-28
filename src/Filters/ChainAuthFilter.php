@@ -18,6 +18,7 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\Response;
 use CodeIgniter\HTTP\ResponseInterface;
+use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
 use Exception;
 
@@ -69,7 +70,12 @@ class ChainAuthFilter implements FilterInterface
                     // Make sure Auth uses this Authenticator
                     auth()->setAuthenticator($alias);
 
-                    return null;
+                    // A matching first-factor session must satisfy MFA before
+                    // this chain can grant application access. Do not fall
+                    // through to another authenticator after a policy denial.
+                    return auth()->getAuthenticator() instanceof Session
+                        ? (new MfaRequiredFilter())->before($request)
+                        : null;
                 }
             } catch (Exception) {
                 continue;

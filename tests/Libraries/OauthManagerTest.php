@@ -366,7 +366,7 @@ final class OauthManagerTest extends TestCase
     public function testHandleCallbackAllowsUnverifiedEmailLinkWhenProviderOptsIn(): void
     {
         $config                       = new AuthConfig();
-        $config->providers['generic'] = ['allowUnverifiedEmailLink' => true];
+        $config->providers['generic'] = ['allowUnverifiedEmailLink' => true, 'pkce' => false];
         $manager                      = new OauthManager($config);
 
         $userModel = new UserModel();
@@ -452,6 +452,7 @@ final class OauthManagerTest extends TestCase
         // Configure fields for the generic provider
         $config                                   = new AuthConfig();
         $config->providers['generic_with_fields'] = [
+            'pkce'         => false, // This profile-only fixture bypasses the redirect ceremony.
             'clientId'     => 'test',
             'clientSecret' => 'test',
             'redirectUri'  => 'http://localhost/callback',
@@ -838,6 +839,7 @@ final class OauthManagerTest extends TestCase
             'clientSecret' => 'test',
             'redirectUri'  => 'http://localhost/callback',
             'fields'       => ['role'],
+            'pkce'         => false,
         ];
 
         $manager = new OauthManager($config);
@@ -923,6 +925,7 @@ final class OauthManagerTest extends TestCase
             'clientSecret' => 'test',
             'redirectUri'  => 'http://localhost/callback',
             'fields'       => ['role'],
+            'pkce'         => false,
         ];
 
         $manager = new OauthManager($config);

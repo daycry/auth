@@ -27,7 +27,7 @@ class ChallengeManager
     private const LABEL_KEY   = '_webauthn_label';
 
     /**
-     * @param '2fa'|'login'|'register' $type
+     * @param '2fa'|'login'|'register'|'step-up' $type
      */
     public function store(string $type, string $optionsJson, int|string|null $userId = null): void
     {
@@ -43,7 +43,7 @@ class ChallengeManager
      * Returns the stored entry and deletes it (single-use) when it matches the
      * expected type/user and has not expired; null otherwise.
      *
-     * @param '2fa'|'login'|'register' $type
+     * @param '2fa'|'login'|'register'|'step-up' $type
      *
      * @return array{type: string, options: string, user_id: int|string|null, created_at: int}|null
      */

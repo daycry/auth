@@ -52,7 +52,9 @@ class AuthFilter implements FilterInterface
         $config = config(Auth::class);
 
         if ($authenticator instanceof Session) {
-            return $this->handleSessionAuthentication($authenticator, $config);
+            $response = $this->handleSessionAuthentication($authenticator, $config);
+
+            return $response ?? (new MfaRequiredFilter())->before($request);
         }
 
         return $this->handleTokenAuthentication($authenticator);

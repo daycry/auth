@@ -54,7 +54,7 @@ class JwtController extends BaseAuthController
     public function login(): ResponseInterface
     {
         $rules    = $this->getValidationRules();
-        $postData = $this->request->getPost();
+        $postData = $this->authRequestData();
 
         if (! $this->validateRequest($postData, $rules)) {
             return $this->response->setStatusCode(422)->setJSON([
@@ -75,7 +75,14 @@ class JwtController extends BaseAuthController
 
         $user = $result->extraInfo();
 
-        return $this->response->setJSON($this->buildTokenResponse($user));
+        $mfaVerified = $this->verifyLoginMfa($user);
+        if (($denied = $this->mandatoryMfaDenial($user, $mfaVerified)) !== null) {
+            return $denied;
+        }
+
+        $authenticator->getLockoutManager()->resetOnSuccess($user);
+
+        return $this->response->setJSON($this->buildTokenResponse($user, null, $mfaVerified));
     }
 
     /**
@@ -86,26 +93,14 @@ class JwtController extends BaseAuthController
      */
     public function refresh(): ResponseInterface
     {
-        $userId       = (int) $this->request->getPost('user_id');
-        $refreshToken = (string) $this->request->getPost('refresh_token');
+        $userId       = (int) $this->authInput('user_id');
+        $refreshToken = (string) $this->authInput('refresh_token');
 
         if ($userId === 0 || $refreshToken === '') {
             return $this->response->setStatusCode(401)->setJSON([
                 'message' => lang('Auth.invalidRefreshToken'),
             ]);
         }
-
-        $repository = service('jwtTokenRepository');
-        $identity   = $repository->getRefreshToken($userId, $refreshToken);
-
-        if ($identity === null) {
-            return $this->response->setStatusCode(401)->setJSON([
-                'message' => lang('Auth.invalidRefreshToken'),
-            ]);
-        }
-
-        // Revoke the used refresh token (rotation — one-time use)
-        $repository->softRevokeRefreshToken((int) $identity->id, $userId, 'rotation');
 
         $user = auth()->getProvider()->findById($userId);
 
@@ -117,7 +112,21 @@ class JwtController extends BaseAuthController
             ]);
         }
 
-        return $this->response->setJSON($this->buildTokenResponse($user));
+        $repository  = service('jwtTokenRepository');
+        $identity    = $repository->getRefreshToken($userId, $refreshToken);
+        $metadata    = $identity === null ? [] : json_decode((string) $identity->extra, true);
+        $mfaVerified = is_array($metadata) && ($metadata['mfa_verified'] ?? false) === true;
+        if ($identity !== null && ($denied = $this->mandatoryMfaDenial($user, $mfaVerified)) !== null) {
+            return $denied;
+        }
+
+        $replacement = bin2hex(random_bytes(32));
+        $expiresAt   = Time::now()->addSeconds((int) setting('AuthSecurity.jwtRefreshLifetime'))->format('Y-m-d H:i:s');
+        if (! service('jwtTokenRepository')->rotateRefreshToken($userId, $refreshToken, $replacement, $expiresAt)) {
+            return $this->response->setStatusCode(401)->setJSON(['message' => lang('Auth.invalidRefreshToken')]);
+        }
+
+        return $this->response->setJSON($this->buildTokenResponse($user, $replacement, $mfaVerified));
     }
 
     /**
@@ -128,8 +137,8 @@ class JwtController extends BaseAuthController
      */
     public function logout(): ResponseInterface
     {
-        $userId       = (int) $this->request->getPost('user_id');
-        $refreshToken = (string) $this->request->getPost('refresh_token');
+        $userId       = (int) $this->authInput('user_id');
+        $refreshToken = (string) $this->authInput('refresh_token');
 
         if ($userId > 0 && $refreshToken !== '') {
             $repository = service('jwtTokenRepository');
@@ -144,6 +153,48 @@ class JwtController extends BaseAuthController
     }
 
     /**
+     * Password-only JWT grants cannot satisfy a mandatory second factor.
+     */
+    protected function mandatoryMfaDenial(User $user, bool $verified): ?ResponseInterface
+    {
+        $policy = service('mfaPolicy');
+        if (! $policy->requires($user) || $verified) {
+            return null;
+        }
+
+        return $this->response->setStatusCode(403)->setJSON([
+            'message' => lang('Auth.passwordConfirmRequired'),
+            'error'   => $policy->hasFactor($user) ? 'mfa_required' : 'mfa_enrollment_required',
+        ]);
+    }
+
+    /**
+     * Verify a code or a second-factor proof bound to this same live session.
+     */
+    protected function verifyLoginMfa(User $user): bool
+    {
+        $session = $this->getSessionAuthenticator();
+        $policy  = service('mfaPolicy');
+        if (! $policy->hasFactor($user)) {
+            return false;
+        }
+        if ($session->loggedIn() && (string) $session->getUser()?->id === (string) $user->id && $policy->verified($user)) {
+            return true;
+        }
+
+        $code = (string) $this->authInput('mfa_code');
+        if ($code === '') {
+            return false;
+        }
+        if (($user->hasTotpEnabled() && $user->verifyTotpCode($code)) || $user->consumeBackupCode($code)) {
+            return true;
+        }
+        $session->getLockoutManager()->recordFailedAttempt($user);
+
+        return false;
+    }
+
+    /**
      * Builds the token pair response for a given user.
      *
      * Generates a JWT access token (via the configured adapter) and a new
@@ -153,7 +204,7 @@ class JwtController extends BaseAuthController
      *
      * @return array<string, mixed>
      */
-    private function buildTokenResponse(object $user): array
+    private function buildTokenResponse(object $user, ?string $rotatedRefresh = null, bool $mfaVerified = false): array
     {
         // Generate access token via the configured JWT adapter. The payload
         // embeds the user's current token_version so the token can be revoked
@@ -164,15 +215,18 @@ class JwtController extends BaseAuthController
         $accessToken = $adapter->encode([
             'uid' => $user->id,
             'tv'  => (int) ($user->token_version ?? 0),
+            'mfa' => $mfaVerified,
         ]);
 
         // Generate and persist a new refresh token
-        $rawRefresh = bin2hex(random_bytes(32));
+        $rawRefresh = $rotatedRefresh ?? bin2hex(random_bytes(32));
         $expiresAt  = Time::now()
             ->addSeconds((int) setting('AuthSecurity.jwtRefreshLifetime'))
             ->format('Y-m-d H:i:s');
 
-        service('jwtTokenRepository')->createRefreshToken((int) $user->id, $rawRefresh, $expiresAt);
+        if ($rotatedRefresh === null) {
+            service('jwtTokenRepository')->createRefreshToken((int) $user->id, $rawRefresh, $expiresAt, $mfaVerified);
+        }
 
         return [
             'access_token'  => $accessToken,

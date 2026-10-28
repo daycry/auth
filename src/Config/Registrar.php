@@ -20,6 +20,7 @@ use Daycry\Auth\Filters\ChainAuthFilter;
 use Daycry\Auth\Filters\ForcePasswordResetFilter;
 use Daycry\Auth\Filters\GateFilter;
 use Daycry\Auth\Filters\GroupFilter;
+use Daycry\Auth\Filters\MfaRequiredFilter;
 use Daycry\Auth\Filters\PasswordAgeFilter;
 use Daycry\Auth\Filters\PasswordConfirmFilter;
 use Daycry\Auth\Filters\PermissionFilter;
@@ -47,6 +48,7 @@ class Registrar
                 'token-scope'      => TokenScopeFilter::class,
                 'password-age'     => PasswordAgeFilter::class,
                 'password-confirm' => PasswordConfirmFilter::class,
+                'mfa-required'     => MfaRequiredFilter::class,
             ],
         ];
     }

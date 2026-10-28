@@ -15,6 +15,7 @@ namespace Daycry\Auth\Services;
 
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Interfaces\PasswordChangeRecorderInterface;
 use Daycry\Auth\Models\PasswordHistoryModel;
 use Daycry\Auth\Models\UserModel;
 use Throwable;
@@ -30,7 +31,7 @@ use Throwable;
  * prior hash) but *after* validation passes. Failures inside the recorder
  * never propagate — the user-visible flow is the source of truth.
  */
-class PasswordChangeRecorder
+class PasswordChangeRecorder implements PasswordChangeRecorderInterface
 {
     /**
      * @param string|null $previousHash The bcrypt hash *before* this change.

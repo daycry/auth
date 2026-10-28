@@ -42,6 +42,13 @@ abstract class AbstractAuthFilter implements FilterInterface
             return $this->handleUnauthenticated();
         }
 
+        if (auth()->getAuthenticator() instanceof Session) {
+            $mfaResponse = (new MfaRequiredFilter())->before($request);
+            if ($mfaResponse !== null) {
+                return $mfaResponse;
+            }
+        }
+
         if ($this->isAuthorized($arguments)) {
             return null;
         }

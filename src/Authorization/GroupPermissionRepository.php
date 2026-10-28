@@ -16,6 +16,7 @@ namespace Daycry\Auth\Authorization;
 use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\I18n\Time;
 use Config\Database;
+use Daycry\Auth\Interfaces\GroupPermissionRepositoryInterface;
 use Daycry\Auth\Models\GroupUserModel;
 use Daycry\Auth\Models\PermissionGroupModel;
 use Daycry\Auth\Models\PermissionUserModel;
@@ -27,8 +28,26 @@ use Daycry\Auth\Models\PermissionUserModel;
  * entity no longer opens database transactions itself — that Entity → DB
  * layering inversion is what previously required a deptrac whitelist.
  */
-class GroupPermissionRepository
+class GroupPermissionRepository implements GroupPermissionRepositoryInterface
 {
+    /**
+     * @param list<int|string> $cache
+     * @param list<int|string> $existing
+     */
+    public function saveUserGroups(int|string $userId, array $cache, array $existing): void
+    {
+        $this->saveUserPivot($userId, 'group_id', model(GroupUserModel::class), $cache, $existing);
+    }
+
+    /**
+     * @param list<int|string> $cache
+     * @param list<int|string> $existing
+     */
+    public function saveUserPermissions(int|string $userId, array $cache, array $existing): void
+    {
+        $this->saveUserPivot($userId, 'permission_id', model(PermissionUserModel::class), $cache, $existing);
+    }
+
     /**
      * Syncs a user's pivot rows (groups or permissions) so the persisted set
      * matches $cache: rows not in $cache are removed, and rows in $cache but

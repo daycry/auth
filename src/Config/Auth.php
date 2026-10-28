@@ -160,6 +160,8 @@ class Auth extends BaseConfig
         'rememberCookieName'  => 'remember',
         'rememberLength'      => 30 * DAY,
         'trackDeviceSessions' => true,
+        'idleTimeout'         => 0,
+        'absoluteTimeout'     => 0,
     ];
 
     /**
@@ -344,6 +346,7 @@ class Auth extends BaseConfig
      *                            'security-*-email' (SecurityNotifier notices)
      */
     public array $views = [
+        'security_recovery_codes'     => '\\Daycry\\Auth\\Views\\security\\recovery_codes',
         'login'                       => '\Daycry\Auth\Views\login',
         'register'                    => '\Daycry\Auth\Views\register',
         'layout'                      => '\Daycry\Auth\Views\layout',
@@ -408,14 +411,21 @@ class Auth extends BaseConfig
         'register'          => '/',
         'login'             => '/',
         'logout'            => 'login',
-        'force_reset'       => '/',
+        'force_reset'       => 'auth/force-reset',
         'permission_denied' => '/',
         'group_denied'      => '/',
     ];
 
+    /** Routes definition */
     /**
-     * Routes definition
+     * Filters applied to generated route groups. Set a group to false to opt
+     * out, or pass routeFilters to auth()->routes() for a local override.
+     * The auth mode limits each client network and route independently.
+     *
+     * @var array<string, false|list<string>|string>
      */
+    public array $routeFilters = ['*' => 'rates:auth'];
+
     public array $routes = [
         'register' => [
             [
@@ -590,7 +600,36 @@ class Auth extends BaseConfig
                 'jwt-logout',
             ],
         ],
+        'security' => [
+            ['get', 'account/security', 'UserSecurityController::index', 'security', 'auth:session'],
+            ['post', 'account/security/sessions/revoke', 'UserSecurityController::revokeSession', 'security-revoke-session', 'auth:session'],
+            ['post', 'account/security/sessions/revoke-all', 'UserSecurityController::revokeAllSessions', 'security-revoke-all', 'auth:session'],
+            ['get', 'account/security/totp/setup', 'UserSecurityController::totpSetup', 'totp-setup', 'auth:session'],
+            ['post', 'account/security/totp/setup/confirm', 'UserSecurityController::totpSetupConfirm', 'totp-setup-confirm', 'auth:session'],
+            ['post', 'account/security/totp/disable', 'UserSecurityController::totpDisable', 'totp-disable', 'auth:session'],
+            ['get', 'account/security/activity', 'UserSecurityController::loginActivity', 'security-activity', 'auth:session'],
+            ['get', 'account/security/password', 'UserSecurityController::changePasswordView', 'security-change-password', 'auth:session'],
+            ['post', 'account/security/password', 'UserSecurityController::changePassword', 'security-change-password-action', 'auth:session'],
+            ['get', 'account/security/email', 'UserSecurityController::changeEmailView', 'security-change-email', 'auth:session'],
+            ['post', 'account/security/email', 'UserSecurityController::changeEmail', 'security-change-email-action', 'auth:session'],
+            ['get', 'account/security/email/confirm', 'UserSecurityController::confirmEmailChangeView', 'security-confirm-email', 'auth:session'],
+            ['post', 'account/security/email/confirm', 'UserSecurityController::confirmEmailChange', 'security-confirm-email-action', 'auth:session'],
+            ['post', 'account/security/oauth/(:segment)/unlink', 'UserSecurityController::unlinkOauth/$1', 'security-unlink-oauth', 'auth:session'],
+            ['get', 'account/security/delete', 'UserSecurityController::deleteAccountView', 'security-delete-account', 'auth:session'],
+            ['post', 'account/security/delete', 'UserSecurityController::deleteAccount', 'security-delete-account-action', 'auth:session'],
+            ['get', 'account/security/delete/confirm', 'UserSecurityController::confirmDeleteAccountView', 'security-confirm-delete', 'auth:session'],
+            ['post', 'account/security/delete/confirm', 'UserSecurityController::confirmDeleteAccount', 'security-confirm-delete-action', 'auth:session'],
+            ['get', 'account/security/recovery-codes', 'UserSecurityController::recoveryCodesView', 'security-recovery-codes', 'auth:session'],
+            ['post', 'account/security/recovery-codes', 'UserSecurityController::regenerateRecoveryCodes', 'security-regenerate-recovery-codes', 'auth:session'],
+            ['post', 'account/security/export', 'UserSecurityController::exportData', 'security-export', 'auth:session'],
+        ],
+        'password-confirm' => [
+            ['get', 'auth/confirm-password', 'UserSecurityController::confirmPasswordView', 'password-confirm-show', 'auth:session'],
+            ['post', 'auth/confirm-password', 'UserSecurityController::confirmPasswordAction', 'password-confirm', 'auth:session'],
+            ['post', 'auth/confirm-password/options', 'UserSecurityController::passwordConfirmOptions', 'password-confirm-options', 'auth:session'],
+        ],
         'webauthn' => [
+            ['get', 'webauthn/credentials/sync', 'WebAuthnController::credentialSignals', 'webauthn-credential-sync', 'auth:session'],
             ['post', 'webauthn/register/options', 'WebAuthnController::registerOptions', 'webauthn-register-options'],
             ['post', 'webauthn/register/verify', 'WebAuthnController::registerVerify', 'webauthn-register-verify'],
             ['post', 'webauthn/login/options', 'WebAuthnController::loginOptions', 'webauthn-login-options'],

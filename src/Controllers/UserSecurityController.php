@@ -25,6 +25,8 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Exceptions\DatabaseException;
+use Daycry\Auth\Exceptions\DataExportLimitException;
+use Daycry\Auth\Interfaces\MfaPolicyInterface;
 use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
@@ -157,6 +159,10 @@ class UserSecurityController extends BaseAuthController
     {
         $user = auth()->user();
 
+        if (($denied = $this->requireEnrollmentAuthentication($user)) !== null) {
+            return $denied;
+        }
+
         if ($user->hasTotpEnabled()) {
             return redirect()->route('security')->with('error', 'TOTP is already enabled.');
         }
@@ -181,6 +187,9 @@ class UserSecurityController extends BaseAuthController
     public function totpSetupConfirm(): RedirectResponse|string
     {
         $user = auth()->user();
+        if (($denied = $this->requireEnrollmentAuthentication($user)) !== null) {
+            return $denied;
+        }
         $code = (string) $this->request->getPost('token');
 
         if (! $user->verifyTotpCode($code)) {
@@ -190,6 +199,7 @@ class UserSecurityController extends BaseAuthController
 
         // Mark the secret as confirmed — from this point hasTotpEnabled() returns true.
         $user->confirmTotp();
+        service('mfaPolicy')->markVerified($user);
 
         // Generate backup codes — shown to the user once on this page.
         $backupCodes = $user->generateBackupCodes();
@@ -207,6 +217,12 @@ class UserSecurityController extends BaseAuthController
     {
         $code = (string) $this->request->getPost('token');
         $user = auth()->user();
+
+        /** @var MfaPolicyInterface $policy */
+        $policy = service('mfaPolicy');
+        if ($policy->requires($user) && (! (bool) setting('AuthSecurity.webauthnEnabled') || ! $user->hasWebAuthnCredentials())) {
+            return redirect()->route('security')->with('error', lang('Auth.mfaLastFactorRequired'));
+        }
 
         if (! $user->verifyTotpCode($code)) {
             return redirect()->back()->with('error', lang('Auth.invalidTotpToken'));
@@ -262,7 +278,13 @@ class UserSecurityController extends BaseAuthController
         $views    = setting('Auth.views');
         $viewName = $views['confirm_password'] ?? 'Daycry\Auth\Views\confirm_password';
 
-        $content = $this->view($viewName);
+        $user    = auth()->user();
+        $content = $this->view($viewName, [
+            'hasPassword' => $user !== null && $this->hasUsablePassword($user),
+            'hasTotp'     => $user !== null && $user->hasTotpEnabled(),
+            'hasRecovery' => $user !== null && $user->backupCodesRemaining() > 0,
+            'hasPasskey'  => $user !== null && (bool) setting('AuthSecurity.webauthnEnabled') && $user->hasWebAuthnCredentials(),
+        ]);
 
         return $this->response->setBody($content);
     }
@@ -277,27 +299,64 @@ class UserSecurityController extends BaseAuthController
      *         'Daycry\Auth\Controllers\UserSecurityController::confirmPasswordAction',
      *         ['filter' => 'session', 'as' => 'password-confirm']);
      */
-    public function confirmPasswordAction(): RedirectResponse
+    public function confirmPasswordAction(): ResponseInterface
     {
-        $user     = auth()->user();
-        $password = (string) $this->request->getPost('password');
+        $user   = auth()->user();
+        $factor = (string) ($this->authInput('factor') ?? 'password');
 
-        if ($user === null || $password === '') {
+        if ($user === null) {
+            if ($this->expectsJsonResponse()) {
+                return $this->authJsonResponse(['status' => 'error', 'confirmed' => false, 'message' => lang('Auth.stepUpInvalid')], 401);
+            }
+
             return redirect()->route('password-confirm-show')
-                ->with('error', lang('Auth.invalidPassword'));
+                ->with('error', lang('Auth.stepUpInvalid'));
+        }
+
+        $lockout = $this->getSessionAuthenticator()->getLockoutManager();
+        if (($locked = $lockout->isLockedOut($user)) !== null) {
+            if ($this->expectsJsonResponse()) {
+                return $this->authJsonResponse(['status' => 'error', 'confirmed' => false, 'message' => $locked->reason()], 429);
+            }
+
+            return redirect()->route('password-confirm-show')->with('error', $locked->reason());
         }
 
         /** @var Passwords $passwords */
-        $passwords = service('passwords');
+        $passwords  = service('passwords');
+        $credential = $this->authRequestData()['credential'] ?? '';
+        $credential = is_array($credential) ? json_encode($credential, JSON_THROW_ON_ERROR) : (is_string($credential) ? $credential : '');
+        $verified   = match ($factor) {
+            'recovery' => ($user->hasTotpEnabled() || $user->hasWebAuthnCredentials()) && $user->consumeBackupCode((string) $this->authInput('token')),
+            'totp'     => $user->hasTotpEnabled() && $user->verifyTotpCode((string) $this->authInput('token')),
+            'passkey'  => (bool) setting('AuthSecurity.webauthnEnabled') && $user->hasWebAuthnCredentials()
+                && service('webAuthnManager')->finishStepUp($user, $credential),
+            'password' => $this->hasUsablePassword($user)
+                && $passwords->verify((string) $this->authInput('password'), $user->getPasswordHash()),
+            default => false,
+        };
 
-        if (! $passwords->verify($password, $user->getPasswordHash())) {
+        if (! $verified) {
+            $lockout->recordFailedAttempt($user);
+            if ($this->expectsJsonResponse()) {
+                return $this->authJsonResponse(['status' => 'error', 'confirmed' => false, 'message' => lang('Auth.stepUpInvalid')], 422);
+            }
+
             return redirect()->route('password-confirm-show')
-                ->with('error', lang('Auth.invalidPassword'));
+                ->with('error', lang('Auth.stepUpInvalid'));
         }
 
+        $lockout->resetOnSuccess($user);
         session()->set('password_confirmed_at', time());
+        session()->set('auth_step_up_user', (string) $user->id);
 
-        service('auditLogger')->record(AuditLogger::EVENT_PASSWORD_CONFIRMED, (int) $user->id);
+        if (in_array($factor, ['totp', 'passkey', 'recovery'], true)) {
+            /** @var MfaPolicyInterface $policy */
+            $policy = service('mfaPolicy');
+            $policy->markVerified($user);
+        }
+
+        service('auditLogger')->record(AuditLogger::EVENT_PASSWORD_CONFIRMED, (int) $user->id, ['factor' => $factor]);
 
         $intended = (string) (session()->getTempdata('passwordConfirmIntendedUrl') ?? '');
         session()->removeTempdata('passwordConfirmIntendedUrl');
@@ -306,7 +365,98 @@ class UserSecurityController extends BaseAuthController
             $intended = config('Auth')->loginRedirect();
         }
 
+        if ($this->expectsJsonResponse()) {
+            return $this->authJsonResponse(['status' => 'success', 'confirmed' => true, 'redirect' => $intended]);
+        }
+
         return redirect()->to($intended);
+    }
+
+    /**
+     * A remembered session alone cannot enroll a mandatory first factor.
+     */
+    protected function requireEnrollmentAuthentication(User $user): ?RedirectResponse
+    {
+        /** @var MfaPolicyInterface $policy */
+        $policy = service('mfaPolicy');
+        if (! $policy->requires($user)) {
+            return null;
+        }
+
+        $primaryAt   = (int) session(Session::AUTHENTICATED_AT_KEY);
+        $confirmedAt = (string) session('auth_step_up_user') === (string) $user->id
+            ? (int) session('password_confirmed_at') : 0;
+        $latest   = max($primaryAt, $confirmedAt);
+        $lifetime = max(0, (int) setting('AuthSecurity.passwordConfirmationLifetime'));
+        if ($latest > 0 && $latest <= time() && time() - $latest <= $lifetime) {
+            return null;
+        }
+
+        session()->setTempdata('passwordConfirmIntendedUrl', url_to('totp-setup'), 300);
+
+        return redirect()->route('password-confirm-show')->with('error', lang('Auth.passwordConfirmRequired'));
+    }
+
+    /**
+     * Starts a single-use passkey ceremony bound to the signed-in user.
+     */
+    public function passwordConfirmOptions(): ResponseInterface
+    {
+        $user = auth()->user();
+        if ($user === null) {
+            return $this->response->setStatusCode(401)->setJSON(['message' => lang('Auth.stepUpInvalid')]);
+        }
+        if (! (bool) setting('AuthSecurity.webauthnEnabled') || ! $user->hasWebAuthnCredentials()) {
+            return $this->response->setStatusCode(404)->setJSON(['message' => lang('Auth.stepUpInvalid')]);
+        }
+        if (($locked = $this->getSessionAuthenticator()->getLockoutManager()->isLockedOut($user)) !== null) {
+            return $this->response->setStatusCode(429)->setJSON(['message' => $locked->reason()]);
+        }
+
+        $options          = service('webAuthnManager')->startStepUp($user);
+        $options['token'] = csrf_hash();
+
+        return $this->response->setJSON($options);
+    }
+
+    /**
+     * Shows only a regeneration form; stored recovery codes are never read back.
+     */
+    public function recoveryCodesView(): RedirectResponse|string
+    {
+        $user = auth()->user();
+        if ($user === null || (! $user->hasTotpEnabled() && ! $user->hasWebAuthnCredentials())) {
+            return redirect()->route('security')->with('error', lang('Auth.recoveryCodesUnavailable'));
+        }
+
+        return $this->view(setting('Auth.views')['security_recovery_codes'] ?? 'Daycry\\Auth\\Views\\security\\recovery_codes', ['backupCodes' => []]);
+    }
+
+    /**
+     * Replaces recovery codes only after a recent, user-bound step-up proof.
+     */
+    public function regenerateRecoveryCodes(): ResponseInterface
+    {
+        $user = auth()->user();
+        if ($user === null || (! $user->hasTotpEnabled() && ! $user->hasWebAuthnCredentials())) {
+            return redirect()->route('security')->with('error', lang('Auth.recoveryCodesUnavailable'));
+        }
+
+        $confirmedAt = (int) session('password_confirmed_at');
+        $lifetime    = max(0, (int) setting('AuthSecurity.passwordConfirmationLifetime'));
+        if ((string) session('auth_step_up_user') !== (string) $user->id || $confirmedAt <= 0
+                                                                         || $confirmedAt > time() || $lifetime <= 0 || time() - $confirmedAt > $lifetime) {
+            session()->setTempdata('passwordConfirmIntendedUrl', url_to('security-recovery-codes'), 300);
+
+            return redirect()->route('password-confirm-show')->with('error', lang('Auth.passwordConfirmRequired'));
+        }
+
+        $codes = $user->generateBackupCodes();
+
+        return $this->response->setHeader('Cache-Control', 'no-store')->setBody($this->view(
+            setting('Auth.views')['security_recovery_codes'] ?? 'Daycry\\Auth\\Views\\security\\recovery_codes',
+            ['backupCodes' => $codes],
+        ));
     }
 
     /**
@@ -767,6 +917,41 @@ class UserSecurityController extends BaseAuthController
      * View name for a self-service screen, with a fallback for published
      * Config\Auth::$views arrays that predate the key.
      */
+    public function exportData(): ResponseInterface
+    {
+        $user = auth('session')->user();
+        if ($user === null) {
+            return $this->response->setStatusCode(401)->setJSON(['code' => 'unauthenticated']);
+        }
+
+        $confirmedAt = (int) session('password_confirmed_at');
+        $lifetime    = max(0, (int) setting('AuthSecurity.passwordConfirmationLifetime'));
+        if ((string) session('auth_step_up_user') !== (string) $user->id || $confirmedAt <= 0
+                                                                         || $confirmedAt > time() || $lifetime <= 0 || time() - $confirmedAt >= $lifetime) {
+            if ($this->expectsJsonResponse()) {
+                return $this->response->setStatusCode(403)->setHeader('Cache-Control', 'no-store')->setJSON([
+                    'code'     => 'confirmation_required',
+                    'message'  => lang('Auth.passwordConfirmRequired'),
+                    'redirect' => url_to('password-confirm-show'),
+                ]);
+            }
+            session()->setTempdata('passwordConfirmIntendedUrl', url_to('security'), 300);
+
+            return redirect()->route('password-confirm-show')->with('error', lang('Auth.passwordConfirmRequired'));
+        }
+
+        try {
+            $data = service('userDataExporter')->export($user);
+        } catch (DataExportLimitException $e) {
+            return $this->response->setStatusCode(413)->setHeader('Cache-Control', 'no-store')
+                ->setJSON(['code' => 'export_too_large', 'message' => $e->getMessage()]);
+        }
+
+        return $this->response->setHeader('Cache-Control', 'no-store')
+            ->setHeader('Content-Disposition', 'attachment; filename="account-data.json"')
+            ->setJSON($data);
+    }
+
     protected function viewFor(string $key): string
     {
         $defaults = [

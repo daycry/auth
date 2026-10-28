@@ -80,4 +80,38 @@ final class WebAuthnManagerLoginTest extends DatabaseTestCase
         $this->expectException(WebAuthnException::class);
         $manager->finishLogin($stranger->login(json_encode($options, JSON_THROW_ON_ERROR), (string) $user->uuid));
     }
+
+    public function testStepUpIsUserBoundSingleUseAndSeparateFromLogin(): void
+    {
+        $user  = fake(UserModel::class);
+        $other = fake(UserModel::class);
+        $this->enrol($user);
+        $manager = service('webAuthnManager');
+        $options = $manager->startStepUp($user);
+        $json    = $this->authn->login(json_encode($options, JSON_THROW_ON_ERROR), (string) $user->uuid);
+        $this->assertFalse($manager->finishStepUp($other, $json));
+        $this->assertFalse($manager->finishStepUp($user, $json));
+        $options = $manager->startStepUp($user);
+        $json    = $this->authn->login(json_encode($options, JSON_THROW_ON_ERROR), (string) $user->uuid);
+        $this->assertTrue($manager->finishStepUp($user, $json));
+        $this->assertFalse($manager->finishStepUp($user, $json));
+        $options = $manager->startLogin(null);
+        $json    = $this->authn->login(json_encode($options, JSON_THROW_ON_ERROR), (string) $user->uuid);
+        $this->assertFalse($manager->finishStepUp($user, $json));
+    }
+
+    public function testCredentialSignalsContainOnlyCurrentUsersActiveCredentials(): void
+    {
+        $user  = fake(UserModel::class);
+        $other = fake(UserModel::class);
+        $this->enrol($user);
+        $manager = service('webAuthnManager');
+        $signals = $manager->credentialSignals($user);
+        $this->assertCount(1, $signals['allAcceptedCredentialIds']);
+        $this->assertSame('example.com', $signals['rpId']);
+        $this->assertSame(rtrim(strtr(base64_encode((string) $user->uuid), '+/', '-_'), '='), $signals['userId']);
+        $this->assertSame([], $manager->credentialSignals($other)['allAcceptedCredentialIds']);
+        $user->revokeWebAuthnCredential($user->webAuthnCredentials()[0]->uuid);
+        $this->assertSame([], $manager->credentialSignals($user)['allAcceptedCredentialIds']);
+    }
 }

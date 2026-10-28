@@ -17,6 +17,7 @@ use CodeIgniter\Events\Events;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Interfaces\AccessTokenRepositoryInterface;
 use Daycry\Auth\Services\AuditLogger;
 
 /**
@@ -25,7 +26,7 @@ use Daycry\Auth\Services\AuditLogger;
  * Encapsulates all access token CRUD from UserIdentityModel
  * into a focused, single-responsibility class.
  */
-class AccessTokenRepository
+class AccessTokenRepository implements AccessTokenRepositoryInterface
 {
     public function __construct(
         private readonly UserIdentityModel $identityModel,

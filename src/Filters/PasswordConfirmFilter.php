@@ -84,7 +84,11 @@ class PasswordConfirmFilter implements FilterInterface
             return false;
         }
 
-        return ((int) $confirmedAt) + $lifetime >= time();
+        $boundUser = session('auth_step_up_user');
+
+        return ($boundUser === null || (string) $boundUser === (string) auth()->id())
+            && (int) $confirmedAt <= time()
+            && ((int) $confirmedAt) + $lifetime >= time();
     }
 
     /**

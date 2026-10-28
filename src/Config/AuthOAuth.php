@@ -47,6 +47,12 @@ class AuthOAuth extends BaseConfig
      *
      * @var array<string, array<string, mixed>>
      */
+    // Per-provider hardening options:
+    // pkce: true (default); set false only for a server without S256 support.
+    // issuer: expected authorization-response iss (RFC 9207); when set it is required.
+    // oidc: true also requests a nonce and validates ID-token claims from the
+    // direct HTTPS token response. Requires issuer + clientId and a UserInfo sub
+    // matching the token. This is an OAuth client, not an OIDC discovery server.
     public array $providers = [
         // ----------------------------------------------------------------
         // Microsoft Azure AD / Entra ID   (thenetworg/oauth2-azure)

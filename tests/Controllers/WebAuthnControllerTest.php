@@ -16,6 +16,7 @@ namespace Tests\Controllers;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
+use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\WebAuthn\SuppressesWebauthnDeprecations;
@@ -56,6 +57,59 @@ final class WebAuthnControllerTest extends DatabaseTestCase
     {
         $result = $this->post('webauthn/register/options');
         $result->assertStatus(403);
+    }
+
+    public function testCredentialSyncRequiresLoginAndNeverAcceptsAnotherUserId(): void
+    {
+        $this->withRoutes([['get', 'webauthn/credentials/sync', '\Daycry\Auth\Controllers\WebAuthnController::credentialSignals']]);
+        $this->get('webauthn/credentials/sync')->assertStatus(403);
+        Services::resetSingle('auth');
+        $user   = fake(UserModel::class);
+        $other  = fake(UserModel::class);
+        $result = $this->withSession(['user' => ['id' => $user->id]])->get('webauthn/credentials/sync?user_id=' . $other->id);
+        $result->assertStatus(200);
+        $result->assertJSONFragment(['userId' => rtrim(strtr(base64_encode((string) $user->uuid), '+/', '-_'), '=')]);
+        $this->assertStringContainsString('no-store', $result->response()->getHeaderLine('Cache-Control'));
+    }
+
+    public function testConditionalRegistrationRequiresRecentInteractiveLogin(): void
+    {
+        setting('AuthSecurity.webauthnAutoUpgrade', true);
+        $user = fake(UserModel::class);
+        $this->withSession(['user' => ['id' => $user->id]])->withBodyFormat('json')->post('webauthn/register/options', ['conditional' => true])->assertStatus(403);
+        $this->withSession(['user' => ['id' => $user->id], Session::AUTHENTICATED_AT_KEY => time()])->withBodyFormat('json')->post('webauthn/register/options', ['conditional' => true])->assertStatus(200);
+    }
+
+    public function testMandatoryMfaEnrollmentRequiresFreshPrimaryProofAndThenFactorProof(): void
+    {
+        setting('AuthSecurity.mfaRequired', true);
+        $user = fake(UserModel::class);
+        $this->withSession(['user' => ['id' => $user->id]])->post('webauthn/register/options')->assertStatus(403);
+        $session = ['user' => ['id' => $user->id], Session::AUTHENTICATED_AT_KEY => time()];
+        $result  = $this->withSession($session)->post('webauthn/register/options');
+        $result->assertStatus(200);
+        $authn = new VirtualAuthenticator('example.com', 'https://example.com');
+        $json  = $authn->register($result->getJSON());
+        $this->withSession($_SESSION)->withBodyFormat('json')->post('webauthn/register/verify', ['credential' => json_decode($json, true)])->assertStatus(201);
+        $this->withSession($_SESSION)->post('webauthn/register/options')->assertStatus(403);
+        service('mfaPolicy')->markVerified($user);
+        $this->withSession($_SESSION)->post('webauthn/register/options')->assertStatus(200);
+    }
+
+    public function testPasskeyWithoutUserVerificationCannotSatisfyMandatoryMfa(): void
+    {
+        $user    = fake(UserModel::class);
+        $manager = service('webAuthnManager');
+        $authn   = new VirtualAuthenticator('example.com', 'https://example.com');
+        $options = $manager->startRegistration($user, 'Key');
+        $manager->finishRegistration($user, $authn->register(json_encode($options)));
+        setting('AuthSecurity.mfaRequired', true);
+        $result    = $this->withSession([])->post('webauthn/login/options');
+        $assertion = $authn->login($result->getJSON(), (string) $user->uuid, false);
+        $result    = $this->withSession($_SESSION)->withBodyFormat('json')->post('webauthn/login/verify', ['credential' => json_decode($assertion, true)]);
+        $this->assertContains($result->response()->getStatusCode(), [403, 422]);
+        $this->assertFalse(auth('session')->loggedIn());
+        $this->assertFalse(service('mfaPolicy')->verified($user));
     }
 
     public function testFullPasswordlessRoundTrip(): void

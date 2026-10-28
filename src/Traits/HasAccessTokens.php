@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Traits;
 
 use Daycry\Auth\Entities\AccessToken;
-use Daycry\Auth\Models\AccessTokenRepository;
+use Daycry\Auth\Interfaces\AccessTokenRepositoryInterface;
 
 /**
  * Trait HasAccessTokens
@@ -35,7 +35,7 @@ trait HasAccessTokens
      * Returns the AccessTokenRepository (the focused CRUD layer that wraps
      * UserIdentityModel for personal-access-token operations).
      */
-    private function accessTokenRepository(): AccessTokenRepository
+    private function accessTokenRepository(): AccessTokenRepositoryInterface
     {
         return service('accessTokenRepository');
     }

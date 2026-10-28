@@ -13,16 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Commands;
 
-use CodeIgniter\I18n\Time;
-use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Entities\User;
-use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Models\AuditLogModel;
-use Daycry\Auth\Models\DeviceSessionModel;
-use Daycry\Auth\Models\LoginModel;
-use Daycry\Auth\Models\PasswordHistoryModel;
-use Daycry\Auth\Models\TotpBackupCodeModel;
-use Daycry\Auth\Models\UserIdentityModel;
 use Throwable;
 
 /**
@@ -84,27 +75,7 @@ class GdprCommand extends BaseCommand
     private function exportAction(User $user, string $outputPath = ''): int
     {
         try {
-            $payload = [
-                'exported_at' => Time::now()->toDateTimeString(),
-                'user'        => [
-                    'id'                  => $user->id,
-                    'uuid'                => $user->uuid ?? null,
-                    'username'            => $user->username,
-                    'email'               => $user->email ?? null,
-                    'active'              => (bool) ($user->active ?? false),
-                    'created_at'          => (string) ($user->created_at ?? ''),
-                    'updated_at'          => (string) ($user->updated_at ?? ''),
-                    'failed_login_count'  => $user->failed_login_count ?? 0,
-                    'locked_until'        => $user->locked_until ?? null,
-                    'password_changed_at' => $user->password_changed_at ?? null,
-                ],
-                'identities'       => $this->collectIdentities($user),
-                'device_sessions'  => $this->collectDeviceSessions($user),
-                'login_history'    => $this->collectLoginHistory($user),
-                'audit_log'        => $this->collectAuditLog($user),
-                'password_history' => $this->collectPasswordHistoryMeta($user),
-                'backup_codes'     => $this->collectBackupCodesMeta($user),
-            ];
+            $payload = service('userDataExporter')->export($user);
 
             $json = json_encode(
                 $payload,
@@ -155,156 +126,5 @@ class GdprCommand extends BaseCommand
 
             return 1;
         }
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function collectIdentities(User $user): array
-    {
-        /** @var UserIdentityModel $identityModel */
-        $identityModel = model(UserIdentityModel::class);
-
-        $rows   = $identityModel->where('user_id', $user->id)->findAll();
-        $result = [];
-
-        foreach ($rows as $row) {
-            $type = is_object($row) ? ($row->type ?? '') : ($row['type'] ?? '');
-
-            $entry = [
-                'id'           => is_object($row) ? ($row->id ?? null) : ($row['id'] ?? null),
-                'type'         => $type,
-                'name'         => is_object($row) ? ($row->name ?? null) : ($row['name'] ?? null),
-                'expires'      => is_object($row) ? ($row->expires ?? null) : ($row['expires'] ?? null),
-                'last_used_at' => is_object($row) ? ($row->last_used_at ?? null) : ($row['last_used_at'] ?? null),
-                'revoked_at'   => is_object($row) ? ($row->revoked_at ?? null) : ($row['revoked_at'] ?? null),
-                'created_at'   => is_object($row) ? ($row->created_at ?? null) : ($row['created_at'] ?? null),
-            ];
-
-            // Redact secret fields — they are not portable user data and
-            // exposing them would defeat the purpose of revoking a token.
-            if ($type === IdentityType::EMAIL_PASSWORD->value) {
-                $entry['secret']  = is_object($row) ? ($row->secret ?? null) : ($row['secret'] ?? null);
-                $entry['secret2'] = '<redacted: bcrypt hash>';
-            } elseif ($type === AccessToken::ID_TYPE_ACCESS_TOKEN || $type === IdentityType::JWT_REFRESH->value) {
-                $entry['secret']  = '<redacted: hashed token>';
-                $entry['secret2'] = null;
-            } else {
-                $entry['secret']  = is_object($row) ? ($row->secret ?? null) : ($row['secret'] ?? null);
-                $entry['secret2'] = is_object($row) ? ($row->secret2 ?? null) : ($row['secret2'] ?? null);
-            }
-
-            $result[] = $entry;
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function collectDeviceSessions(User $user): array
-    {
-        /** @var DeviceSessionModel $deviceModel */
-        $deviceModel = model(DeviceSessionModel::class);
-
-        $rows   = $deviceModel->where('user_id', $user->id)->findAll();
-        $result = [];
-
-        foreach ($rows as $row) {
-            $result[] = [
-                'uuid'          => is_object($row) ? ($row->uuid ?? null) : ($row['uuid'] ?? null),
-                'session_id'    => is_object($row) ? ($row->session_id ?? null) : ($row['session_id'] ?? null),
-                'device_name'   => is_object($row) ? ($row->device_name ?? null) : ($row['device_name'] ?? null),
-                'ip_address'    => is_object($row) ? ($row->ip_address ?? null) : ($row['ip_address'] ?? null),
-                'user_agent'    => is_object($row) ? ($row->user_agent ?? null) : ($row['user_agent'] ?? null),
-                'last_active'   => is_object($row) ? ($row->last_active ?? null) : ($row['last_active'] ?? null),
-                'logged_out_at' => is_object($row) ? ($row->logged_out_at ?? null) : ($row['logged_out_at'] ?? null),
-                'trusted_until' => is_object($row) ? ($row->trusted_until ?? null) : ($row['trusted_until'] ?? null),
-                'created_at'    => is_object($row) ? ($row->created_at ?? null) : ($row['created_at'] ?? null),
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function collectLoginHistory(User $user): array
-    {
-        /** @var LoginModel $loginModel */
-        $loginModel = model(LoginModel::class);
-
-        $rows   = $loginModel->recentForUser($user, 500);
-        $result = [];
-
-        foreach ($rows as $row) {
-            $result[] = [
-                'date'       => (string) ($row->date ?? ''),
-                'success'    => (bool) ($row->success ?? false),
-                'id_type'    => (string) ($row->id_type ?? ''),
-                'identifier' => (string) ($row->identifier ?? ''),
-                'ip_address' => (string) ($row->ip_address ?? ''),
-                'user_agent' => (string) ($row->user_agent ?? ''),
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function collectAuditLog(User $user): array
-    {
-        /** @var AuditLogModel $auditModel */
-        $auditModel = model(AuditLogModel::class);
-        $rows       = $auditModel->recentForUser((int) $user->id, 500);
-        $result     = [];
-
-        foreach ($rows as $row) {
-            $result[] = [
-                'created_at' => (string) ($row->created_at ?? ''),
-                'event_type' => (string) ($row->event_type ?? ''),
-                'ip_address' => (string) ($row->ip_address ?? ''),
-                'user_agent' => (string) ($row->user_agent ?? ''),
-                'metadata'   => $row->getMetadata(),
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Returns metadata about historic password hashes (count + dates only;
-     * never the hashes themselves — those are bcrypt strings, not user data).
-     *
-     * @return array<string, mixed>
-     */
-    private function collectPasswordHistoryMeta(User $user): array
-    {
-        /** @var PasswordHistoryModel $history */
-        $history = model(PasswordHistoryModel::class);
-
-        $count = $history->where('user_id', $user->id)->countAllResults();
-
-        return ['count' => $count];
-    }
-
-    /**
-     * Returns counts of remaining/used backup codes.
-     *
-     * @return array<string, int>
-     */
-    private function collectBackupCodesMeta(User $user): array
-    {
-        /** @var TotpBackupCodeModel $backup */
-        $backup = model(TotpBackupCodeModel::class);
-
-        $remaining = $backup->where('user_id', $user->id)->where('used_at')->countAllResults();
-        $used      = $backup->where('user_id', $user->id)->where('used_at !=')->countAllResults();
-
-        return ['remaining' => $remaining, 'used' => $used];
     }
 }

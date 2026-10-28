@@ -14,7 +14,8 @@ declare(strict_types=1);
 namespace Daycry\Auth\Controllers;
 
 use CodeIgniter\Exceptions\PageNotFoundException;
-use CodeIgniter\HTTP\Response;
+use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Interfaces\ActionInterface;
 
 /**
@@ -31,7 +32,7 @@ class ActionController extends BaseAuthController
      *
      * @param list<string> $params
      *
-     * @return Response|string
+     * @return ResponseInterface|string
      */
     public function _remap(string $method, ...$params)
     {
@@ -44,7 +45,44 @@ class ActionController extends BaseAuthController
             throw new PageNotFoundException();
         }
 
-        return $this->{$method}(...$params);
+        if ($this->invalidJsonBody) {
+            return $this->authJsonResponse(['status' => 'error', 'message' => 'The request body must be a valid JSON object.'], 400);
+        }
+
+        if ($this->request->is('json')) {
+            // Actions share the IncomingRequest contract. Present the parsed
+            // body to existing/custom actions without mixing query parameters.
+            $this->request->setGlobal('post', array_map(
+                static fn ($value) => is_scalar($value) ? $value : null,
+                $this->authRequestData(),
+            ));
+        }
+
+        $result = $this->{$method}(...$params);
+        if (! $this->expectsJsonResponse()) {
+            return $result;
+        }
+
+        if ($authenticator->loggedIn()) {
+            if (($pending = $this->pendingMfaResponse()) !== null) {
+                return $pending;
+            }
+
+            return $this->authJsonResponse([
+                'status'        => 'success',
+                'authenticated' => true,
+                'redirect'      => $result instanceof RedirectResponse ? $result->getHeaderLine('Location') : config('Auth')->loginRedirect(),
+            ]);
+        }
+
+        $error = session()->getFlashdata('error');
+
+        return $this->authJsonResponse([
+            'status'        => 'action_required',
+            'authenticated' => false,
+            'message'       => is_string($error) ? $error : $authenticator->getPendingMessage(),
+            'redirect'      => url_to('auth-action-show'),
+        ], $method === 'verify' || $error !== null ? 422 : 202);
     }
 
     /**
@@ -52,7 +90,7 @@ class ActionController extends BaseAuthController
      * This might be asking for the user's email to reset a password,
      * or asking for a cell-number for a 2FA.
      *
-     * @return Response|string
+     * @return ResponseInterface|string
      */
     public function show()
     {
@@ -62,7 +100,7 @@ class ActionController extends BaseAuthController
     /**
      * Processes the form that was displayed in the previous form.
      *
-     * @return Response|string
+     * @return ResponseInterface|string
      */
     public function handle()
     {
@@ -75,7 +113,7 @@ class ActionController extends BaseAuthController
      * from clicking the 'confirm my email' action or
      * following entering a code sent in an SMS.
      *
-     * @return Response|string
+     * @return ResponseInterface|string
      */
     public function verify()
     {

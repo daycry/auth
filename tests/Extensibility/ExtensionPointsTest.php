@@ -24,6 +24,7 @@ use Daycry\Auth\Config\Auth;
 use Daycry\Auth\Config\Services as AuthServices;
 use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Interfaces\OAuthTokenRepositoryInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Libraries\Oauth\OauthManager;
 use Daycry\Auth\Models\AccessTokenRepository;
@@ -113,7 +114,7 @@ final class ExtensionPointsTest extends DatabaseTestCase
         Services::injectMock('oauthTokenRepository', $repository);
 
         $manager = new class (config('AuthOAuth')) extends OauthManager {
-            public function repository(): OAuthTokenRepository
+            public function repository(): OAuthTokenRepositoryInterface
             {
                 return $this->getRepository();
             }

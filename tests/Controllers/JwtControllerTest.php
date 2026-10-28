@@ -16,6 +16,7 @@ namespace Tests\Controllers;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Libraries\TOTP;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\PasswordChangeRecorder;
@@ -101,11 +102,34 @@ final class JwtControllerTest extends DatabaseTestCase
         ]);
         $reuse->assertStatus(401);
 
-        // The NEW refresh token still works.
+        // Reuse of a consumed token revokes its successor too.
         $this->post('auth/jwt/refresh', [
             'user_id'       => $userId,
             'refresh_token' => $rotated['refresh_token'],
-        ])->assertStatus(200);
+        ])->assertStatus(401);
+    }
+
+    public function testRefreshReplayDoesNotRevokeAnotherLoginFamily(): void
+    {
+        $first = $this->login();
+        $other = $this->login();
+        $this->post('auth/jwt/refresh', ['user_id' => $first['user_id'], 'refresh_token' => $first['refresh_token']])->assertStatus(200);
+        $this->post('auth/jwt/refresh', ['user_id' => $first['user_id'], 'refresh_token' => $first['refresh_token']])->assertStatus(401);
+        $this->post('auth/jwt/refresh', ['user_id' => $other['user_id'], 'refresh_token' => $other['refresh_token']])->assertStatus(200);
+    }
+
+    public function testLegacyRefreshTokenIsUpgradedToAFamily(): void
+    {
+        $tokens   = $this->login();
+        $model    = model(UserIdentityModel::class);
+        $identity = $model->where('type', 'jwt_refresh')->first();
+        $model->update($identity->id, ['refresh_family' => null]);
+
+        $first = $this->post('auth/jwt/refresh', ['user_id' => $tokens['user_id'], 'refresh_token' => $tokens['refresh_token']]);
+        $first->assertStatus(200);
+        $next = json_decode((string) $first->getJSON(), true);
+        $this->post('auth/jwt/refresh', ['user_id' => $tokens['user_id'], 'refresh_token' => $tokens['refresh_token']])->assertStatus(401);
+        $this->post('auth/jwt/refresh', ['user_id' => $tokens['user_id'], 'refresh_token' => $next['refresh_token']])->assertStatus(401);
     }
 
     public function testLogoutRevokesRefreshToken(): void
@@ -194,5 +218,93 @@ final class JwtControllerTest extends DatabaseTestCase
             'email'    => 'jwt@example.com',
             'password' => 'wrong-password',
         ])->assertStatus(401);
+    }
+
+    public function testMandatoryMfaCannotBeBypassedWithPasswordOnlyJwtLogin(): void
+    {
+        setting('AuthSecurity.mfaRequired', true);
+        $this->post('auth/jwt/login', ['email' => 'jwt@example.com', 'password' => 'secret123'])->assertStatus(403);
+        $this->assertSame(0, model(UserIdentityModel::class)->where('type', 'jwt_refresh')->countAllResults());
+    }
+
+    public function testMandatoryMfaAcceptsTotpAndPreservesAssuranceOnRotation(): void
+    {
+        $user = model(UserModel::class)->findByCredentials(['email' => 'jwt@example.com']);
+        $this->assertInstanceOf(User::class, $user);
+        $user->enableTotp();
+        $user->confirmTotp();
+        setting('AuthSecurity.mfaRequired', true);
+        $code   = TOTP::getCode($user->getTotpSecret());
+        $result = $this->post('auth/jwt/login', ['email' => 'jwt@example.com', 'password' => 'secret123', 'mfa_code' => $code]);
+        $result->assertStatus(200);
+        $tokens = json_decode((string) $result->getJSON(), true);
+        $this->post('auth/jwt/refresh', ['user_id' => $tokens['user_id'], 'refresh_token' => $tokens['refresh_token']])->assertStatus(200);
+    }
+
+    public function testMfaFailuresAccumulateWithCorrectPasswordAndLockAccount(): void
+    {
+        $user = model(UserModel::class)->findByCredentials(['email' => 'jwt@example.com']);
+        $this->assertInstanceOf(User::class, $user);
+        $user->enableTotp();
+        $user->confirmTotp();
+        setting('AuthSecurity.mfaRequired', true);
+        setting('AuthSecurity.userMaxAttempts', 2);
+        $body = ['email' => 'jwt@example.com', 'password' => 'secret123', 'mfa_code' => 'wrong'];
+        $this->post('auth/jwt/login', $body)->assertStatus(403);
+        $this->post('auth/jwt/login', $body)->assertStatus(403);
+        $this->post('auth/jwt/login', $body)->assertStatus(401);
+        $this->assertSame(0, model(UserIdentityModel::class)->where('type', 'jwt_refresh')->countAllResults());
+    }
+
+    public function testPolicyChangeRefusesAnExistingPasswordOnlyRefreshFamily(): void
+    {
+        $tokens = $this->login();
+        setting('AuthSecurity.mfaRequired', true);
+        $this->post('auth/jwt/refresh', ['user_id' => $tokens['user_id'], 'refresh_token' => $tokens['refresh_token']])->assertStatus(403);
+    }
+
+    public function testBackupCodeGrantsMfaOnlyOnce(): void
+    {
+        $user = model(UserModel::class)->findByCredentials(['email' => 'jwt@example.com']);
+        $this->assertInstanceOf(User::class, $user);
+        $user->enableTotp();
+        $user->confirmTotp();
+        $backup = $user->generateBackupCodes()[0];
+        setting('AuthSecurity.mfaRequired', true);
+        $body = ['email' => 'jwt@example.com', 'password' => 'secret123', 'mfa_code' => $backup];
+        $this->post('auth/jwt/login', $body)->assertStatus(200);
+        $this->post('auth/jwt/login', $body)->assertStatus(403);
+    }
+
+    public function testMfaProofRequiresTheSameAuthenticatedSessionUser(): void
+    {
+        $user = model(UserModel::class)->findByCredentials(['email' => 'jwt@example.com']);
+        setting('AuthSecurity.mfaRequired', true);
+        // A stray proof without a live login is insufficient.
+        $this->withSession(['auth_mfa_user' => (string) $user->id, 'auth_mfa_at' => time()])
+            ->post('auth/jwt/login', ['email' => 'jwt@example.com', 'password' => 'secret123'])->assertStatus(403);
+        // Neither can another account's proof be used for these credentials.
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['trackDeviceSessions' => false]));
+        $other = fake(UserModel::class);
+        Services::resetSingle('auth');
+        $this->withSession(['user' => ['id' => $other->id], 'auth_mfa_user' => (string) $other->id, 'auth_mfa_at' => time()])
+            ->post('auth/jwt/login', ['email' => 'jwt@example.com', 'password' => 'secret123'])->assertStatus(403);
+        Services::resetSingle('auth');
+        $this->withSession(['user' => ['id' => $user->id], 'auth_mfa_user' => (string) $user->id, 'auth_mfa_at' => time()])
+            ->post('auth/jwt/login', ['email' => 'jwt@example.com', 'password' => 'secret123'])->assertStatus(403);
+        $this->assertInstanceOf(User::class, $user);
+        $user->enableTotp();
+        $user->confirmTotp();
+        Services::resetSingle('auth');
+        $this->withSession(['user' => ['id' => $user->id], 'auth_mfa_user' => (string) $user->id, 'auth_mfa_at' => time()])
+            ->post('auth/jwt/login', ['email' => 'jwt@example.com', 'password' => 'secret123'])->assertStatus(200);
+    }
+
+    public function testJwtEndpointsAcceptJsonRequestBodies(): void
+    {
+        $result = $this->withHeaders(['Content-Type' => 'application/json'])->withBody(json_encode(['email' => 'jwt@example.com', 'password' => 'secret123']))->post('auth/jwt/login');
+        $result->assertStatus(200);
+        $tokens = json_decode((string) $result->getJSON(), true);
+        $this->withHeaders(['Content-Type' => 'application/json'])->withBody(json_encode(['user_id' => $tokens['user_id'], 'refresh_token' => $tokens['refresh_token']]))->post('auth/jwt/refresh')->assertStatus(200);
     }
 }

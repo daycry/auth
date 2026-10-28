@@ -89,6 +89,16 @@ class RememberMe
 
     public function removeKey(): void
     {
+        $raw = $this->getRememberMeToken();
+        if (is_string($raw) && substr_count($raw, ':') === 1) {
+            [$selector, $validator] = explode(':', $raw, 2);
+            $token                  = $this->rememberModel->getRememberToken($selector);
+            // A selector alone must never let someone revoke another device.
+            if ($token !== null && hash_equals((string) $token->hashedValidator, $this->hashValidator($validator))) {
+                $this->rememberModel->delete($token->id);
+            }
+        }
+
         /** @var Response $response */
         $response = Services::response();
 
@@ -99,6 +109,12 @@ class RememberMe
             service('settings')->get('Cookie.path'),
             service('settings')->get('Cookie.prefix'),
         );
+        $cookieName = setting('Cookie.prefix') . setting('Auth.sessionConfig')['rememberCookieName'];
+        /** @var IncomingRequest $request */
+        $request = Services::request();
+        $cookies = (array) $request->getCookie();
+        unset($cookies[$cookieName]);
+        $request->setGlobal('cookie', $cookies);
     }
 
     public function purgeOldTokens(): void

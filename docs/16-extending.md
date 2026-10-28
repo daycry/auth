@@ -136,3 +136,11 @@ public function verify(IncomingRequest $request)
 ```
 
 The `register` action requires e-mail activation when it is `EmailActivator` or a subclass of it. A custom action whose class name contains `Activator` also counts, for backward compatibility.
+
+## Independent implementations
+
+Core service bindings now return public interfaces. In particular, implement
+`EmailDeliveryInterface` and override `emailDelivery` to change the transport
+while keeping token creation and templates. Direct CodeIgniter Email remains
+the default. See [the upgrade guide](20-upgrading-auth.md#replace-email-delivery)
+and [API and extension contracts](19-api-and-extension-contracts.md).

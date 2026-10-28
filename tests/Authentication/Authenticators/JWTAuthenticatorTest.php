@@ -110,6 +110,19 @@ final class JWTAuthenticatorTest extends DatabaseTestCase
         $this->assertSame($user->id, $this->auth->getUser()->id);
     }
 
+    public function testMandatoryMfaRejectsWeakTokensIssuedBeforePolicyEnabled(): void
+    {
+        $user    = $this->createUser();
+        $adapter = new DaycryJWTAdapter();
+        $weak    = $adapter->encode(['uid' => $user->id, 'tv' => 0]);
+        $this->assertTrue($this->auth->check(['token' => $weak])->isOK());
+        setting('AuthSecurity.mfaRequired', true);
+        $this->assertFalse($this->auth->check(['token' => $weak])->isOK());
+        $this->assertFalse($this->auth->check(['token' => $adapter->encode($user->id)])->isOK());
+        $this->assertFalse($this->auth->check(['token' => $adapter->encode(['uid' => $user->id, 'tv' => 0, 'mfa' => 'true'])])->isOK());
+        $this->assertTrue($this->auth->check(['token' => $adapter->encode(['uid' => $user->id, 'tv' => 0, 'mfa' => true])])->isOK());
+    }
+
     public function testLogout(): void
     {
         // this one's a little odd since it's stateless, but roll with it...

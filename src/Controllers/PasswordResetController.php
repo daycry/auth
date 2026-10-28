@@ -63,17 +63,17 @@ class PasswordResetController extends BaseAuthController
     /**
      * Receives the email, generates a reset token, and sends an email.
      */
-    public function requestAction(): RedirectResponse
+    public function requestAction(): ResponseInterface
     {
         // Validate email format
         $rules    = $this->getValidationRules();
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
 
         if (! $this->validateRequest($postData, $rules)) {
             return $this->handleValidationError('password-reset');
         }
 
-        $email = $this->request->getPost('email');
+        $email = $this->authInput('email');
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
         if ($user !== null) {
@@ -100,7 +100,7 @@ class PasswordResetController extends BaseAuthController
         }
 
         // Always redirect to message view (don't reveal if user exists)
-        return redirect()->route('password-reset-message');
+        return $this->handleSuccess(url_to('password-reset-message'));
     }
 
     /**
@@ -126,16 +126,14 @@ class PasswordResetController extends BaseAuthController
         $identity = $identityModel->getIdentityBySecret(IdentityType::RESET_PASSWORD->value, $token);
 
         if ($identity === null) {
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenInvalid'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenInvalid'), true, 401);
         }
 
         if (Time::now()->isAfter($identity->expires)) {
             // Delete expired token
             $identityModel->delete($identity->id);
 
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenExpired'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenExpired'), true, 401);
         }
 
         $content = $this->view(setting('Auth.views')['password-reset-form'], [
@@ -148,17 +146,15 @@ class PasswordResetController extends BaseAuthController
     /**
      * Handles the password reset form submission.
      */
-    public function resetAction(): RedirectResponse
+    public function resetAction(): ResponseInterface
     {
         $rules = $this->getResetValidationRules();
 
-        $postData = $this->request->getPost();
-        $token    = (string) $this->request->getPost('token');
+        $postData = $this->authInput();
+        $token    = (string) $this->authInput('token');
 
         if (! $this->validateRequest($postData, $rules)) {
-            return redirect()->to($this->resetFormUrl($token))
-                ->withInput()
-                ->with('errors', $this->validator->getErrors());
+            return $this->handleValidationError($this->resetFormUrl($token));
         }
 
         /** @var UserIdentityModel $identityModel */
@@ -167,26 +163,23 @@ class PasswordResetController extends BaseAuthController
         $identity = $identityModel->getIdentityBySecret(IdentityType::RESET_PASSWORD->value, $token);
 
         if ($identity === null) {
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenInvalid'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenInvalid'), true, 401);
         }
 
         if (Time::now()->isAfter($identity->expires)) {
             $identityModel->delete($identity->id);
 
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenExpired'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenExpired'), true, 401);
         }
 
         // Find the user
         $user = $this->provider->findById($identity->user_id);
 
         if ($user === null) {
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenInvalid'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenInvalid'), true, 401);
         }
 
-        $password = (string) $this->request->getPost('password');
+        $password = (string) $this->authInput('password');
 
         // Enforce the same password policy as registration (composition,
         // personal-info, dictionary, pwned and history validators). Checked
@@ -196,8 +189,7 @@ class PasswordResetController extends BaseAuthController
         $check     = $passwords->check($password, $user);
 
         if (! $check->isOK()) {
-            return redirect()->to($this->resetFormUrl($token))
-                ->with('error', $check->reason());
+            return $this->handleFailure($this->resetFormUrl($token), $check->reason(), true, 422);
         }
 
         // Capture the previous hash *before* we replace it — needed for
@@ -220,8 +212,7 @@ class PasswordResetController extends BaseAuthController
 
         Events::trigger('passwordReset', $user);
 
-        return redirect()->route('login')
-            ->with('message', lang('Auth.passwordResetSuccess'));
+        return $this->handleSuccess(url_to('login'), lang('Auth.passwordResetSuccess'));
     }
 
     /**

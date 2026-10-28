@@ -223,6 +223,21 @@ abstract class AbstractTranslationTestCase extends TestCase
         // universal abbreviations or simply combine parameters with signs,
         // or are newly added and pending translation by the community.
         static $excludedKeyTranslations = [
+            'Auth.dataExportTooLarge',
+            'Auth.mfaEnrollmentRequired',
+            'Auth.mfaVerificationRequired',
+            'Auth.mfaLastFactorRequired',
+            'Auth.recoveryCodesRegenerate',
+            'Auth.recoveryCodesRegenerateDescription',
+            'Auth.recoveryCodesUnavailable',
+            'Auth.recoveryCode',
+            'Auth.stepUpTitle',
+            'Auth.stepUpDescription',
+            'Auth.stepUpPasskey',
+            'Auth.stepUpTotp',
+            'Auth.stepUpInvalid',
+            'Auth.exportAccountData',
+
             // TOTP 2FA — newly added, pending community translation
             'Auth.totpTitle',
             'Auth.totpEnterCode',

@@ -72,6 +72,21 @@ final class RememberMeTest extends DatabaseTestCase
         $this->assertNotInstanceOf(stdClass::class, $result);
     }
 
+    public function testRemovingCookieRevokesOnlyItsMatchingServerToken(): void
+    {
+        $expires = date('Y-m-d H:i:s', time() + 3600);
+        $this->rememberModel->rememberUser($this->user, 'current', hash('sha256', 'proof'), $expires);
+        $this->rememberModel->rememberUser($this->user, 'other', hash('sha256', 'other-proof'), $expires);
+        $cookies                                                      = (array) service('request')->getCookie();
+        $cookies[setting('Auth.sessionConfig')['rememberCookieName']] = 'current:proof';
+        service('request')->setGlobal('cookie', $cookies);
+
+        $this->rememberMe->removeKey();
+
+        $this->assertNull($this->rememberModel->getRememberToken('current'));
+        $this->assertInstanceOf(stdClass::class, $this->rememberModel->getRememberToken('other'));
+    }
+
     public function testGetRememberMeTokenReturnsNullWhenNoCookieSet(): void
     {
         $token = $this->rememberMe->getRememberMeToken();

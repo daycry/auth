@@ -121,6 +121,17 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
             ]);
         }
 
+        // Applying a mandatory-MFA policy also retires access tokens minted
+        // before enrollment/proof was enforced; refresh protection alone leaves
+        // those password-only tokens usable until their expiry.
+        $assurance = (is_array($payload) || is_object($payload)) && (((array) $payload)['mfa'] ?? false) === true;
+        if (service('mfaPolicy')->requires($user) && ! $assurance) {
+            return new Result([
+                'success' => false,
+                'reason'  => lang('Auth.passwordConfirmRequired'),
+            ]);
+        }
+
         // Access-token revocation: a token minted under an older token_version
         // (before a ban / password change / explicit revocation) is rejected.
         if ($tokenVersion !== null && (int) ($user->token_version ?? 0) !== $tokenVersion) {

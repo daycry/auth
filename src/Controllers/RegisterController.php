@@ -43,9 +43,11 @@ class RegisterController extends BaseAuthController
         // Check if registration is allowed
         if (! setting('Auth.allowRegistration')) {
             // Redirect to login: redirecting back to the register page would loop.
-            return $this->handleError(
+            return $this->handleFailure(
                 config('Auth')->loginRoute(),
                 lang('Auth.registerDisabled'),
+                true,
+                403,
             );
         }
 
@@ -62,7 +64,7 @@ class RegisterController extends BaseAuthController
     /**
      * Attempts to register the user.
      */
-    public function registerAction(): RedirectResponse
+    public function registerAction(): ResponseInterface
     {
         // Check if already logged in
         if (($redirect = $this->redirectIfLoggedIn(config('Auth')->registerRedirect())) instanceof RedirectResponse) {
@@ -71,15 +73,17 @@ class RegisterController extends BaseAuthController
 
         // Check if registration is allowed
         if (! setting('Auth.allowRegistration')) {
-            return $this->handleError(
+            return $this->handleFailure(
                 config('Auth')->loginRoute(),
                 lang('Auth.registerDisabled'),
+                true,
+                403,
             );
         }
 
         // Validate input
         $rules    = $this->getValidationRules();
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
 
         // Fire pre-register event before validation
         Events::trigger('pre-register', $postData);
@@ -92,7 +96,7 @@ class RegisterController extends BaseAuthController
         $users             = $this->getUserProvider();
         $allowedPostFields = array_keys($rules);
         $user              = $this->getUserEntity();
-        $user->fill($this->request->getPost($allowedPostFields));
+        $user->fill($this->authInput($allowedPostFields));
 
         // Workaround for email only registration/login
         $user->username ??= null;
@@ -100,11 +104,11 @@ class RegisterController extends BaseAuthController
         try {
             $users->save($user);
         } catch (ValidationException) {
-            return $this->handleError(
-                config('Auth')->registerRoute(),
-                'Registration failed',
-                true,
-            )->with('errors', $users->errors());
+            if ($this->expectsJsonResponse()) {
+                return $this->authJsonResponse(['status' => 'error', 'errors' => $users->errors()], 422);
+            }
+
+            return redirect()->to(config('Auth')->registerRoute())->withInput()->with('errors', $users->errors());
         }
 
         // Get complete user object with ID
@@ -129,10 +133,15 @@ class RegisterController extends BaseAuthController
         $user->activate();
         $authenticator->completeLogin($user);
 
-        return $this->handleSuccess(
-            config('Auth')->registerRedirect(),
-            lang('Auth.registerSuccess'),
-        );
+        if ($this->expectsJsonResponse()) {
+            if (($pending = $this->pendingMfaResponse()) !== null) {
+                return $pending;
+            }
+
+            return $this->authJsonResponse(['status' => 'success', 'authenticated' => true, 'redirect' => config('Auth')->registerRedirect(), 'message' => lang('Auth.registerSuccess')], 201);
+        }
+
+        return $this->handleSuccess(config('Auth')->registerRedirect(), lang('Auth.registerSuccess'));
     }
 
     /**

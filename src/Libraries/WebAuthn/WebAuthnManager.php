@@ -18,7 +18,8 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\WebAuthnCredential;
 use Daycry\Auth\Exceptions\WebAuthnDuplicateCredentialException;
 use Daycry\Auth\Exceptions\WebAuthnException;
-use Daycry\Auth\Models\WebAuthnCredentialRepository;
+use Daycry\Auth\Interfaces\WebAuthnCredentialRepositoryInterface;
+use Daycry\Auth\Interfaces\WebAuthnManagerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Throwable;
 use Webauthn\AuthenticatorAssertionResponse;
@@ -38,10 +39,10 @@ use Webauthn\PublicKeyCredentialUserEntity;
  * Orchestrates the WebAuthn ceremonies (registration here; login/2FA added
  * later) using web-auth/webauthn-lib v5. Mirrors Libraries/Oauth/OauthManager.
  */
-class WebAuthnManager
+class WebAuthnManager implements WebAuthnManagerInterface
 {
     public function __construct(
-        private readonly WebAuthnCredentialRepository $repository,
+        private readonly WebAuthnCredentialRepositoryInterface $repository,
         private readonly ChallengeManager $challenges,
         private readonly SerializerInterface $serializer,
         private readonly AuthenticatorAttestationResponseValidator $attestationValidator,
@@ -215,6 +216,59 @@ class WebAuthnManager
     }
 
     /**
+     * @return array<string, mixed> Single-use assertion scoped to the signed-in user.
+     */
+    public function startStepUp(User $user): array
+    {
+        $options = PublicKeyCredentialRequestOptions::create(
+            random_bytes(32),
+            $this->rpId(),
+            $this->repository->descriptorsForUser($user->id),
+            'required',
+            (int) setting('AuthSecurity.webauthnTimeout'),
+        );
+        $json = $this->serializer->serialize($options, 'json');
+        $this->challenges->store('step-up', $json, $user->id);
+
+        return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    public function finishStepUp(User $user, string $browserJson): bool
+    {
+        $entry = $this->challenges->pull('step-up', $user->id);
+        if ($entry === null) {
+            return false;
+        }
+
+        try {
+            return (string) $this->verifyAssertion($entry['options'], $browserJson, $user->id)->id === (string) $user->id;
+        } catch (WebAuthnException) {
+            return false;
+        }
+    }
+
+    /**
+     * Only call for the authenticated user: credential IDs must not be public.
+     * userId is the base64url form of user.id from creation options.
+     *
+     * @return array{rpId: string, userId: string, allAcceptedCredentialIds: list<string>}
+     */
+    public function credentialSignals(User $user): array
+    {
+        $ids = [];
+
+        foreach ($user->webAuthnCredentials() as $credential) {
+            $ids[] = (string) $credential->credential_id;
+        }
+
+        return [
+            'rpId'                     => $this->rpId(),
+            'userId'                   => rtrim(strtr(base64_encode((string) $user->uuid), '+/', '-_'), '='),
+            'allAcceptedCredentialIds' => $ids,
+        ];
+    }
+
+    /**
      * Shared assertion verification. Looks up the credential by rawId, runs the
      * library check (signature, challenge, origin, rpIdHash, UV, counter),
      * persists the advanced counter, and returns the owning user.
@@ -290,7 +344,6 @@ class WebAuthnManager
 
         $this->repository->updateCounter($updated);
 
-        /** @var User|null $user */
         $user = auth()->getProvider()->findById($userId);
         if ($user === null) {
             throw new WebAuthnException(lang('Auth.webauthnVerificationFailed'));

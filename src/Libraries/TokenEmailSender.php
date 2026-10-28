@@ -18,8 +18,10 @@ use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\DatabaseException;
+use Daycry\Auth\Interfaces\TokenEmailSenderInterface;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Traits\Viewable;
+use Throwable;
 
 /**
  * Generates a cryptographic token, stores it as an identity, and sends
@@ -27,7 +29,7 @@ use Daycry\Auth\Traits\Viewable;
  *
  * Shared by MagicLinkController and PasswordResetController.
  */
-class TokenEmailSender
+class TokenEmailSender implements TokenEmailSenderInterface
 {
     use Viewable;
 
@@ -122,25 +124,21 @@ class TokenEmailSender
             'date'      => $date,
         ], $extraViewData);
 
-        // Send the email
-        helper('email');
-        $email     = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
+        // Delivery is a separate contract: SMTP is the default, not a dependency
+        // of token generation or of the authentication controller.
         $recipient = $to ?? $user->email;
-        $email->setTo($recipient);
-        $email->setSubject($emailSubject);
-        $email->setMessage($this->view($emailView, $viewData));
+        $html      = $this->view($emailView, $viewData);
 
-        if ($email->send(false) === false) {
-            log_message('error', $email->printDebugger(['headers']));
-
-            $email->clear();
-
+        try {
+            $sent = service('emailDelivery')->send($recipient, $emailSubject, $html);
+        } catch (Throwable $exception) {
+            throw new RuntimeException('Cannot send authentication email.', 0, $exception);
+        }
+        if (! $sent) {
             throw new RuntimeException(
                 'Cannot send email for user: ' . $recipient,
             );
         }
-
-        $email->clear();
 
         return $token;
     }

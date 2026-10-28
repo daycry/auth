@@ -33,7 +33,7 @@
 
                     <!-- Email -->
                     <div class="form-floating mb-3">
-                        <input type="email" class="form-control" id="floatingEmailInput" name="email" inputmode="email" autocomplete="email" placeholder="<?= lang('Auth.email') ?>" value="<?= old('email') ?>" required>
+                        <input type="email" class="form-control" id="floatingEmailInput" name="email" inputmode="email" autocomplete="username webauthn" placeholder="<?= lang('Auth.email') ?>" value="<?= old('email') ?>" required>
                         <label for="floatingEmailInput"><?= lang('Auth.email') ?></label>
                     </div>
 
@@ -80,6 +80,14 @@
     <?php if (setting('AuthSecurity.webauthnEnabled')) : ?>
         <?= $this->include('\Daycry\Auth\Views\_webauthn_js') ?>
         <script>
+        document.querySelector('form').addEventListener('submit', () => window.AuthWebAuthn.cancelConditional());
+        <?php if (setting('AuthSecurity.webauthnConditionalUi') ?? true) : ?>
+        window.AuthWebAuthn.conditionalLogin().then(async (res) => {
+            if (!res) { return; }
+            const data = await res.json();
+            if (res.ok && data.redirect) { window.location = data.redirect; }
+        }).catch(() => {});
+        <?php endif ?>
         document.getElementById('webauthn-login').addEventListener('click', async () => {
             const msg = document.getElementById('webauthn-login-msg');
             msg.textContent = '';

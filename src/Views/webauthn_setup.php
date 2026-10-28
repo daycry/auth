@@ -19,6 +19,10 @@
 </div>
 <?= $this->include('\Daycry\Auth\Views\_webauthn_js') ?>
 <script>
+window.AuthWebAuthn.syncCredentials().catch(() => {});
+<?php if (setting('AuthSecurity.webauthnAutoUpgrade') ?? false) : ?>
+window.AuthWebAuthn.conditionalRegister().then((res) => { if (res && res.ok) { location.reload(); } }).catch(() => {});
+<?php endif ?>
 document.getElementById('webauthn-add').addEventListener('click', async () => {
     const name = document.getElementById('webauthn-name').value;
     try {
@@ -32,8 +36,12 @@ document.querySelectorAll('.webauthn-delete').forEach((btn) => {
     btn.addEventListener('click', async () => {
         const uuid = btn.getAttribute('data-uuid');
         // Use the shared helper so the CSRF token (and rotation) is handled.
-        await window.AuthWebAuthn.post('<?= site_url('webauthn/credentials') ?>/' + uuid + '/delete');
-        location.reload();
+        const res = await window.AuthWebAuthn.post('<?= site_url('webauthn/credentials') ?>/' + uuid + '/delete');
+        const data = await res.json();
+        if (res.ok) {
+            await window.AuthWebAuthn.syncCredentials().catch(() => {});
+            location.reload();
+        } else { document.getElementById('webauthn-msg').textContent = data.message || data.status; }
     });
 });
 </script>

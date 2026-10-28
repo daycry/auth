@@ -63,6 +63,58 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $this->assertFalse($this->auth->loggedIn());
     }
 
+    public function testIdleTimeoutExpiresSessionAndClearsAuthenticationProof(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['idleTimeout' => 60]));
+        $_SESSION['user']['id'] = $this->user->id;
+        session()->set('auth_session_started_at', time() - 100);
+        session()->set('auth_last_activity_at', time() - 61);
+        session()->set(Session::AUTHENTICATED_AT_KEY, time() - 100);
+        session()->set('auth_mfa_user', $this->user->id);
+
+        $this->assertFalse($this->auth->loggedIn());
+        $this->assertNull(session('user'));
+        $this->assertNull(session(Session::AUTHENTICATED_AT_KEY));
+        $this->assertNull(session('auth_mfa_user'));
+    }
+
+    public function testAbsoluteTimeoutIsNotExtendedByActivity(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['absoluteTimeout' => 120]));
+        $_SESSION['user']['id'] = $this->user->id;
+        session()->set('auth_session_started_at', time() - 121);
+        session()->set('auth_last_activity_at', time());
+
+        $this->assertFalse($this->auth->loggedIn());
+    }
+
+    public function testActiveSessionUpdatesActivityWithoutMovingStart(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['idleTimeout' => 60]));
+        $_SESSION['user']['id'] = $this->user->id;
+        $started                = time() - 100;
+        session()->set('auth_session_started_at', $started);
+        session()->set('auth_last_activity_at', time() - 20);
+
+        $this->assertTrue($this->auth->loggedIn());
+        $this->assertSame($started, session('auth_session_started_at'));
+        $this->assertGreaterThanOrEqual(time() - 1, session('auth_last_activity_at'));
+    }
+
+    public function testRememberMeCannotRestartAnExpiredAbsoluteLifetime(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['absoluteTimeout' => 60]));
+        unset($_SESSION['user']);
+        model(RememberModel::class)->rememberUser($this->user, 'old-absolute', hash('sha256', 'valid-proof'), date('Y-m-d H:i:s', time() + 3600));
+        $this->db->table($this->tables['remember_tokens'])->where('selector', 'old-absolute')->update(['created_at' => date('Y-m-d H:i:s', time() - 120)]);
+        $cookies                                                      = (array) service('request')->getCookie();
+        $cookies[setting('Auth.sessionConfig')['rememberCookieName']] = 'old-absolute:valid-proof';
+        service('request')->setGlobal('cookie', $cookies);
+
+        $this->assertFalse($this->auth->loggedIn());
+        $this->assertNull(model(RememberModel::class)->getRememberToken('old-absolute'));
+    }
+
     public function testLoggedInTrue(): void
     {
         $_SESSION['user']['id'] = $this->user->id;

@@ -114,6 +114,7 @@ validation:
 exclude_docs: |
   superpowers/
   memory/
+  roadmap/
   README.md
 
 extra_css:
@@ -148,5 +149,9 @@ nav:
       - CLI Commands: 14-cli-commands.md
   - Reference:
       - Extending: 16-extending.md
+      - Security Hardening: 17-security-hardening.md
+      - MFA Policy: 18-mfa-policy.md
+      - API and Extension Contracts: 19-api-and-extension-contracts.md
+      - Upgrade Guide: 20-upgrading-auth.md
       - Testing: 08-testing.md
       - Migration: 12-migration.md

@@ -18,9 +18,9 @@ use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\AccessTokenRepositoryInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
-use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
@@ -29,7 +29,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
 {
     public const ID_TYPE_ACCESS_TOKEN = 'access_token';
 
-    private ?AccessTokenRepository $accessTokenRepository = null;
+    private ?AccessTokenRepositoryInterface $accessTokenRepository = null;
 
     public function __construct(
         UserProviderInterface $provider,
@@ -46,7 +46,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
      * The access token repository: `service('accessTokenRepository')`, so
      * overriding that binding also changes how tokens authenticate.
      */
-    protected function tokenRepository(): AccessTokenRepository
+    protected function tokenRepository(): AccessTokenRepositoryInterface
     {
         return $this->accessTokenRepository ??= service('accessTokenRepository');
     }

@@ -15,6 +15,7 @@ namespace Daycry\Auth\Models;
 
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\WebAuthnCredential;
+use Daycry\Auth\Interfaces\WebAuthnCredentialRepositoryInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Webauthn\CredentialRecord;
 use Webauthn\PublicKeyCredentialDescriptor;
@@ -24,7 +25,7 @@ use Webauthn\PublicKeyCredentialDescriptor;
  * web-auth/webauthn-lib CredentialRecord. Implements no library interface
  * (v5 pure-PHP needs none); mirrors OAuthTokenRepository.
  */
-class WebAuthnCredentialRepository
+class WebAuthnCredentialRepository implements WebAuthnCredentialRepositoryInterface
 {
     public function __construct(
         private readonly WebAuthnCredentialModel $model,
@@ -88,6 +89,14 @@ class WebAuthnCredentialRepository
     public function countActiveForUser(int|string $userId): int
     {
         return $this->model->countActiveForUser($userId);
+    }
+
+    /**
+     * @return list<WebAuthnCredential>
+     */
+    public function activeForUser(int|string $userId): array
+    {
+        return $this->model->activeForUser($userId);
     }
 
     public function store(int|string $userId, CredentialRecord $record, ?string $name): WebAuthnCredential

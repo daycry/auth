@@ -344,3 +344,13 @@ After any major version bump:
 3. `composer test` — runs PHPUnit + code-style.
 4. Review your `app/Config/Auth.php`, `app/Config/AuthSecurity.php`, `app/Config/AuthOAuth.php` against the published versions for any new options worth adopting (e.g. `permissionCacheEnabled`, `tokenLastUsedThrottle`).
 5. Check `CHANGELOG.md` for any non-breaking deprecations to plan ahead of v6.
+
+## Authentication completion update
+
+Run the new refresh-token-family migration before using token rotation. Existing
+refresh records remain supported; new refreshes belong to revocable families.
+Generated auth routes now use client rate limits and include account-security
+routes. Review custom route groups and exclude the generated groups if needed.
+Session timeouts, mandatory MFA and automatic passkey creation remain opt-in.
+See the [upgrade guide](20-upgrading-auth.md) for service interfaces, maintenance,
+compatibility settings and browser integration.

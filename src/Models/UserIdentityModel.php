@@ -47,6 +47,7 @@ class UserIdentityModel extends BaseModel
         'ip_addresses',
         'last_used_at',
         'revoked_at',
+        'refresh_family',
     ];
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';

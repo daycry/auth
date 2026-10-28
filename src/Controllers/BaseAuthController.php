@@ -15,6 +15,7 @@ namespace Daycry\Auth\Controllers;
 
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Interfaces\AuthController;
 use Daycry\Auth\Models\LoginModel;
@@ -72,8 +73,11 @@ abstract class BaseAuthController extends BaseController implements AuthControll
     /**
      * Handle validation errors with redirect
      */
-    protected function handleValidationError(?string $route = null): RedirectResponse
+    protected function handleValidationError(?string $route = null): ResponseInterface
     {
+        if ($this->expectsJsonResponse()) {
+            return $this->authJsonResponse(['status' => 'error', 'errors' => $this->validator->getErrors()], 422);
+        }
         $route ??= $this->request->getPath();
 
         return redirect()->to($route)
@@ -84,8 +88,20 @@ abstract class BaseAuthController extends BaseController implements AuthControll
     /**
      * Handle successful action with redirect
      */
-    protected function handleSuccess(string $redirectUrl, ?string $message = null): RedirectResponse
+    protected function handleSuccess(string $redirectUrl, ?string $message = null): ResponseInterface
     {
+        if ($this->expectsJsonResponse()) {
+            if (($pending = $this->pendingMfaResponse()) !== null) {
+                return $pending;
+            }
+
+            return $this->authJsonResponse(array_filter([
+                'status'        => 'success',
+                'authenticated' => auth('session')->loggedIn(),
+                'redirect'      => $redirectUrl,
+                'message'       => $message,
+            ], static fn ($value): bool => $value !== null));
+        }
         $redirect = redirect()->to($redirectUrl);
 
         if ($message) {
@@ -98,8 +114,11 @@ abstract class BaseAuthController extends BaseController implements AuthControll
     /**
      * Handle error with redirect
      */
-    protected function handleError(string $route, string $error, bool $withInput = true): RedirectResponse
+    protected function handleError(string $route, string $error, bool $withInput = true): ResponseInterface
     {
+        if ($this->expectsJsonResponse()) {
+            return $this->authJsonResponse(['status' => 'error', 'message' => $error], 400);
+        }
         $redirect = redirect()->to($route);
 
         if ($withInput) {
@@ -107,6 +126,16 @@ abstract class BaseAuthController extends BaseController implements AuthControll
         }
 
         return $redirect->with('error', $error);
+    }
+
+    /**
+     * Status-aware JSON error; HTML still calls the existing override hook.
+     */
+    protected function handleFailure(string $route, string $error, bool $withInput = true, int $statusCode = 400): ResponseInterface
+    {
+        return $this->expectsJsonResponse()
+            ? $this->authJsonResponse(['status' => 'error', 'message' => $error], $statusCode)
+            : $this->handleError($route, $error, $withInput);
     }
 
     /**
@@ -128,8 +157,16 @@ abstract class BaseAuthController extends BaseController implements AuthControll
     /**
      * Redirect to auth action if one exists
      */
-    protected function redirectToAuthAction(): RedirectResponse
+    protected function redirectToAuthAction(): ResponseInterface
     {
+        if ($this->expectsJsonResponse()) {
+            return $this->authJsonResponse([
+                'status'        => 'action_required',
+                'authenticated' => false,
+                'redirect'      => url_to('auth-action-show'),
+            ], 202);
+        }
+
         return redirect()->route('auth-action-show')->withCookies();
     }
 
@@ -138,9 +175,9 @@ abstract class BaseAuthController extends BaseController implements AuthControll
      */
     protected function extractLoginCredentials(): array
     {
-        $credentials             = $this->request->getPost(setting('Auth.validFields')) ?? [];
+        $credentials             = $this->authInput(setting('Auth.validFields')) ?? [];
         $credentials             = array_filter($credentials);
-        $credentials['password'] = $this->request->getPost('password');
+        $credentials['password'] = $this->authInput('password');
 
         return $credentials;
     }
@@ -150,16 +187,16 @@ abstract class BaseAuthController extends BaseController implements AuthControll
      */
     protected function shouldRememberUser(): bool
     {
-        return (bool) $this->request->getPost('remember');
+        return filter_var($this->authInput('remember'), FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
      * Handle authentication result
      */
-    protected function handleAuthResult(Result $result, string $failureRoute): RedirectResponse
+    protected function handleAuthResult(Result $result, string $failureRoute): ResponseInterface
     {
         if (! $result->isOK()) {
-            return $this->handleError($failureRoute, $result->reason());
+            return $this->handleFailure($failureRoute, $result->reason(), true, 401);
         }
 
         // Handle post-authentication action if exists
@@ -168,9 +205,81 @@ abstract class BaseAuthController extends BaseController implements AuthControll
         }
 
         // Redirect to success page
-        return $this->handleSuccess(
+        $response = $this->handleSuccess(
             config('Auth')->loginRedirect(),
-        )->withCookies();
+        );
+
+        return $response instanceof RedirectResponse ? $response->withCookies() : $response;
+    }
+
+    /**
+     * Do not report first-factor sessions as fully authenticated under MFA policy.
+     */
+    protected function pendingMfaResponse(): ?ResponseInterface
+    {
+        if (! $this->expectsJsonResponse() || ! auth('session')->loggedIn()) {
+            return null;
+        }
+        $user   = auth('session')->user();
+        $policy = service('mfaPolicy');
+        if ($user === null || ! $policy->requires($user)) {
+            return null;
+        }
+        $enrollment = $policy->enrollmentRequired($user);
+        if (! $enrollment && (! $policy->hasFactor($user) || $policy->verified($user))) {
+            return null;
+        }
+
+        return $this->authJsonResponse([
+            'status'        => 'action_required',
+            'authenticated' => false,
+            'code'          => $enrollment ? 'mfa_enrollment_required' : 'mfa_verification_required',
+            'redirect'      => url_to($enrollment ? 'security' : 'password-confirm-show'),
+        ], 202);
+    }
+
+    /**
+     * Whether the client explicitly requests JSON or supplied a JSON body.
+     */
+    protected function expectsJsonResponse(): bool
+    {
+        return $this->request->is('json')
+            || $this->request->negotiate('media', ['text/html', 'application/json']) === 'application/json';
+    }
+
+    /**
+     * @return array<string, mixed> Validated later by each endpoint's rules.
+     */
+    protected function authRequestData(): array
+    {
+        return $this->request->is('json') ? (array) $this->content : $this->request->getPost();
+    }
+
+    /**
+     * Read only the request body, never query-string or cookie credentials.
+     */
+    protected function authInput(array|string|null $key = null): mixed
+    {
+        $data = $this->authRequestData();
+        if ($key === null) {
+            return $data;
+        }
+        if (is_array($key)) {
+            return array_intersect_key($data, array_flip($key));
+        }
+        $value = $data[$key] ?? null;
+
+        return is_scalar($value) ? $value : null;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    protected function authJsonResponse(array $data, int $statusCode = 200): ResponseInterface
+    {
+        return $this->response->setStatusCode($statusCode)
+            ->setHeader('Cache-Control', 'no-store')
+            ->setJSON($data + ['token' => $this->getTokenArray()]);
     }
 
     /**

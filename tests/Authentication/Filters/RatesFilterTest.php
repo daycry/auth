@@ -77,6 +77,22 @@ final class RatesFilterTest extends FilterTestCase
         $result->assertSee('Open');
     }
 
+    public function testAuthRateLimitUsesMatchedRouteForEncodedAliases(): void
+    {
+        setting('AuthSecurity.requestLimit', 1);
+        setting('AuthSecurity.timeLimit', 60);
+        $routes = service('routes');
+        $routes->get('canonical-login', static fn (): string => 'Canonical login', ['filter' => 'rates:auth']);
+        Services::injectMock('routes', $routes);
+
+        $this->get('canonical-login')->assertStatus(200);
+
+        foreach (['canonical-login%252f', 'canonical-login%252f%252f', '%2563anonical-login'] as $alias) {
+            $result = $this->get($alias);
+            $result->assertStatus(429);
+        }
+    }
+
     public function testFilterWithIpAddressLimitMethod(): void
     {
         setting('AuthSecurity.requestLimit', 1);

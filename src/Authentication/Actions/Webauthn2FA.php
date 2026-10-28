@@ -50,11 +50,13 @@ class Webauthn2FA extends AbstractAction
      */
     public function verify(IncomingRequest $request)
     {
-        $credential = (string) $request->getPost('credential');
+        $credential   = (string) $request->getPost('credential');
+        $recoveryCode = (string) $request->getPost('recovery_code');
 
         return $this->verifySecondFactor(
-            static fn (User $user): bool => $credential !== ''
-                && service('webAuthnManager')->finishTwoFactor($user, $credential),
+            static fn (User $user): bool => $recoveryCode !== ''
+                ? $user->consumeBackupCode($recoveryCode)
+                : ($credential !== '' && service('webAuthnManager')->finishTwoFactor($user, $credential)),
             'webauthn_2fa_verify',
             'Auth.webauthnVerificationFailed',
         );

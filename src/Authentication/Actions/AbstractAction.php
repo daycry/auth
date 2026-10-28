@@ -135,6 +135,10 @@ abstract class AbstractAction implements ActionInterface
 
         $authenticator->completeLogin($user);
 
+        // Bind a successful factor proof to this session and account. A
+        // password-only login never creates this proof.
+        service('mfaPolicy')->markVerified($user);
+
         Events::trigger('two-factor-verified', $user, $this->type);
 
         if ($afterLogin !== null) {
@@ -179,12 +183,7 @@ abstract class AbstractAction implements ActionInterface
         /** @var IncomingRequest $request */
         $request = service('request');
 
-        helper('email');
-        $email = emailer(['mailType' => 'html'])
-            ->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
-        $email->setTo($to);
-        $email->setSubject($subject);
-        $email->setMessage($this->view(
+        $html = $this->view(
             setting('Auth.views')[$viewKey],
             $data + [
                 'user'      => $user,
@@ -193,14 +192,11 @@ abstract class AbstractAction implements ActionInterface
                 'date'      => Time::now()->toDateTimeString(),
             ],
             ['debug' => false],
-        ));
+        );
 
-        if ($email->send(false) === false) {
-            throw new RuntimeException('Cannot send email for user: ' . $user->email . "\n" . $email->printDebugger(['headers']));
+        if (service('emailDelivery')->send($to, $subject, $html) === false) {
+            throw new RuntimeException('Cannot send email for user: ' . $user->email);
         }
-
-        // Clear the email
-        $email->clear();
     }
 
     /**

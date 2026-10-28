@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Authentication completion
+
+- Apply configurable rate limits to generated authentication routes, including IPv6 network and user/IP keys; add session idle and absolute lifetimes.
+- Add OAuth PKCE flow state, configurable issuer/nonce checks, and refresh-token family rotation with reuse detection.
+- Add mandatory MFA policy, TOTP/passkey identity confirmation, recovery-code management and passkey 2FA recovery.
+- Negotiate JSON responses for form authentication and publish the OpenAPI contract.
+- Keep direct CodeIgniter email delivery as the default while exposing replaceable delivery and core-service interfaces.
+- Add account-data download, configurable login/audit retention, and conditional passkey login/creation with credential synchronization.
+- Revoke cleared remember-me credentials, correct the forced-reset destination and align the README with the PHP 8.2 requirement.
+
 #### Extension points
 - **New service bindings**: `auditLogger`, `tokenEmailSender`, `passwordChangeRecorder` and `userAnonymizer`. The library resolves them through `service()`, which replaces about 40 `new` calls, so overriding one in `app/Config/Services.php` changes it everywhere.
 - The `accessTokenRepository` and `oauthTokenRepository` bindings are now actually used by the `tokens` authenticator and by `OauthManager`. Before, both built their own repository, so overriding the binding had no effect on authentication.

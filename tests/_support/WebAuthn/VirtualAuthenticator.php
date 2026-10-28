@@ -157,7 +157,7 @@ final class VirtualAuthenticator
      *
      * @throws JsonException
      */
-    public function login(string $requestOptionsJson, ?string $userHandleRaw = null): string
+    public function login(string $requestOptionsJson, ?string $userHandleRaw = null, bool $userVerified = true): string
     {
         $options   = json_decode($requestOptionsJson, true, 512, JSON_THROW_ON_ERROR);
         $challenge = self::b64urlDecode($options['challenge']);
@@ -165,7 +165,7 @@ final class VirtualAuthenticator
         $this->signCount++;
 
         $clientDataRaw = $this->clientDataJSON('webauthn.get', $challenge);
-        $authData      = $this->authenticatorData(false);
+        $authData      = $this->authenticatorData(false, $userVerified);
 
         $signature = $this->sign($authData . hash('sha256', $clientDataRaw, true));
 
@@ -202,11 +202,14 @@ final class VirtualAuthenticator
     /**
      * rpIdHash(32) ‖ flags(1) ‖ signCount(4) [‖ attestedCredentialData].
      */
-    private function authenticatorData(bool $includeAttestedData): string
+    private function authenticatorData(bool $includeAttestedData, bool $userVerified = true): string
     {
         $rpIdHash = hash('sha256', $this->rpId, true);
         $flags    = $includeAttestedData ? 0x45 : 0x05; // UP|UV(|AT)
-        $data     = $rpIdHash . chr($flags) . pack('N', $this->signCount);
+        if (! $userVerified) {
+            $flags &= ~0x04;
+        }
+        $data = $rpIdHash . chr($flags) . pack('N', $this->signCount);
 
         if ($includeAttestedData) {
             $coseKey = $this->coseKey();

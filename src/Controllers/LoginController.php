@@ -43,11 +43,11 @@ class LoginController extends BaseAuthController
     /**
      * Attempts to log the user in.
      */
-    public function loginAction(): RedirectResponse
+    public function loginAction(): ResponseInterface
     {
         // Validate input
         $rules    = $this->getValidationRules();
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
 
         if (! $this->validateRequest($postData, $rules)) {
             return $this->handleValidationError(config('Auth')->loginRoute());
@@ -83,7 +83,7 @@ class LoginController extends BaseAuthController
     /**
      * Logs the current user out.
      */
-    public function logoutAction(): RedirectResponse
+    public function logoutAction(): ResponseInterface
     {
         // Capture logout redirect URL before auth logout
         $url = config('Auth')->logoutRedirect();

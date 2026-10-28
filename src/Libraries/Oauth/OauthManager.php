@@ -21,9 +21,9 @@ use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\OAuthTokenRepositoryInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Libraries\Oauth\ProfileResolver\ProfileResolverFactory;
-use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use League\OAuth2\Client\Grant\RefreshToken;
@@ -43,7 +43,7 @@ class OauthManager
 {
     protected AbstractProvider $provider;
     protected string $providerName;
-    private ?OAuthTokenRepository $repository = null;
+    private ?OAuthTokenRepositoryInterface $repository = null;
 
     /**
      * Map of provider alias → FQCN for well-known providers.
@@ -66,7 +66,7 @@ class OauthManager
      * The OAuth identity repository: `service('oauthTokenRepository')`, so
      * overriding that binding swaps the storage used here.
      */
-    protected function getRepository(): OAuthTokenRepository
+    protected function getRepository(): OAuthTokenRepositoryInterface
     {
         return $this->repository ??= service('oauthTokenRepository');
     }
@@ -102,6 +102,9 @@ class OauthManager
 
         $this->providerName = $providerName;
         $providerConfig     = $this->config->providers[$providerName];
+        if ((bool) ($providerConfig['pkce'] ?? true)) {
+            $providerConfig['pkceMethod'] = AbstractProvider::PKCE_METHOD_S256;
+        }
 
         // Azure needs tenant-specific URLs when a tenant is given
         if ($providerName === 'azure' && ! empty($providerConfig['tenant'])) {
@@ -176,8 +179,28 @@ class OauthManager
      */
     public function redirect(): RedirectResponse
     {
-        $authorizationUrl = $this->provider->getAuthorizationUrl();
+        $options        = [];
+        $providerConfig = $this->config->providers[$this->providerName] ?? [];
+        $pkce           = (bool) ($providerConfig['pkce'] ?? $providerConfig !== []);
+        $verifier       = $pkce ? rtrim(strtr(base64_encode(random_bytes(48)), '+/', '-_'), '=') : null;
+        if ($verifier !== null) {
+            $options['code_challenge']        = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+            $options['code_challenge_method'] = 'S256';
+        }
+        $nonce = ! empty($providerConfig['oidc']) ? bin2hex(random_bytes(32)) : null;
+        if ($nonce !== null) {
+            $options['nonce'] = $nonce;
+        }
+        $authorizationUrl = $this->provider->getAuthorizationUrl($options);
+        // Providers with native PKCE support may generate their own verifier.
+        if ($pkce) {
+            $nativeVerifier = $this->provider->getPkceCode();
+            if (is_string($nativeVerifier) && $nativeVerifier !== '') {
+                $verifier = $nativeVerifier;
+            }
+        }
         session()->set('oauth2state', $this->provider->getState());
+        session()->set('oauth2flow', ['provider' => $this->providerName, 'verifier' => $verifier, 'nonce' => $nonce, 'created' => time()]);
 
         return redirect()->to($authorizationUrl);
     }
@@ -185,9 +208,11 @@ class OauthManager
     /**
      * Handle the authorization callback from the OAuth provider.
      */
-    public function handleCallback(string $code, string $state): User
+    public function handleCallback(string $code, string $state, ?string $issuer = null): User
     {
         $sessionState = session()->get('oauth2state');
+        $flow         = session('oauth2flow');
+        session()->remove(['oauth2state', 'oauth2flow']);
 
         // CSRF check — reject empty state and use timing-safe comparison.
         if (
@@ -207,9 +232,30 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.invalidOauthState'));
         }
 
+        $providerConfig = $this->config->providers[$this->providerName] ?? [];
+        $pkce           = (bool) ($providerConfig['pkce'] ?? $providerConfig !== []);
+        if (is_array($flow) && (($flow['provider'] ?? null) !== $this->providerName || (int) ($flow['created'] ?? 0) + 600 < time())) {
+            throw new AuthenticationException(lang('Auth.invalidOauthState'));
+        }
+        if ($pkce) {
+            $verifier = is_array($flow) ? ($flow['verifier'] ?? null) : null;
+            if (! is_string($verifier) || $verifier === '') {
+                throw new AuthenticationException(lang('Auth.invalidOauthState'));
+            }
+            $this->provider->setPkceCode($verifier);
+        }
+        $expectedIssuer = $providerConfig['issuer'] ?? null;
+        if (is_string($expectedIssuer) && $expectedIssuer !== '' && ($issuer === null || ! hash_equals($expectedIssuer, $issuer))) {
+            throw new AuthenticationException(lang('Auth.invalidOauthState'));
+        }
+
         try {
             $token       = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
+            $claims      = ! empty($providerConfig['oidc']) ? $this->validateIdToken($token, $providerConfig, is_array($flow) ? $flow : []) : null;
             $userProfile = $this->provider->getResourceOwner($token);
+            if ($claims !== null && ! hash_equals($claims['sub'], (string) $userProfile->getId())) {
+                throw new AuthenticationException(lang('Auth.invalidOauthState'));
+            }
             $profileData = $this->fetchProfileFields($token, $userProfile);
 
             $user = $this->processUser($userProfile, $token, $profileData);
@@ -224,6 +270,53 @@ class OauthManager
         } catch (IdentityProviderException $e) {
             throw new AuthenticationException($e->getMessage());
         }
+    }
+
+    /**
+     * Validate an ID token received directly from the configured TLS token
+     * endpoint in the authorization-code flow (OIDC Core 3.1.3.7). This method
+     * does not accept ID tokens from the browser or implicit/hybrid grants.
+     *
+     * @param array<string, mixed> $config
+     * @param array<string, mixed> $flow
+     *
+     * @return array<string, mixed>
+     */
+    protected function validateIdToken(AccessTokenInterface $token, array $config, array $flow): array
+    {
+        $invalid = static fn (): AuthenticationException => new AuthenticationException(lang('Auth.invalidOauthState'));
+        if (parse_url($this->provider->getBaseAccessTokenUrl([]), PHP_URL_SCHEME) !== 'https') {
+            throw $invalid();
+        }
+        $raw = $token->getValues()['id_token'] ?? null;
+        if (! is_string($raw) || strlen($raw) > 65536) {
+            throw $invalid();
+        }
+        $parts = explode('.', $raw);
+        if (count($parts) !== 3 || $parts[2] === '') {
+            throw $invalid();
+        }
+        $header = json_decode((string) base64_decode(strtr($parts[0], '-_', '+/'), true), true);
+        $claims = json_decode((string) base64_decode(strtr($parts[1], '-_', '+/'), true), true);
+        if (! is_array($header) || ! is_string($header['alg'] ?? null) || strtolower($header['alg']) === 'none' || ! is_array($claims)) {
+            throw $invalid();
+        }
+        $issuer    = $config['issuer'] ?? null;
+        $client    = $config['clientId'] ?? null;
+        $nonce     = $flow['nonce'] ?? null;
+        $audiences = isset($claims['aud']) ? (array) $claims['aud'] : [];
+        if (! is_string($issuer) || ! is_string($claims['iss'] ?? null) || ! hash_equals($issuer, $claims['iss'])
+                                 || ! is_string($client) || ! in_array($client, $audiences, true)
+                                 || (count($audiences) > 1 && ($claims['azp'] ?? null) !== $client)
+                                 || (isset($claims['azp']) && $claims['azp'] !== $client)
+                                 || ! is_string($nonce) || ! is_string($claims['nonce'] ?? null) || ! hash_equals($nonce, $claims['nonce'])
+                                 || ! is_int($claims['exp'] ?? null) || $claims['exp'] <= time()
+                                 || ! is_int($claims['iat'] ?? null) || $claims['iat'] > time() + 60
+                                 || ! is_string($claims['sub'] ?? null) || $claims['sub'] === '') {
+            throw $invalid();
+        }
+
+        return $claims;
     }
 
     /**

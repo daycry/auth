@@ -37,6 +37,7 @@
                 'security-change-password' => lang('Auth.changePasswordTitle'),
                 'security-change-email'    => lang('Auth.changeEmailTitle'),
                 'security-delete-account'  => lang('Auth.deleteAccountTitle'),
+                'security-recovery-codes'  => lang('Auth.totpBackupCodesTitle'),
             ], static fn (string $label, string $route): bool => route_to($route) !== false, ARRAY_FILTER_USE_BOTH);
 ?>
             <?php if ($accountLinks !== []) : ?>
@@ -153,4 +154,10 @@
         </div>
     </div>
 </div>
+<?php if (route_to('security-export') !== false) : ?>
+<form action="<?= url_to('security-export') ?>" method="post" class="container mb-4">
+    <?= csrf_field() ?>
+    <button type="submit" class="btn btn-outline-secondary"><?= esc(lang('Auth.exportAccountData')) ?></button>
+</form>
+<?php endif ?>
 <?= $this->endSection() ?>

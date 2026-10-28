@@ -102,6 +102,29 @@ final class GdprCommandTest extends DatabaseTestCase
         $this->assertStringContainsString('"audit_log"', $output);
     }
 
+    public function testExportRedactsEveryAuthenticationSecretAndSessionId(): void
+    {
+        $user = $this->createUser('alice@example.com');
+        model(UserIdentityModel::class)->insert([
+            'user_id' => $user->id, 'type' => 'oauth_google',
+            'secret'  => 'oauth-subject-secret', 'secret2' => 'oauth-access-secret',
+            'extra'   => json_encode(['refresh_token' => 'oauth-refresh-secret']),
+        ]);
+        model(UserIdentityModel::class)->insert([
+            'user_id' => $user->id, 'type' => 'totp_secret',
+            'secret'  => 'encrypted-totp-secret',
+        ]);
+        model(DeviceSessionModel::class)->createSession($user, 'active-session-cookie-secret', '127.0.0.1');
+        $this->setMockIo();
+        command('auth:gdpr export -e alice@example.com');
+        $output = $this->io->getOutputs();
+
+        foreach (['oauth-subject-secret', 'oauth-access-secret', 'oauth-refresh-secret', 'encrypted-totp-secret', 'active-session-cookie-secret'] as $secret) {
+            $this->assertStringNotContainsString($secret, $output);
+        }
+        $this->assertStringContainsString('alice@example.com', $output);
+    }
+
     public function testExportRedactsTokenSecrets(): void
     {
         $user = $this->createUser('alice@example.com');

@@ -16,6 +16,7 @@ namespace Daycry\Auth\Libraries;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Interfaces\SecurityNotifierInterface;
 use Daycry\Auth\Traits\Viewable;
 use Throwable;
 
@@ -29,7 +30,7 @@ use Throwable;
  * `service('securityNotifier')` and override that binding to customise
  * delivery (queue, another transport, ...).
  */
-class SecurityNotifier
+class SecurityNotifier implements SecurityNotifierInterface
 {
     use Viewable;
 
@@ -140,23 +141,18 @@ class SecurityNotifier
                 'date'      => Time::now()->toDateTimeString(),
             ], $data);
 
-            helper('email');
-            $email = emailer()->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
-            $email->setTo($to);
-            $email->setSubject(lang('Auth.security' . $notice . 'Subject'));
             $view = setting('Auth.views')[$viewKey] ?? self::DEFAULT_VIEWS[$viewKey];
-            $email->setMessage($this->view($view, $data, ['debug' => false]));
-
-            $sent = $email->send(false);
+            $sent = service('emailDelivery')->send(
+                $to,
+                lang('Auth.security' . $notice . 'Subject'),
+                $this->view($view, $data, ['debug' => false]),
+            );
 
             if ($sent === false) {
-                log_message('error', 'Security notification "{view}" could not be sent: {debug}', [
-                    'view'  => $viewKey,
-                    'debug' => $email->printDebugger(['headers']),
+                log_message('error', 'Security notification "{view}" could not be sent.', [
+                    'view' => $viewKey,
                 ]);
             }
-
-            $email->clear();
 
             return $sent !== false;
         } catch (Throwable $e) {

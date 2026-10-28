@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Controllers;
 
-use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Models\UserModel;
@@ -35,7 +34,9 @@ class ForcePasswordResetController extends BaseAuthController
     public function showView(): ResponseInterface
     {
         if (! auth()->loggedIn()) {
-            return redirect()->route('login');
+            return $this->expectsJsonResponse()
+                ? $this->authJsonResponse(['status' => 'error', 'message' => lang('Auth.notEnoughPrivilege')], 401)
+                : redirect()->route('login');
         }
 
         $content = $this->view(setting('Auth.views')['force-password-reset']);
@@ -46,15 +47,17 @@ class ForcePasswordResetController extends BaseAuthController
     /**
      * Handles the force password reset form submission.
      */
-    public function resetAction(): RedirectResponse
+    public function resetAction(): ResponseInterface
     {
         if (! auth()->loggedIn()) {
-            return redirect()->route('login');
+            return $this->expectsJsonResponse()
+                ? $this->authJsonResponse(['status' => 'error', 'message' => lang('Auth.notEnoughPrivilege')], 401)
+                : redirect()->route('login');
         }
 
         $rules = $this->getValidationRules();
 
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
 
         // Errors go back to the form itself. The `force_reset` redirect is
         // where the filter sends flagged users and defaults to '/'.
@@ -65,22 +68,22 @@ class ForcePasswordResetController extends BaseAuthController
         }
 
         $user            = auth()->user();
-        $currentPassword = $this->request->getPost('current_password');
-        $newPassword     = $this->request->getPost('new_password');
+        $currentPassword = $this->authInput('current_password');
+        $newPassword     = $this->authInput('new_password');
 
         // Verify the current password
         /** @var Passwords $passwords */
         $passwords = service('passwords');
 
         if (! $passwords->verify($currentPassword, $user->getPasswordHash())) {
-            return $this->handleError($formUrl, lang('Auth.invalidCurrentPassword'));
+            return $this->handleFailure($formUrl, lang('Auth.invalidCurrentPassword'), true, 401);
         }
 
         // Enforce the same password policy as registration.
         $check = $passwords->check((string) $newPassword, $user);
 
         if (! $check->isOK()) {
-            return $this->handleError($formUrl, (string) $check->reason());
+            return $this->handleFailure($formUrl, (string) $check->reason(), true, 422);
         }
 
         // Capture the previous hash for password-history bookkeeping.

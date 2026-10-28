@@ -65,6 +65,9 @@ class RatesFilter implements FilterInterface
         }
 
         $limitMethod = service('settings')->get('AuthSecurity.limitMethod') ?? 'ROUTED_URL';
+        if (is_array($arguments) && ($arguments[0] ?? null) === 'auth') {
+            $limitMethod = 'AUTH_IP';
+        }
         $limited_uri = $this->buildLimitedUri($request, $router, $limitMethod);
 
         $ignoreLimits = false;
@@ -77,7 +80,7 @@ class RatesFilter implements FilterInterface
             return service('response')->setStatusCode(
                 429,
                 lang('Auth.throttled', [$throttler->getTokenTime()]), // message
-            );
+            )->setHeader('Retry-After', (string) max(1, $throttler->getTokenTime()));
         }
 
         return null;
@@ -139,11 +142,34 @@ class RatesFilter implements FilterInterface
     protected function buildLimitedUri(RequestInterface $request, $router, string $limitMethod): string
     {
         switch ($limitMethod) {
+            case 'AUTH_IP':
+                // The router may decode multiple URI spellings to one route.
+                // Bucket by its canonical definition, never the supplied URL.
+                $route = $router?->getMatchedRoute()[0] ?? '_unmatched';
+
+                return 'auth:' . $route . ':' . $request->getMethod() . ':' . $this->normalizedIp($request);
+
+            case 'USER_IP':
+                $account = null;
+                if ($request instanceof IncomingRequest) {
+                    if ($request->is('json')) {
+                        // Leave invalid JSON to the controller's 400 response;
+                        // the filter must not throw while deriving its key.
+                        $data    = json_decode((string) $request->getBody(), true);
+                        $account = is_array($data) ? ($data['email'] ?? null) : null;
+                    } else {
+                        $account = $request->getPost('email');
+                    }
+                }
+                $account = is_string($account) ? strtolower(trim($account)) : '';
+
+                return 'account-ip:' . hash('sha256', $account) . ':' . $this->normalizedIp($request);
+
             case 'IP_ADDRESS':
-                return 'ip-address:' . $request->getIPAddress();
+                return 'ip-address:' . $this->normalizedIp($request);
 
             case 'USER':
-                $username = auth()->user()->username ?? 'anonymous';
+                $username = auth()->id() ?? $this->normalizedIp($request);
 
                 return 'user:' . $username;
 
@@ -154,6 +180,21 @@ class RatesFilter implements FilterInterface
             default:
                 return 'uri:' . $request->getUri()->getPath() . ':' . $request->getMethod();
         }
+    }
+
+    /**
+     * Fold IPv6 privacy addresses into their /64 network. The request service
+     * resolves the client IP using the application's trusted-proxy settings.
+     */
+    protected function normalizedIp(RequestInterface $request): string
+    {
+        $ip     = $request->getIPAddress();
+        $packed = inet_pton($ip);
+        if ($packed !== false && strlen($packed) === 16) {
+            return bin2hex(substr($packed, 0, 8)) . '/64';
+        }
+
+        return $ip;
     }
 
     /**
