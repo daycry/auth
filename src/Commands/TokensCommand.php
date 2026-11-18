@@ -14,9 +14,7 @@ declare(strict_types=1);
 namespace Daycry\Auth\Commands;
 
 use CodeIgniter\CLI\CLI;
-use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Models\UserIdentityModel;
-use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Entities\User;
 use Throwable;
 
 /**
@@ -83,25 +81,17 @@ class TokensCommand extends BaseCommand
             return 1;
         }
 
-        $email = (string) ($params['e'] ?? '');
-        $id    = (string) ($params['i'] ?? '');
-        $type  = (string) ($params['type'] ?? 'all');
+        $type = (string) ($params['type'] ?? 'all');
 
-        if ($email === '' && $id === '') {
-            $this->error('Specify -e <email> or -i <id>.');
+        if (! in_array($type, ['all', 'access_token', 'jwt_refresh'], true)) {
+            $this->error('Unknown --type. Use: access_token | jwt_refresh | all.');
 
             return 1;
         }
 
-        /** @var UserModel $userModel */
-        $userModel = model(UserModel::class);
-        $user      = $id !== ''
-            ? $userModel->findById((int) $id)
-            : $userModel->findByCredentials(['email' => $email]);
+        $user = $this->resolveTargetUser($params);
 
-        if ($user === null) {
-            $this->error('User not found.');
-
+        if (! $user instanceof User) {
             return 1;
         }
 
@@ -113,20 +103,10 @@ class TokensCommand extends BaseCommand
             }
 
             if ($type === 'all' || $type === 'jwt_refresh') {
-                /** @var UserIdentityModel $identityModel */
-                $identityModel = model(UserIdentityModel::class);
-                $identityModel->revokeIdentitiesByUserAndType(
-                    (int) $user->id,
-                    IdentityType::JWT_REFRESH->value,
-                );
+                // Through the repository so the revocation is audited, like
+                // the access-token branch above.
+                service('jwtTokenRepository')->softRevokeAllRefreshTokens((int) $user->id, 'cli');
                 $this->write('Revoked all JWT refresh tokens for user ' . $user->id, 'green');
-            }
-
-            // Sanity check on the type argument
-            if (! in_array($type, ['all', 'access_token', 'jwt_refresh'], true)) {
-                $this->error('Unknown --type. Use: access_token | jwt_refresh | all.');
-
-                return 1;
             }
         } catch (Throwable $e) {
             $this->error('Token revocation failed: ' . $e->getMessage());

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use Daycry\Auth\Authentication\Actions\EmailActivator;
 use Daycry\Auth\Models\UserModel;
 
 trait Activatable
@@ -59,11 +60,16 @@ trait Activatable
 
     /**
      * Does the Auth actions require activation?
-     * Check for the generic 'Activator' class name to allow
-     * for custom implementations, provided they follow the naming convention.
+     *
+     * True for EmailActivator and its subclasses, and, for backwards
+     * compatibility, for any custom action whose class name contains
+     * 'Activator'.
      */
     private function shouldActivate(): bool
     {
-        return str_contains(setting('Auth.actions')['register'] ?? '', 'Activator');
+        $action = setting('Auth.actions')['register'] ?? '';
+
+        return is_string($action)
+            && (is_a($action, EmailActivator::class, true) || str_contains($action, 'Activator'));
     }
 }

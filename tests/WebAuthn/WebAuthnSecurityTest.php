@@ -16,7 +16,7 @@ namespace Tests\WebAuthn;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\WebAuthnCredential;
 use Daycry\Auth\Exceptions\WebAuthnException;
-use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
+use Daycry\Auth\Interfaces\WebAuthnManagerInterface;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Models\WebAuthnCredentialModel;
 use Tests\Support\DatabaseTestCase;
@@ -51,7 +51,7 @@ final class WebAuthnSecurityTest extends DatabaseTestCase
         parent::tearDown();
     }
 
-    private function manager(): WebAuthnManager
+    private function manager(): WebAuthnManagerInterface
     {
         return service('webAuthnManager');
     }

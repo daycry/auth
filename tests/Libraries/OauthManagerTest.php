@@ -182,6 +182,74 @@ final class OauthManagerTest extends TestCase
         ]);
     }
 
+    public function testHandleCallbackRefusesBannedUser(): void
+    {
+        $userModel = new UserModel();
+        $userModel->save(new User([
+            'username' => 'BannedSocial',
+            'email'    => 'banned-social@example.com',
+            'password' => 'password123',
+        ]));
+        $user = $userModel->findById($userModel->getInsertID());
+        $user->ban('No entry');
+
+        session()->set('oauth2state', 'valid_state');
+
+        $provider = Mockery::mock(AbstractProvider::class);
+        $provider->shouldReceive('getAccessToken')->andReturn(new AccessToken(['access_token' => 'test_token']));
+
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('social_banned');
+        $resourceOwner->shouldReceive('toArray')->andReturn([
+            'email'          => 'banned-social@example.com',
+            'name'           => 'Banned',
+            'email_verified' => true,
+        ]);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        try {
+            $this->manager->handleCallback('auth_code', 'valid_state');
+            $this->fail('A banned user must not be signed in through OAuth.');
+        } catch (AuthenticationException $e) {
+            $this->assertSame('No entry', $e->getMessage());
+        }
+
+        $this->assertFalse(auth('session')->loggedIn());
+
+        // Refused before the social identity is stored.
+        $this->dontSeeInDatabase('auth_users_identities', ['secret' => 'social_banned']);
+    }
+
+    public function testLinkModeRefusesBannedUser(): void
+    {
+        $userModel = new UserModel();
+        $userModel->save(new User(['username' => 'BannedLinker', 'email' => 'banned-link@example.com', 'password' => 'password123']));
+        $user = $userModel->findById($userModel->getInsertID());
+        $user->ban('Link ban');
+
+        session()->set('oauth2state', 'valid_state');
+        session()->set('oauth_link_user_id', $user->id);
+
+        $provider = Mockery::mock(AbstractProvider::class);
+        $provider->shouldReceive('getAccessToken')->andReturn(new AccessToken(['access_token' => 'test_token']));
+        $resourceOwner = Mockery::mock(GenericResourceOwner::class);
+        $resourceOwner->shouldReceive('getId')->andReturn('banned_link_id');
+        $resourceOwner->shouldReceive('toArray')->andReturn(['email' => 'banned-social@example.com', 'name' => 'Banned']);
+        $provider->shouldReceive('getResourceOwner')->andReturn($resourceOwner);
+        $this->manager->setProviderInstance($provider, 'generic');
+
+        try {
+            $this->manager->handleCallback('auth_code', 'valid_state');
+            $this->fail('A banned user must not link a provider and sign in.');
+        } catch (AuthenticationException $e) {
+            $this->assertSame('Link ban', $e->getMessage());
+        }
+
+        $this->dontSeeInDatabase('auth_users_identities', ['secret' => 'banned_link_id']);
+    }
+
     public function testHandleCallbackRefusesLinkingUnverifiedEmailToExistingAccount(): void
     {
         // Pre-existing local (password) account.
@@ -298,7 +366,7 @@ final class OauthManagerTest extends TestCase
     public function testHandleCallbackAllowsUnverifiedEmailLinkWhenProviderOptsIn(): void
     {
         $config                       = new AuthConfig();
-        $config->providers['generic'] = ['allowUnverifiedEmailLink' => true];
+        $config->providers['generic'] = ['allowUnverifiedEmailLink' => true, 'pkce' => false];
         $manager                      = new OauthManager($config);
 
         $userModel = new UserModel();
@@ -384,6 +452,7 @@ final class OauthManagerTest extends TestCase
         // Configure fields for the generic provider
         $config                                   = new AuthConfig();
         $config->providers['generic_with_fields'] = [
+            'pkce'         => false, // This profile-only fixture bypasses the redirect ceremony.
             'clientId'     => 'test',
             'clientSecret' => 'test',
             'redirectUri'  => 'http://localhost/callback',
@@ -770,6 +839,7 @@ final class OauthManagerTest extends TestCase
             'clientSecret' => 'test',
             'redirectUri'  => 'http://localhost/callback',
             'fields'       => ['role'],
+            'pkce'         => false,
         ];
 
         $manager = new OauthManager($config);
@@ -855,6 +925,7 @@ final class OauthManagerTest extends TestCase
             'clientSecret' => 'test',
             'redirectUri'  => 'http://localhost/callback',
             'fields'       => ['role'],
+            'pkce'         => false,
         ];
 
         $manager = new OauthManager($config);

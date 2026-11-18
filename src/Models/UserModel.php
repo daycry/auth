@@ -22,6 +22,7 @@ use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\InvalidArgumentException;
 use Daycry\Auth\Exceptions\ValidationException;
 use Daycry\Auth\Interfaces\UserProviderInterface;
+use Daycry\Auth\Traits\GeneratesUuid;
 use Faker\Generator;
 
 /**
@@ -29,6 +30,8 @@ use Faker\Generator;
  */
 class UserModel extends BaseModel implements UserProviderInterface
 {
+    use GeneratesUuid;
+
     protected $table;
     protected $primaryKey     = 'id';
     protected $returnType     = User::class;
@@ -72,21 +75,16 @@ class UserModel extends BaseModel implements UserProviderInterface
     }
 
     /**
-     * Generates a UUID v7 for new user records.
-     *
-     * Model event callback called by `beforeInsert`.
+     * Builds a user entity of this model's `$returnType`, so a custom User
+     * class is honoured where rows are hydrated by hand (joined queries).
      *
      * @param array<string, mixed> $data
-     *
-     * @return array<string, mixed>
      */
-    protected function generateUuid(array $data): array
+    public function createUserEntity(array $data = []): User
     {
-        if (empty($data['data']['uuid'])) {
-            $data['data']['uuid'] = service('uuid')->uuid7()->toRfc4122();
-        }
+        $class = is_a($this->returnType, User::class, true) ? $this->returnType : User::class;
 
-        return $data;
+        return new $class($data);
     }
 
     /**
@@ -433,7 +431,7 @@ class UserModel extends BaseModel implements UserProviderInterface
             $password_hash = $data['password_hash'];
             unset($data['password_hash']);
 
-            $user                = new User($data);
+            $user                = $this->createUserEntity($data);
             $user->email         = $email;
             $user->password_hash = $password_hash;
             $user->syncOriginal();

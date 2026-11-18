@@ -488,7 +488,7 @@ class AuthSecurity extends BaseConfig
      * Global availability flag. When false the feature does not exist:
      * Auth::routes() registers no WebAuthn routes and every endpoint 404s.
      * When true, users may opt in to enrolling a passkey. Obligatoriness
-     * (enforcement) is a separate, not-yet-implemented axis.
+     * (enforcement) is configured independently with the mfaRequired policy.
      */
     public bool $webauthnEnabled = false;
 
@@ -539,4 +539,45 @@ class AuthSecurity extends BaseConfig
      * Maximum number of active passkeys a single user may register.
      */
     public int $webauthnMaxCredentialsPerUser = 10;
+
+    /**
+     * Scheduled retention in days. Zero keeps all historical records.
+     */
+    public int $loginRetentionDays = 0;
+
+    public int $auditRetentionDays = 0;
+
+    /**
+     * Rows per collection in a materialized export (1..5000); overflow is explicit.
+     */
+    public int $dataExportMaxRecords = 1000;
+
+    /**
+     * Mandatory MFA is opt-in; exemption groups take precedence.
+     */
+    public bool $mfaRequired = false;
+
+    /**
+     * @var list<string>
+     */
+    public array $mfaRequiredGroups = [];
+
+    /**
+     * @var list<string>
+     */
+    public array $mfaExemptGroups = [];
+
+    /**
+     * Enrollment grace in seconds, anchored to account creation or rollout.
+     */
+    public int $mfaGracePeriod = 0;
+
+    public int $mfaEnforcementStartedAt = 0;
+
+    /**
+     * Browser capabilities are feature detected. Automatic creation is opt-in.
+     */
+    public bool $webauthnConditionalUi = true;
+
+    public bool $webauthnAutoUpgrade = false;
 }

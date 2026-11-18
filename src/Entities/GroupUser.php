@@ -13,42 +13,14 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Entities;
 
-use Daycry\Auth\Models\GroupModel;
+use Daycry\Auth\Traits\BelongsToGroup;
 use Daycry\Auth\Traits\BelongsToUser;
 
-class GroupUser extends Entity
+/**
+ * A user's membership of a group (`groups_users` row).
+ */
+class GroupUser extends PivotEntity
 {
+    use BelongsToGroup;
     use BelongsToUser;
-
-    /**
-     * Group $group
-     */
-    private ?Group $group = null;
-
-    /**
-     * @var         list<string>
-     * @phpstan-var list<string>
-     * @psalm-var list<string>
-     */
-    protected $dates = [
-        'created_at',
-        'updated_at',
-        'deleted_at',
-        'until_at',
-    ];
-
-    /**
-     * Get Group
-     */
-    public function getGroup()
-    {
-        if ($this->group instanceof Group) {
-            return $this->group;
-        }
-
-        $groupModel  = model(GroupModel::class);
-        $this->group = $groupModel->where('id', $this->attributes['group_id'])->first();
-
-        return $this->group;
-    }
 }

@@ -14,8 +14,8 @@ declare(strict_types=1);
 namespace Daycry\Auth\Commands;
 
 use CodeIgniter\CLI\CLI;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\DeviceSessionModel;
-use Daycry\Auth\Models\UserModel;
 use Throwable;
 
 /**
@@ -51,24 +51,9 @@ class SessionsCommand extends BaseCommand
             return 1;
         }
 
-        $email = (string) ($params['e'] ?? '');
-        $id    = (string) ($params['i'] ?? '');
+        $user = $this->resolveTargetUser($params);
 
-        if ($email === '' && $id === '') {
-            $this->error('Specify -e <email> or -i <id>.');
-
-            return 1;
-        }
-
-        /** @var UserModel $userModel */
-        $userModel = model(UserModel::class);
-        $user      = $id !== ''
-            ? $userModel->findById((int) $id)
-            : $userModel->findByCredentials(['email' => $email]);
-
-        if ($user === null) {
-            $this->error('User not found.');
-
+        if (! $user instanceof User) {
             return 1;
         }
 

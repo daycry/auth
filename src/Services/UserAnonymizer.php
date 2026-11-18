@@ -15,6 +15,7 @@ namespace Daycry\Auth\Services;
 
 use Config\Database;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Interfaces\UserAnonymizerInterface;
 use Daycry\Auth\Models\DeviceSessionModel;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\PasswordHistoryModel;
@@ -38,7 +39,7 @@ use Throwable;
  * Shared by `php spark auth:gdpr anonymize` and the self-service account
  * deletion endpoint.
  */
-class UserAnonymizer
+class UserAnonymizer implements UserAnonymizerInterface
 {
     /**
      * @param string   $initiator Recorded in the audit entry ('cli', 'self-service', ...)
@@ -83,6 +84,6 @@ class UserAnonymizer
             throw $e;
         }
 
-        (new AuditLogger())->record(AuditLogger::EVENT_USER_ANONYMIZED, $userId, ['initiator' => $initiator], $actorId);
+        service('auditLogger')->record(AuditLogger::EVENT_USER_ANONYMIZED, $userId, ['initiator' => $initiator], $actorId);
     }
 }

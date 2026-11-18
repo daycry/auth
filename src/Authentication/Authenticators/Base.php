@@ -79,18 +79,7 @@ abstract class Base
         $result = $this->check($credentials);
 
         if (! $result->isOK()) {
-            if (service('settings')->get('AuthSecurity.recordLoginAttempt') >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE) {
-                // Record all failed login attempts.
-                $identifier = $this->getLogCredentials($credentials);
-                $this->loginModel->recordLoginAttempt(
-                    $this->authType,
-                    ($identifier) ?: null,
-                    false,
-                    $this->ipAddress,
-                    $this->userAgent ?: null,
-                );
-            }
-
+            $this->recordAttempt($credentials, false);
             $this->user = null;
 
             return $result;
@@ -99,22 +88,7 @@ abstract class Base
         $user = $result->extraInfo();
 
         if ($user->isBanned()) {
-            if (service('settings')->get('AuthSecurity.recordLoginAttempt') >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE) {
-                // Record a banned login attempt.
-                $identifier = $this->getLogCredentials($credentials);
-
-                if ($identifier !== null) {
-                    $this->loginModel->recordLoginAttempt(
-                        $this->authType,
-                        $identifier,
-                        false,
-                        $this->ipAddress,
-                        $this->userAgent,
-                        $user->id,
-                    );
-                }
-            }
-
+            $this->recordAttempt($credentials, false, $user->id);
             $this->user = null;
 
             return new Result([
@@ -125,22 +99,59 @@ abstract class Base
 
         $this->login($user, true);
 
-        if (service('settings')->get('AuthSecurity.recordLoginAttempt') === AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL) {
-            // Record a successful login attempt.
+        $this->recordAttempt($credentials, true, $this->user->id);
+
+        return $result;
+    }
+
+    /**
+     * Records a login attempt as `AuthSecurity::$recordLoginAttempt` asks:
+     * failures from RECORD_LOGIN_ATTEMPT_FAILURE, successes only at
+     * RECORD_LOGIN_ATTEMPT_ALL.
+     *
+     * An anonymous failure without a recognised identifier field is not
+     * recorded. An attempt not tied to a user (unknown account, bad token) stores empty
+     * identifier and user-agent values as NULL.
+     *
+     * @param array<string, mixed> $credentials
+     */
+    private function recordAttempt(array $credentials, bool $success, ?int $userId = null): void
+    {
+        $setting = service('settings')->get('AuthSecurity.recordLoginAttempt');
+        $record  = $success
+            ? $setting === AuthSecurity::RECORD_LOGIN_ATTEMPT_ALL
+            : $setting >= AuthSecurity::RECORD_LOGIN_ATTEMPT_FAILURE;
+
+        if (! $record) {
+            return;
+        }
+
+        $anonymous = $userId === null;
+
+        if ($anonymous) {
+            try {
+                $identifier = $this->getLogCredentials($credentials);
+            } catch (InvalidArgumentException) {
+                return;
+            }
+        } else {
+            // check() accepted these credentials, so a valid identifier field
+            // exists; let a misconfiguration surface instead of hiding it.
             $identifier = $this->getLogCredentials($credentials);
-            if ($identifier !== null) {
-                $this->loginModel->recordLoginAttempt(
-                    $this->authType,
-                    $identifier,
-                    true,
-                    $this->ipAddress,
-                    $this->userAgent,
-                    $this->user->id,
-                );
+
+            if ($identifier === null) {
+                return;
             }
         }
 
-        return $result;
+        $this->loginModel->recordLoginAttempt(
+            $this->authType,
+            $anonymous ? ($identifier ?: null) : $identifier,
+            $success,
+            $this->ipAddress,
+            $anonymous ? ($this->userAgent ?: null) : $this->userAgent,
+            $userId,
+        );
     }
 
     /**

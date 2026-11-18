@@ -19,6 +19,7 @@ use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\AuditLogger;
 use Tests\Support\DatabaseTestCase;
 
 /**
@@ -124,6 +125,12 @@ final class AccessTokenRepositoryTest extends DatabaseTestCase
 
         $row = $this->identityModel->find((int) $token->id);
         $this->assertNotSame('', (string) $row->revoked_at);
+
+        // Audited like softRevokeAccessToken().
+        $this->seeInDatabase($this->tables['audit_logs'], [
+            'user_id'    => $user->id,
+            'event_type' => AuditLogger::EVENT_TOKEN_REVOKED,
+        ]);
     }
 
     public function testSoftRevokeAllAccessTokensRevokesAllForUser(): void

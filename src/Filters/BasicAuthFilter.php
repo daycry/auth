@@ -17,7 +17,6 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Daycry\Auth\Authentication\Passwords;
-use Daycry\Auth\Models\UserModel;
 
 /**
  * HTTP Basic authentication filter (RFC 7617).
@@ -75,6 +74,12 @@ class BasicAuthFilter implements FilterInterface
             return $this->challenge();
         }
 
+        if ($user->isBanned()) {
+            return service('response')
+                ->setStatusCode(403)
+                ->setBody($user->getBanMessage() ?? lang('Auth.bannedUser'));
+        }
+
         // Persist into the session unless the caller asked for stateless auth.
         $stateless = $arguments !== null && in_array('once', $arguments, true);
 
@@ -97,7 +102,7 @@ class BasicAuthFilter implements FilterInterface
      *
      * @return array{0: string, 1: string}|null
      */
-    private function extractCredentials(string $header): ?array
+    protected function extractCredentials(string $header): ?array
     {
         if ($header === '' || ! str_starts_with(strtolower($header), strtolower('Basic '))) {
             return null;
@@ -123,22 +128,19 @@ class BasicAuthFilter implements FilterInterface
      * Resolves a user by email when the identifier looks like an email,
      * otherwise by username. Returns null when no match is found.
      */
-    private function resolveUser(string $identifier)
+    protected function resolveUser(string $identifier)
     {
-        /** @var UserModel $userModel */
-        $userModel = model(UserModel::class);
-
         $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false
             ? 'email'
             : 'username';
 
-        return $userModel->findByCredentials([$field => $identifier]);
+        return auth()->getProvider()->findByCredentials([$field => $identifier]);
     }
 
     /**
      * Returns a 401 response with the standard `WWW-Authenticate` challenge.
      */
-    private function challenge(): ResponseInterface
+    protected function challenge(): ResponseInterface
     {
         $realm = (string) config('Auth')->basicAuthRealm;
 

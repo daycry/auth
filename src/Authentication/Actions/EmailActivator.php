@@ -15,10 +15,8 @@ namespace Daycry\Auth\Authentication\Actions;
 
 use CodeIgniter\Exceptions\LogicException;
 use CodeIgniter\Exceptions\PageNotFoundException;
-use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RedirectResponse;
-use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Libraries\Utils;
@@ -50,31 +48,14 @@ class EmailActivator extends AbstractAction
 
         $code = $this->createIdentity($user);
 
-        /** @var IncomingRequest $request */
-        $request = service('request');
-
-        $ipAddress = $request->getIPAddress();
-        $userAgent = (string) $request->getUserAgent();
-        $date      = Time::now()->toDateTimeString();
-
         // Send the email
-        helper('email');
-        $email = emailer(['mailType' => 'html'])
-            ->setFrom(setting('Email.fromEmail'), setting('Email.fromName') ?? '');
-        $email->setTo($userEmail);
-        $email->setSubject(lang('Auth.emailActivateSubject'));
-        $email->setMessage($this->view(
-            setting('Auth.views')['action_email_activate_email'],
-            ['code' => $code, 'user' => $user, 'ipAddress' => $ipAddress, 'userAgent' => $userAgent, 'date' => $date],
-            ['debug' => false],
-        ));
-
-        if ($email->send(false) === false) {
-            throw new RuntimeException('Cannot send email for user: ' . $user->email . "\n" . $email->printDebugger(['headers']));
-        }
-
-        // Clear the email
-        $email->clear();
+        $this->sendActionEmail(
+            $user,
+            $userEmail,
+            lang('Auth.emailActivateSubject'),
+            'action_email_activate_email',
+            ['code' => $code],
+        );
 
         // Display the info page
         return $this->view(setting('Auth.views')['action_email_activate_show'], ['user' => $user]);
@@ -100,10 +81,7 @@ class EmailActivator extends AbstractAction
 
         $postedToken = $request->getVar('token');
 
-        $user = $authenticator->getPendingUser();
-        if ($user === null) {
-            throw new RuntimeException('Cannot get the pending login User.');
-        }
+        $user = $this->requirePendingUser();
 
         $identity = $this->getIdentity($user);
 

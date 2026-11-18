@@ -19,7 +19,7 @@ use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Authentication\Authenticators\Session;
-use Daycry\Auth\Libraries\TokenEmailSender;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Libraries\Utils;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
@@ -53,10 +53,12 @@ class MagicLinkController extends BaseAuthController
      */
     public function loginView(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
-            return $this->handleError(
+        if ($this->magicLinkDisabled()) {
+            return $this->handleFailure(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
+                true,
+                403,
             );
         }
 
@@ -74,17 +76,19 @@ class MagicLinkController extends BaseAuthController
      * to a user identity, and sends an email to the given
      * email address.
      */
-    public function loginAction(): RedirectResponse
+    public function loginAction(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
-            return $this->handleError(
+        if ($this->magicLinkDisabled()) {
+            return $this->handleFailure(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
+                true,
+                403,
             );
         }
 
         $rules    = $this->getValidationRules();
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
 
         // Resolve the form URL once. The 'magic-link' route is login/magic-link,
         // so redirecting to the literal 'magic-link' path would 404 — use the
@@ -95,16 +99,16 @@ class MagicLinkController extends BaseAuthController
             return $this->handleValidationError($formUrl);
         }
 
-        $delivery = $this->request->getPost('delivery') === 'code' ? 'code' : 'link';
+        $delivery = $this->authInput('delivery') === 'code' ? 'code' : 'link';
 
         if ($delivery === 'link' && ! setting('AuthSecurity.magicLinkEnableLink')) {
-            return $this->handleError($formUrl, lang('Auth.magicLinkDisabled'));
+            return $this->handleFailure($formUrl, lang('Auth.magicLinkDisabled'), true, 403);
         }
         if ($delivery === 'code' && ! setting('AuthSecurity.magicLinkEnableCode')) {
-            return $this->handleError($formUrl, lang('Auth.magicLinkDisabled'));
+            return $this->handleFailure($formUrl, lang('Auth.magicLinkDisabled'), true, 403);
         }
 
-        $email = $this->request->getPost('email');
+        $email = $this->authInput('email');
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
         if ($delivery === 'code') {
@@ -114,7 +118,7 @@ class MagicLinkController extends BaseAuthController
 
             if ($user !== null) {
                 try {
-                    (new TokenEmailSender())->sendTokenEmail(
+                    service('tokenEmailSender')->sendTokenEmail(
                         $user,
                         Session::ID_TYPE_MAGIC_CODE,
                         setting('AuthSecurity.magicCodeLifetime'),
@@ -130,14 +134,14 @@ class MagicLinkController extends BaseAuthController
                 }
             }
 
-            return redirect()->route('magic-link-code');
+            return $this->handleSuccess(url_to('magic-link-code'));
         }
 
         // Link mode (existing behaviour, now anti-enumeration: unknown emails
         // and send failures both fall through to the generic message page).
         if ($user !== null) {
             try {
-                (new TokenEmailSender())->sendTokenEmail(
+                service('tokenEmailSender')->sendTokenEmail(
                     $user,
                     Session::ID_TYPE_MAGIC_LINK,
                     setting('AuthSecurity.magicLinkLifetime'),
@@ -149,7 +153,7 @@ class MagicLinkController extends BaseAuthController
             }
         }
 
-        return redirect()->route('magic-link-message');
+        return $this->handleSuccess(url_to('magic-link-message'));
     }
 
     /**
@@ -165,9 +169,7 @@ class MagicLinkController extends BaseAuthController
      */
     public function messageView(): ResponseInterface
     {
-        $content = $this->view(setting('Auth.views')['magic-link-message']);
-
-        return $this->response->setBody($content);
+        return $this->response->setBody($this->displayMessage());
     }
 
     /**
@@ -176,10 +178,12 @@ class MagicLinkController extends BaseAuthController
      */
     public function codeView(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
-            return $this->handleError(
+        if ($this->magicLinkDisabled(true)) {
+            return $this->handleFailure(
                 config('Auth')->loginRoute(),
                 lang('Auth.magicLinkDisabled'),
+                true,
+                403,
             );
         }
 
@@ -195,29 +199,24 @@ class MagicLinkController extends BaseAuthController
     /**
      * Handles the GET request from the email
      */
-    public function verify(): RedirectResponse
+    public function verify(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins')) {
-            return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
+        if ($this->magicLinkDisabled()) {
+            return $this->handleFailure(route_to('login'), lang('Auth.magicLinkDisabled'), true, 403);
         }
 
         $token = $this->request->getGet('token');
+        // A malformed query (e.g. token[]=x) is just an unknown token.
+        $token = is_string($token) ? $token : null;
 
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
 
         $identity = $identityModel->getIdentityBySecret(Session::ID_TYPE_MAGIC_LINK, $token);
 
-        $identifier = $token ?? '';
-
         // No token found?
         if ($identity === null) {
-            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false);
-
-            $credentials = ['magicLinkToken' => $token];
-            Events::trigger('failedLogin', $credentials);
-
-            return redirect()->route('magic-link')->with('error', lang('Auth.magicTokenNotFound'));
+            return $this->failLinkVerification($token, lang('Auth.magicTokenNotFound'));
         }
 
         // Delete the db entry so it cannot be used again.
@@ -225,37 +224,37 @@ class MagicLinkController extends BaseAuthController
 
         // Token expired?
         if (Time::now()->isAfter($identity->expires)) {
-            $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, false);
+            return $this->failLinkVerification($token, lang('Auth.magicLinkExpired'));
+        }
 
-            $credentials = ['magicLinkToken' => $token];
-            Events::trigger('failedLogin', $credentials);
+        $user = $this->provider->findById($identity->user_id);
 
-            return redirect()->route('magic-link')->with('error', lang('Auth.magicLinkExpired'));
+        // The account behind the token no longer exists.
+        if ($user === null) {
+            return $this->failLinkVerification($token, lang('Auth.magicTokenNotFound'));
+        }
+
+        // A banned user must not get a session (password login refuses them
+        // in checkLogin(); loginById() does not check).
+        if ($user->isBanned()) {
+            return $this->failLinkVerification($token, $this->banMessage($user), $user->id);
         }
 
         /** @var Session $authenticator */
         $authenticator = auth('session')->getAuthenticator();
 
         // If an action has been defined
-        if ($authenticator->hasAction($identity->user_id)) {
-            return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
+        if ($authenticator->hasAction($user->id)) {
+            return $this->redirectToAuthAction();
         }
 
-        // Log the user in
-        $authenticator->loginById($identity->user_id);
+        $response = $this->completeMagicLogin($authenticator, $user);
 
-        $user = $authenticator->getUser();
+        // Recorded after the login: SuspiciousLoginDetector must only see the
+        // previous successful logins when it checks for a new IP.
+        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $token ?? '', true, $user->id);
 
-        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $identifier, true, $user->id);
-
-        // Give the developer a way to know the user
-        // logged in via a magic link.
-        session()->setTempdata('magicLogin', true);
-
-        Events::trigger('magicLogin');
-
-        // Get our login redirect url
-        return redirect()->to(config('Auth')->loginRedirect());
+        return $response;
     }
 
     /**
@@ -264,18 +263,22 @@ class MagicLinkController extends BaseAuthController
      * identity (never a global lookup), and the account's brute-force lockout
      * applies. Generic errors throughout (anti-enumeration).
      */
-    public function verifyCode(): RedirectResponse
+    public function verifyCode(): ResponseInterface
     {
-        if (! setting('AuthSecurity.allowMagicLinkLogins') || ! setting('AuthSecurity.magicLinkEnableCode')) {
-            return redirect()->route('login')->with('error', lang('Auth.magicLinkDisabled'));
+        if ($this->magicLinkDisabled(true)) {
+            return $this->handleFailure(route_to('login'), lang('Auth.magicLinkDisabled'), true, 403);
         }
 
         $email = session()->get('magicCodeEmail');
         if (empty($email)) {
+            if ($this->expectsJsonResponse()) {
+                return $this->authJsonResponse(['status' => 'error', 'message' => lang('Auth.magicCodeInvalid')], 401);
+            }
+
             return redirect()->route('magic-link');
         }
 
-        $code = (string) $this->request->getPost('token');
+        $code = (string) $this->authInput('token');
         $user = $this->provider->findByCredentials(['email' => $email]);
 
         /** @var Session $authenticator */
@@ -290,7 +293,7 @@ class MagicLinkController extends BaseAuthController
                 // reason here would confirm the account exists (a non-existent
                 // email is never locked out and always gets the generic error),
                 // breaking anti-enumeration.
-                return redirect()->route('magic-link-code')->with('error', lang('Auth.magicCodeInvalid'));
+                return $this->handleFailure(route_to('magic-link-code'), lang('Auth.magicCodeInvalid'), true, 401);
             }
 
             /** @var UserIdentityModel $identityModel */
@@ -309,18 +312,26 @@ class MagicLinkController extends BaseAuthController
                 $lockout->resetOnSuccess($user);
                 session()->remove('magicCodeEmail');
 
-                $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
+                if ($user->isBanned()) {
+                    $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, false, $user->id);
+                    Events::trigger('failedLogin', ['magicCode' => $code]);
+
+                    return $this->handleFailure(route_to('magic-link'), $this->banMessage($user), true, 401);
+                }
 
                 // Respect any pending post-auth action (mirrors verify()).
                 if ($authenticator->hasAction($user->id)) {
-                    return redirect()->route('auth-action-show')->with('error', lang('Auth.needActivate'));
+                    $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
+
+                    return $this->redirectToAuthAction();
                 }
 
-                $authenticator->loginById($user->id);
-                session()->setTempdata('magicLogin', true);
-                Events::trigger('magicLogin');
+                $response = $this->completeMagicLogin($authenticator, $user);
 
-                return redirect()->to(config('Auth')->loginRedirect());
+                // After the login, as in verify(): keeps the new-IP check working.
+                $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, true, $user->id);
+
+                return $response;
             }
 
             // Existing user, bad/expired code → count the failed attempt.
@@ -331,7 +342,53 @@ class MagicLinkController extends BaseAuthController
         $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_CODE, (string) $email, false);
         Events::trigger('failedLogin', ['magicCode' => $code]);
 
-        return redirect()->route('magic-link-code')->with('error', lang('Auth.magicCodeInvalid'));
+        return $this->handleFailure(route_to('magic-link-code'), lang('Auth.magicCodeInvalid'), true, 401);
+    }
+
+    /**
+     * Whether magic-link logins are off (or, with $code, the code mode).
+     */
+    protected function magicLinkDisabled(bool $code = false): bool
+    {
+        return ! setting('AuthSecurity.allowMagicLinkLogins')
+            || ($code && ! setting('AuthSecurity.magicLinkEnableCode'));
+    }
+
+    /**
+     * Records the failed link verification, fires `failedLogin` and sends the
+     * user back to the magic-link form with $error.
+     */
+    protected function failLinkVerification(?string $token, string $error, ?int $userId = null): ResponseInterface
+    {
+        $this->recordLoginAttempt(Session::ID_TYPE_MAGIC_LINK, $token ?? '', false, $userId);
+
+        Events::trigger('failedLogin', ['magicLinkToken' => $token]);
+
+        return $this->handleFailure(route_to('magic-link'), $error, true, 401);
+    }
+
+    /**
+     * Signs the verified user in and flags the session as a magic login.
+     */
+    protected function completeMagicLogin(Session $authenticator, User $user): ResponseInterface
+    {
+        $authenticator->loginById($user->id);
+
+        // Give the developer a way to know the user
+        // logged in via a magic link.
+        session()->setTempdata('magicLogin', true);
+
+        Events::trigger('magicLogin', $user);
+
+        return $this->handleSuccess(config('Auth')->loginRedirect());
+    }
+
+    /**
+     * The message shown to a banned user.
+     */
+    protected function banMessage(User $user): string
+    {
+        return $user->getBanMessage() ?? lang('Auth.bannedUser');
     }
 
     /**

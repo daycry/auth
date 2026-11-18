@@ -28,12 +28,14 @@ use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Result;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
+use Tests\Support\ListensToEvents;
 
 /**
  * @internal
  */
 final class SessionAuthenticatorTest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FakeUser;
 
     private Session $auth;
@@ -59,6 +61,58 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
     public function testLoggedInFalse(): void
     {
         $this->assertFalse($this->auth->loggedIn());
+    }
+
+    public function testIdleTimeoutExpiresSessionAndClearsAuthenticationProof(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['idleTimeout' => 60]));
+        $_SESSION['user']['id'] = $this->user->id;
+        session()->set('auth_session_started_at', time() - 100);
+        session()->set('auth_last_activity_at', time() - 61);
+        session()->set(Session::AUTHENTICATED_AT_KEY, time() - 100);
+        session()->set('auth_mfa_user', $this->user->id);
+
+        $this->assertFalse($this->auth->loggedIn());
+        $this->assertNull(session('user'));
+        $this->assertNull(session(Session::AUTHENTICATED_AT_KEY));
+        $this->assertNull(session('auth_mfa_user'));
+    }
+
+    public function testAbsoluteTimeoutIsNotExtendedByActivity(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['absoluteTimeout' => 120]));
+        $_SESSION['user']['id'] = $this->user->id;
+        session()->set('auth_session_started_at', time() - 121);
+        session()->set('auth_last_activity_at', time());
+
+        $this->assertFalse($this->auth->loggedIn());
+    }
+
+    public function testActiveSessionUpdatesActivityWithoutMovingStart(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['idleTimeout' => 60]));
+        $_SESSION['user']['id'] = $this->user->id;
+        $started                = time() - 100;
+        session()->set('auth_session_started_at', $started);
+        session()->set('auth_last_activity_at', time() - 20);
+
+        $this->assertTrue($this->auth->loggedIn());
+        $this->assertSame($started, session('auth_session_started_at'));
+        $this->assertGreaterThanOrEqual(time() - 1, session('auth_last_activity_at'));
+    }
+
+    public function testRememberMeCannotRestartAnExpiredAbsoluteLifetime(): void
+    {
+        setting('Auth.sessionConfig', array_replace(setting('Auth.sessionConfig'), ['absoluteTimeout' => 60]));
+        unset($_SESSION['user']);
+        model(RememberModel::class)->rememberUser($this->user, 'old-absolute', hash('sha256', 'valid-proof'), date('Y-m-d H:i:s', time() + 3600));
+        $this->db->table($this->tables['remember_tokens'])->where('selector', 'old-absolute')->update(['created_at' => date('Y-m-d H:i:s', time() - 120)]);
+        $cookies                                                      = (array) service('request')->getCookie();
+        $cookies[setting('Auth.sessionConfig')['rememberCookieName']] = 'old-absolute:valid-proof';
+        service('request')->setGlobal('cookie', $cookies);
+
+        $this->assertFalse($this->auth->loggedIn());
+        $this->assertNull(model(RememberModel::class)->getRememberToken('old-absolute'));
     }
 
     public function testLoggedInTrue(): void
@@ -133,6 +187,34 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
         $stamp = session()->get(Session::AUTHENTICATED_AT_KEY);
         $this->assertIsInt($stamp);
         $this->assertLessThanOrEqual(2, abs(time() - $stamp));
+    }
+
+    public function testRememberCookieDoesNotSignInABannedUser(): void
+    {
+        unset($_SESSION['user']);
+
+        /** @var RememberModel $rememberModel */
+        $rememberModel = model(RememberModel::class);
+        $expires       = date('Y-m-d H:i:s', time() + setting('Auth.sessionConfig')['rememberLength']);
+        $rememberModel->rememberUser($this->user, 'selector', hash('sha256', 'validator'), $expires);
+        service('superglobals')->setCookie('remember', 'selector:validator');
+
+        // Banned behind ban()'s back (e.g. a direct status update).
+        model(UserModel::class)->update($this->user->id, ['status' => 'banned']);
+
+        $this->assertFalse($this->auth->loggedIn());
+    }
+
+    public function testBanPurgesRememberMeTokens(): void
+    {
+        /** @var RememberModel $rememberModel */
+        $rememberModel = model(RememberModel::class);
+        $expires       = date('Y-m-d H:i:s', time() + setting('Auth.sessionConfig')['rememberLength']);
+        $rememberModel->rememberUser($this->user, 'selector', hash('sha256', 'validator'), $expires);
+
+        $this->user->ban();
+
+        $this->dontSeeInDatabase($this->tables['remember_tokens'], ['user_id' => $this->user->id]);
     }
 
     public function testLoggedInAsDeletedUserWithRememberCookie(): void
@@ -343,6 +425,38 @@ final class SessionAuthenticatorTest extends DatabaseTestCase
             'identifier' => 'johnsmith@example.com',
             'success'    => 0,
         ]);
+    }
+
+    public function testAttemptWithoutIdentifierFieldFailsInsteadOfThrowing(): void
+    {
+        $result = $this->auth->attempt(['password' => 'secret']);
+
+        $this->assertFalse($result->isOK());
+        $this->assertSame(lang('Auth.badAttempt'), $result->reason());
+
+        // Nothing to record the attempt against.
+        $this->seeNumRecords(0, $this->tables['logins'], []);
+    }
+
+    public function testFailedAttemptFiresFailedLoginWithoutThePassword(): void
+    {
+        $received = null;
+        $this->listen('failedLogin', static function (array $credentials) use (&$received): void {
+            $received = $credentials;
+        });
+
+        try {
+            $this->auth->attempt(['email' => 'nobody@example.com', 'password' => 'secret']);
+        } finally {
+            $this->stopListening();
+        }
+
+        $this->assertSame(['email' => 'nobody@example.com'], $received);
+    }
+
+    public function testHasActionWithUnknownUserIdIsFalse(): void
+    {
+        $this->assertFalse($this->auth->hasAction(999999));
     }
 
     public function testAttemptSuccess(): void

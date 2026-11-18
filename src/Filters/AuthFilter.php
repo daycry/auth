@@ -52,7 +52,9 @@ class AuthFilter implements FilterInterface
         $config = config(Auth::class);
 
         if ($authenticator instanceof Session) {
-            return $this->handleSessionAuthentication($authenticator, $config);
+            $response = $this->handleSessionAuthentication($authenticator, $config);
+
+            return $response ?? (new MfaRequiredFilter())->before($request);
         }
 
         return $this->handleTokenAuthentication($authenticator);
@@ -63,7 +65,7 @@ class AuthFilter implements FilterInterface
      *
      * @param mixed $endpoint
      */
-    private function determineAuthenticator(?array $arguments, $endpoint): string
+    protected function determineAuthenticator(?array $arguments, $endpoint): string
     {
         $alias = $arguments ? $arguments[0] : service('settings')->get('Auth.defaultAuthenticator');
 
@@ -73,7 +75,7 @@ class AuthFilter implements FilterInterface
     /**
      * Handle session-based authentication
      */
-    private function handleSessionAuthentication(Session $authenticator, Auth $config)
+    protected function handleSessionAuthentication(Session $authenticator, Auth $config)
     {
         if (auth()->loggedIn()) {
             if (setting('AuthSecurity.recordActiveDate')) {
@@ -81,6 +83,10 @@ class AuthFilter implements FilterInterface
             }
 
             $user = $authenticator->getUser();
+
+            if ($user === null) {
+                return;
+            }
 
             // Check if user is banned
             if ($user->isBanned()) {
@@ -92,7 +98,7 @@ class AuthFilter implements FilterInterface
             }
 
             // Check if user needs activation
-            if ($user !== null && ! $user->isActivated()) {
+            if (! $user->isActivated()) {
                 $hasAction = $authenticator->startUpAction('register', $user);
                 if ($hasAction) {
                     return redirect()->route('auth-action-show')
@@ -120,7 +126,7 @@ class AuthFilter implements FilterInterface
     /**
      * Handle token-based authentication
      */
-    private function handleTokenAuthentication(AuthenticatorInterface $authenticator)
+    protected function handleTokenAuthentication(AuthenticatorInterface $authenticator)
     {
         $result = $authenticator->attempt();
 
@@ -143,7 +149,7 @@ class AuthFilter implements FilterInterface
     /**
      * Validate access token when enabled
      */
-    private function validateAccessToken(): ?ResponseInterface
+    protected function validateAccessToken(): ?ResponseInterface
     {
         $accessToken = service('auth', false)->setAuthenticator('access_token')->attempt();
 

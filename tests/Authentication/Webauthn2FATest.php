@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Authentication;
 
 use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\Test\Mock\MockEvents;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
@@ -145,6 +146,22 @@ final class Webauthn2FATest extends DatabaseTestCase
             'user_id' => $this->user->id,
             'type'    => 'webauthn',
         ]);
+    }
+
+    public function testPasskeySecondFactorAcceptsOneTimeRecoveryCode(): void
+    {
+        $this->registerPasskey();
+        $codes = $this->user->generateBackupCodes();
+        $this->setUpPendingSession();
+        $request = $this->postCredential('');
+        $request->setGlobal('post', ['recovery_code' => $codes[0]]);
+
+        $response = (new Webauthn2FA())->verify($request);
+
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+        $this->assertFalse($this->user->consumeBackupCode($codes[0]));
+        $this->assertSame(9, $this->user->backupCodesRemaining());
+        $this->assertSame((string) $this->user->id, (string) session('auth_mfa_user'));
     }
 
     /**

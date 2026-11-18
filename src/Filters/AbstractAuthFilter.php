@@ -42,6 +42,13 @@ abstract class AbstractAuthFilter implements FilterInterface
             return $this->handleUnauthenticated();
         }
 
+        if (auth()->getAuthenticator() instanceof Session) {
+            $mfaResponse = (new MfaRequiredFilter())->before($request);
+            if ($mfaResponse !== null) {
+                return $mfaResponse;
+            }
+        }
+
         if ($this->isAuthorized($arguments)) {
             return null;
         }
@@ -52,7 +59,7 @@ abstract class AbstractAuthFilter implements FilterInterface
     /**
      * Handle unauthenticated requests
      */
-    private function handleUnauthenticated()
+    protected function handleUnauthenticated()
     {
         if (auth()->getAuthenticator() instanceof Session) {
             // Set the entrance url to redirect a user after successful login

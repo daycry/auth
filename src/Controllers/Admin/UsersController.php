@@ -236,7 +236,7 @@ class UsersController extends BaseAdminController
     /**
      * Find a user by ID or redirect with error.
      */
-    private function findUserOr404(int $id): RedirectResponse|User
+    protected function findUserOr404(int $id): RedirectResponse|User
     {
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);

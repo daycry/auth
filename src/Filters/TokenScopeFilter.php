@@ -75,7 +75,7 @@ class TokenScopeFilter extends AbstractAuthFilter
      * Returns the current access token in use for the authenticated request,
      * or null when no compatible authenticator is active.
      */
-    private function resolveCurrentAccessToken(User $user): ?AccessToken
+    protected function resolveCurrentAccessToken(User $user): ?AccessToken
     {
         $token = $user->currentAccessToken();
 

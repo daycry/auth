@@ -15,6 +15,7 @@ namespace Daycry\Auth\Traits;
 
 use CodeIgniter\Exceptions\ExceptionInterface;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\HTTP\Exceptions\HTTPException;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Config\Mimes;
@@ -24,6 +25,8 @@ use Daycry\Auth\Services\ExceptionHandler;
 use Daycry\Auth\Services\RequestLogger;
 use Daycry\Encryption\Encryption;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
+use stdClass;
 use Throwable;
 
 /**
@@ -43,6 +46,7 @@ trait BaseControllerTrait
     protected array $args;
     protected mixed $content         = null;
     protected bool $requestFinalized = false;
+    protected bool $invalidJsonBody  = false;
 
     /**
      * Hook for early checks - can be overridden by implementing classes
@@ -77,8 +81,20 @@ trait BaseControllerTrait
         }
 
         // Extract request parameters
-        $this->args    = Utils::getAllParams();
+        try {
+            $this->args = Utils::getAllParams();
+        } catch (HTTPException $exception) {
+            if (! $this->request->is('json')) {
+                throw $exception;
+            }
+            $this->invalidJsonBody = true;
+            $this->args            = [];
+        }
         $this->content = $this->args['body'] ?? null;
+
+        if ($this->request->is('json') && in_array(strtoupper($this->request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'], true) && trim((string) $this->request->getBody()) !== '' && ! $this->content instanceof stdClass) {
+            $this->invalidJsonBody = true;
+        }
 
         // Run early checks
         $this->earlyChecks();
@@ -139,13 +155,42 @@ trait BaseControllerTrait
     }
 
     /**
+     * Whether $method may be dispatched from a request.
+     *
+     * Only public, non-static endpoint methods qualify: `$this->{$method}()`
+     * would otherwise reach protected/private helpers when the method name
+     * comes from the URI (auto-routing).
+     */
+    protected function isRoutableMethod(string $method): bool
+    {
+        if (
+            str_starts_with($method, '_')
+            || in_array(strtolower($method), ['initcontroller', 'finalizerequest'], true)
+            || ! method_exists($this, $method)
+        ) {
+            return false;
+        }
+
+        $reflection = new ReflectionMethod($this, $method);
+
+        return $reflection->isPublic() && ! $reflection->isStatic();
+    }
+
+    /**
      * Main request handler with exception management
      */
     public function _remap(string $method, ...$params)
     {
         try {
-            if (! method_exists($this, $method)) {
+            if (! $this->isRoutableMethod($method)) {
                 throw PageNotFoundException::forPageNotFound();
+            }
+
+            if ($this->invalidJsonBody) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status'  => 'error',
+                    'message' => 'The request body must be a valid JSON object.',
+                ]);
             }
 
             // Validate attempts if enabled

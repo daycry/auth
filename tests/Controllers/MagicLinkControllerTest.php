@@ -18,9 +18,11 @@ use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
 use Daycry\Auth\Auth as AuthService;
 use Daycry\Auth\Authentication\Authenticators\Session;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
+use Tests\Support\ListensToEvents;
 
 /**
  * Covers the magic-link verify flow: the token is single-use, expiry is
@@ -30,6 +32,7 @@ use Tests\Support\DatabaseTestCase;
  */
 final class MagicLinkControllerTest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FeatureTestTrait;
 
     protected $namespace = 'Daycry\Auth';
@@ -108,6 +111,59 @@ final class MagicLinkControllerTest extends DatabaseTestCase
         $this->dontSeeInDatabase($this->tables['identities'], [
             'user_id' => $this->userId,
             'type'    => Session::ID_TYPE_MAGIC_LINK,
+        ]);
+    }
+
+    public function testMagicLoginEventReceivesTheUser(): void
+    {
+        $loggedIn = null;
+        $this->listen('magicLogin', static function (?User $user = null) use (&$loggedIn): void {
+            $loggedIn = $user?->id;
+        });
+
+        try {
+            $this->get('login/verify-magic-link?token=' . $this->seedMagicToken(3600));
+        } finally {
+            $this->stopListening();
+        }
+
+        $this->assertSame($this->userId, $loggedIn);
+    }
+
+    public function testSuspiciousLoginNewIpStillDetected(): void
+    {
+        setting('AuthSecurity.suspiciousLoginAlerts', true);
+
+        $flags = null;
+        $this->listen('suspicious-login', static function (User $user, array $seen = []) use (&$flags): void {
+            $flags = $seen;
+        });
+
+        try {
+            $this->get('login/verify-magic-link?token=' . $this->seedMagicToken(3600));
+        } finally {
+            $this->stopListening();
+            setting()->forget('AuthSecurity.suspiciousLoginAlerts');
+        }
+
+        $this->assertIsArray($flags);
+        $this->assertContains('new_ip', $flags);
+    }
+
+    public function testVerifyRefusesBannedUser(): void
+    {
+        model(UserModel::class)->findById($this->userId)->ban('Banned for testing');
+        $token = $this->seedMagicToken(3600);
+
+        $result = $this->get('login/verify-magic-link?token=' . $token);
+
+        $result->assertRedirectTo(route_to('magic-link'));
+        $result->assertSessionHas('error', 'Banned for testing');
+        $this->assertArrayNotHasKey('id', $_SESSION[setting('Auth.sessionConfig')['field']] ?? []);
+        $this->seeInDatabase($this->tables['logins'], [
+            'id_type' => Session::ID_TYPE_MAGIC_LINK,
+            'success' => 0,
+            'user_id' => $this->userId,
         ]);
     }
 

@@ -18,9 +18,9 @@ use CodeIgniter\HTTP\Request;
 use CodeIgniter\I18n\Time;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\AccessTokenRepositoryInterface;
 use Daycry\Auth\Interfaces\AuthenticatorInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
-use Daycry\Auth\Models\AccessTokenRepository;
 use Daycry\Auth\Models\LoginModel;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Result;
@@ -29,7 +29,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
 {
     public const ID_TYPE_ACCESS_TOKEN = 'access_token';
 
-    private ?AccessTokenRepository $accessTokenRepository = null;
+    private ?AccessTokenRepositoryInterface $accessTokenRepository = null;
 
     public function __construct(
         UserProviderInterface $provider,
@@ -43,15 +43,12 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
     }
 
     /**
-     * Lazy-resolve the access token repository — keeps the constructor
-     * signature stable while routing token lookups through the repository
-     * pattern instead of the deprecated UserIdentityModel methods.
+     * The access token repository: `service('accessTokenRepository')`, so
+     * overriding that binding also changes how tokens authenticate.
      */
-    private function tokenRepository(): AccessTokenRepository
+    protected function tokenRepository(): AccessTokenRepositoryInterface
     {
-        return $this->accessTokenRepository ??= new AccessTokenRepository(
-            $this->userIdentityModel,
-        );
+        return $this->accessTokenRepository ??= service('accessTokenRepository');
     }
 
     /**
@@ -62,13 +59,11 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
      */
     public function attempt(array $credentials = []): Result
     {
+        // Unused here; still loaded because applications may rely on checkIp()
+        // being available after token authentication.
         helper(['checkIp']);
 
-        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            $credentials = ['token' => $this->getTokenFromRequest()];
-        }
-
-        return $this->checkLogin($credentials);
+        return $this->checkLogin($this->resolveTokenCredentials($credentials));
     }
 
     /**
@@ -81,13 +76,7 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
     public function check(array $credentials = []): Result
     {
         if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            return new Result([
-                'success' => false,
-                'reason'  => lang(
-                    'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
-                ),
-            ]);
+            return $this->noTokenResult();
         }
 
         $token = $this->tokenRepository()->getAccessTokenByRawTokenWithUser($credentials['token']);
@@ -161,19 +150,6 @@ class AccessToken extends StatelessAuthenticator implements AuthenticatorInterfa
         );
 
         $this->login($user);
-    }
-
-    public function getLogCredentials(array $credentials): mixed
-    {
-        $this->authType = self::ID_TYPE_ACCESS_TOKEN;
-
-        $token = $credentials['token'] ?? '';
-
-        // Never persist the raw, replayable bearer credential in the login log.
-        // Record a non-reversible SHA-256 fingerprint instead — this is the same
-        // hash the access token is stored under, so logs remain correlatable
-        // without being usable to authenticate.
-        return $token === '' ? '' : hash('sha256', (string) $token);
     }
 
     /**

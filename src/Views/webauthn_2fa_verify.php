@@ -8,6 +8,12 @@
     <p><?= lang('Auth.webauthn2faPrompt') ?></p>
     <button type="button" id="webauthn-2fa-start"><?= lang('Auth.webauthn2faStart') ?></button>
 </form>
+<form action="<?= site_url('auth/a/verify') ?>" method="post" class="mt-4">
+    <?= csrf_field() ?>
+    <label for="passkey-recovery-code"><?= esc(lang('Auth.recoveryCode')) ?></label>
+    <input name="recovery_code" id="passkey-recovery-code" type="text" autocomplete="off" required>
+    <button type="submit"><?= esc(lang('Auth.confirm')) ?></button>
+</form>
 <?= $this->include('\Daycry\Auth\Views\_webauthn_js') ?>
 <script>
 document.getElementById('webauthn-2fa-start').addEventListener('click', async () => {

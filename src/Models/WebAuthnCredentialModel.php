@@ -13,11 +13,13 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
-use CodeIgniter\Model;
 use Daycry\Auth\Entities\WebAuthnCredential;
+use Daycry\Auth\Traits\GeneratesUuid;
 
-class WebAuthnCredentialModel extends Model
+class WebAuthnCredentialModel extends BaseModel
 {
+    use GeneratesUuid;
+
     protected $primaryKey     = 'id';
     protected $returnType     = WebAuthnCredential::class;
     protected $useSoftDeletes = false;
@@ -30,30 +32,11 @@ class WebAuthnCredentialModel extends Model
     protected $updatedField  = 'updated_at';
     protected $beforeInsert  = ['generateUuid'];
 
-    /**
-     * @var array<string, string>
-     */
-    protected array $tables;
-
     protected function initialize(): void
     {
         parent::initialize();
-        $this->tables = config('Auth')->tables;
-        $this->table  = $this->tables['webauthn_credentials'];
-    }
 
-    /**
-     * @param array{data: array<string, mixed>} $data
-     *
-     * @return array{data: array<string, mixed>}
-     */
-    protected function generateUuid(array $data): array
-    {
-        if (empty($data['data']['uuid'])) {
-            $data['data']['uuid'] = service('uuid')->uuid7()->toRfc4122();
-        }
-
-        return $data;
+        $this->table = $this->tables['webauthn_credentials'];
     }
 
     public function firstActiveByCredentialId(string $credentialId): ?WebAuthnCredential

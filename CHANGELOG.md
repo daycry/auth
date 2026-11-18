@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Authentication completion
+
+- Apply configurable rate limits to generated authentication routes, including IPv6 network and user/IP keys; add session idle and absolute lifetimes.
+- Add OAuth PKCE flow state, configurable issuer/nonce checks, and refresh-token family rotation with reuse detection.
+- Add mandatory MFA policy, TOTP/passkey identity confirmation, recovery-code management and passkey 2FA recovery.
+- Negotiate JSON responses for form authentication and publish the OpenAPI contract.
+- Keep direct CodeIgniter email delivery as the default while exposing replaceable delivery and core-service interfaces.
+- Add account-data download, configurable login/audit retention, and conditional passkey login/creation with credential synchronization.
+- Revoke cleared remember-me credentials, correct the forced-reset destination and align the README with the PHP 8.2 requirement.
+
+#### Extension points
+- **New service bindings**: `auditLogger`, `tokenEmailSender`, `passwordChangeRecorder` and `userAnonymizer`. The library resolves them through `service()`, which replaces about 40 `new` calls, so overriding one in `app/Config/Services.php` changes it everywhere.
+- The `accessTokenRepository` and `oauthTokenRepository` bindings are now actually used by the `tokens` authenticator and by `OauthManager`. Before, both built their own repository, so overriding the binding had no effect on authentication.
+- **The configured User class is honoured** by the hand-built hydration paths: e-mail login (`UserModel::findByCredentials()`) and the access-token lookup. The new `UserModel::createUserEntity()` builds an entity of the model's `$returnType`. The passkey, JWT refresh and `basic-auth` lookups now go through the configured `Auth::$userProvider` instead of the library's `UserModel`.
+- **Protected hooks** that were `private`:
+  - `Session`: `createLockoutManager()`, `createDeviceSessionRecorder()`, `createActionCoordinator()`, `beginSession()`, `issueRememberMeToken()`, `maybeFireSuspiciousLogin()`, `maybeRecheckPwnedOnLogin()`.
+  - `AccessToken::tokenRepository()`.
+  - `OauthManager`: `getRepository()`, `getIdentityModel()`, `registerUser()`, `linkProviderToUser()`, `fetchProfileFields()`.
+  - `WebAuthnController` helpers.
+  - The admin `find*Or404()` methods.
+  - The helpers of `AuthFilter`, `AbstractAuthFilter`, `BasicAuthFilter`, `RatesFilter`, `PasswordConfirmFilter` and `TokenScopeFilter`.
+- **New events**: `user-banned` / `user-unbanned`, `user-locked`, `two-factor-verified` / `two-factor-failed`, `access-token-created` (the token without its `raw_token`) / `access-token-revoked`. `magicLogin` now receives the `User`, as documented.
+- New guide: [Extending the Library](https://github.com/daycry/auth/blob/development/docs/16-extending.md).
+
 #### Self-service account management (`UserSecurityController`)
 - **Change password** (`changePasswordView` / `changePassword`), or **set a first password** on a password-less (OAuth-created) account. On success, other device sessions and remember-me tokens are revoked (the current session is kept), every issued JWT is invalidated, and the user is notified.
 - **Change e-mail** (`changeEmailView` / `changeEmail` / `confirmEmailChangeView` / `confirmEmailChange`). A single-use link, hashed at rest, goes to the **new** address and the **current** address is warned immediately. The confirmation GET only renders a page; the POST applies the change and moves the login identity.
@@ -87,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Banned users can no longer sign in through magic links, OAuth, passkeys, basic-auth or remember-me** — the ban was only enforced by `checkLogin()` (password and token attempts), `JwtController::refresh()` and, on the *next* request, `AuthFilter`. The magic-link (link and code), OAuth callback and linking, WebAuthn passwordless, `basic-auth` and remember-me flows call `loginById()` / `login()` / `startLogin()`, which do not check it, so a banned user got a full session (and a `login` event) on routes not guarded by `AuthFilter`. They now refuse the user with the ban message (`Auth.bannedUser` by default): OAuth throws `AuthenticationException` before storing the social identity, WebAuthn answers `403` with `error: banned`, `basic-auth` answers `403`, and a remember-me cookie of a banned user is dropped. `ban()` also deletes the user's remember-me tokens, and the `chain` filter no longer accepts a session banned after it started.
+- **Password reset flows now enforce the password policy** — `PasswordResetController::resetAction()` and `ForcePasswordResetController::resetAction()` only checked `min_length[8]`, so a reset could set a password that registration refuses (bypassing `minimumPasswordLength`, the composition / personal-info / dictionary / pwned / history validators and the bcrypt byte limit). Both now validate with `ValidationRules::getPasswordRules()` and then `Passwords::check()` against the user. A rejected reset keeps the token so the user can retry. The rules live in the new overridable `PasswordResetController::getResetValidationRules()`.
+- **Flash messages escaped in every auth form** — `force_password_reset`, `magic_link_form`, `password_reset_request` and `password_reset_form` printed `session('error')` / `session('errors')` unescaped (`login` and `register` already escaped them).
+- **`_remap()` dispatches only public endpoints** — `BaseControllerTrait::_remap()` and `ActionController::_remap()` called `$this->{$method}()` for any existing method, so with auto-routing a URI could reach protected helpers. Non-public, static, `_`-prefixed and framework methods (`initController`, `finalizeRequest`) now 404 (`BaseControllerTrait::isRoutableMethod()`).
 - **WebAuthn `login/options` no longer reveals accounts** — with an e-mail, the endpoint returned the account's real credential IDs when it had passkeys and an empty list otherwise: an account-existence oracle that also exposed credential IDs (contrary to what the docs claimed). Unknown e-mails and accounts without passkeys now receive one decoy descriptor, deterministic per e-mail (HMAC with `Config\Encryption::$key`) and shaped like a real one (realistic id length, transports present or absent). The usernameless flow (no e-mail) is unchanged.
 - **Password change / ban now revokes JWT refresh tokens** — `User::revokeIssuedTokens()` only bumped `token_version`, so a stolen refresh token survived a password change: `/refresh` minted a new access token carrying the *new* `token_version`, re-admitting the attacker. It now also soft-revokes every JWT refresh token of the user (`JwtTokenRepository::softRevokeAllRefreshTokens()`, audited as `token.refresh_revoked`); lifting a ban does not resurrect tokens issued before it. `JwtController::refresh()` additionally refuses banned users even when a refresh token is still alive. Personal access tokens (`X-API-KEY`) are unaffected.
 - **Bearer-token fingerprint logging** — `AccessToken` and `JWT` credentials written to the login-attempt log (`auth_logins.identifier`) are now stored as a non-reversible `hash('sha256', token)` fingerprint, never the raw bearer token. Session logins still log the email/username identifier (which is not a secret).
@@ -118,6 +146,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Internal de-duplication (no behaviour change)** — shared logic moved to protected helpers you can call or override:
+  - `StatelessAuthenticator`: `resolveTokenCredentials()`, `noTokenResult()` and a single `getLogCredentials()` (SHA-256 fingerprint) for `AccessToken` and `JWT`.
+  - `Authentication\Actions\AbstractAction`: `verifySecondFactor()` (lockout → verify → reset → `completeLogin()`, used by `Totp2FA` and `Webauthn2FA`), `insertPendingMarker()` and `sendActionEmail()` (used by `Email2FA` and `EmailActivator`).
+  - `Commands\BaseCommand::resolveTargetUser()` for the `-e`/`-i` options of `auth:sessions`, `auth:totp`, `auth:tokens` and `auth:gdpr`.
+  - `OauthManager::buildIdentityExtra()`, `refreshIdentity()` and `createIdentity()`, shared by social login and explicit linking.
+  - `MagicLinkController::magicLinkDisabled()`, `failLinkVerification()` and `completeMagicLogin()`.
+  - `Entities\PivotEntity` plus the `BelongsToGroup` / `BelongsToPermission` traits for `GroupUser`, `PermissionUser` and `PermissionGroup`, and the `GeneratesUuid` model trait for `UserModel`, `DeviceSessionModel` and `WebAuthnCredentialModel`.
+  - Private helpers in `Base` (login-attempt recording), `Session` (pending-action state, device-session tracking) and `Authorizable` (permission-cache settings); the unused `Authorizable::getGroupPermissions()` is gone.
+- **`auth:tokens revoke --type jwt_refresh` is audited** — it now revokes through `JwtTokenRepository::softRevokeAllRefreshTokens()` (`token.refresh_revoked`, reason `cli`), like the access-token branch. An unknown `--type` is rejected before the user lookup.
+- `AccessToken::attempt()` no longer loads the unused `checkIp` helper.
+- **`syncGroups()` / `syncPermissions()` match names case-insensitively** — each name resolves to the stored one regardless of case (`syncGroups('admin')` and `syncGroups('Admin')` both work, also for a group created as "Editors" in the admin panel) and duplicates are dropped, they no longer throw a `TypeError` when no groups/permissions exist, and the changes are now audited (`group.assigned` / `group.revoked`, `permission.granted` / `permission.revoked`).
+- **JWT `Authorization` scheme is case-insensitive** — `bearer <token>` is accepted (RFC 9110 §11.1), and `Bearer` must be followed by whitespace (`BearerX…` is no longer stripped into a token).
 - **`daycry/jobs` is no longer a hard dependency** — nothing in the library uses it, so it moved from `require` to `suggest` (it remains a convenient way to schedule `php spark auth:purge`). **Upgrade note:** if your application uses `daycry/jobs` but only had it installed transitively through this package, add it to your own `composer.json` (`composer require daycry/jobs`).
 - **`auth()` facade now throws on missing methods** — `Daycry\Auth\Auth::__call()` throws `\BadMethodCallException` when the resolved authenticator does not implement the called method, instead of silently returning `null`. Methods available on every authenticator (Session / AccessToken / JWT): `attempt`, `check`, `getLogCredentials`, `getUser`, `loggedIn`, `login`, `loginById`, `logout`, `recordActiveDate`. Session-only methods: `checkAction`, `completeLogin`, `forget`, `getAction`, `getPendingMessage`, `getPendingUser`, `hasAction`, `isAnonymous`, `isPending`, `remember`, `startLogin`, `startUpAction`.
 - **`User::can()` OR-semantics and wildcard fix** — `can(...string $permissions)` no longer aborts for group-less users when evaluating the variadic OR list, and scope wildcards (`posts.*`) now apply to **directly-assigned user** permissions as well as group permissions. So `$user->addPermission('posts.*')` followed by `$user->can('posts.create')` now returns `true`. Matching (`*`, exact, `scope.*`) is now uniform across user-level and group-level permissions.
@@ -155,6 +195,16 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 
 ### Fixed
 
+- **`failedLogin` was never fired for password logins** — only the magic-link flows fired it, although the docs (and their "alert on repeated failures" example) promised it for every failed attempt. `Session::attempt()` now fires it on failure, with the identifier fields and never the password. (The `basic-auth` filter verifies passwords itself and does not fire it.) The events table also named `registered` where the event is `register`.
+- **`EmailActivator` subclasses did not require activation** — `Activatable` only looked for "Activator" in the configured class name. It now also recognises `EmailActivator` and its subclasses.
+
+- **Magic-link verify with a stale token** — a token whose account no longer exists threw an uncaught `AuthenticationException`; it is now reported as `Auth.magicTokenNotFound`. A malformed query (`?token[]=…`) is treated as an unknown token instead of raising a `TypeError`.
+- **Redirect loop when registration is disabled** — with `allowRegistration = false`, `RegisterController::registerView()` redirected to the register page itself. Both register endpoints now redirect to the login page with `Auth.registerDisabled`.
+- **Forced password reset errors left the form** — validation and wrong-current-password errors redirected to `Auth::$redirects['force_reset']` (default `'/'`) instead of back to the form.
+- **Admin group permission sync is transactional** — `Admin\GroupsController::update()` deleted all of a group's permissions and re-inserted them outside a transaction; it now uses the new `GroupPermissionRepository::syncGroupPermissions()`, and reports a rolled-back sync instead of "updated". `GroupPermissionRepository` also opened its transaction on the default connection instead of `Auth.DBGroup`.
+- **`WebAuthnCredentialModel` ignored `Auth.DBGroup`** — it extended CodeIgniter's `Model` instead of `BaseModel`, so it ran on the default database group and read the table names from `config()` instead of `setting()`.
+- **Login attempt without an identifier threw** — `attempt(['password' => …])` (no `email`/`username`/valid field) threw `InvalidArgumentException` while logging the failure; it now returns the failed `Result`.
+- **Smaller fixes** — `Session::hasAction()` with an unknown user id raised a `TypeError`; `JWT::getPayload()` before `check()` raised "must not be accessed before initialization" (now `null`); `AuthFilter` dereferenced the user before its null check; `AccessTokenRepository::softRevokeAccessTokenBySecret()` was not audited like `softRevokeAccessToken()`; five e-mail templates lacked the opening `<html>` tag; `BaseAuthController::handleValidationError()` redirected to a path that included the base URL's sub-folder twice when the app is not served from the web root.
 - **OAuth callback no longer leaks internal error details** — `OauthController::callback()` flashed `$e->getMessage()` of *any* exception to the user (database errors with SQL, provider HTTP errors, misconfiguration). Only `AuthenticationException` messages (translated, user-facing) are shown now; everything else is logged and the user sees `Auth.badAttempt`.
 - **OAuth auto-registration with a custom user provider** — a first social login called `getInsertID()` / `addToDefaultGroup()`, which `UserProviderInterface` does not declare, so a provider implementing only the interface hit a fatal "Call to undefined method". It now throws a clear `LogicException` before writing anything; registration (form and OAuth) requires `Auth::$userProvider` to be `UserModel` or a subclass. `RegisterController` enforces the same with an explicit check instead of `assert()` (a no-op in production).
 - **PHPDoc/name fixes surfaced by static analysis** — missing imports behind wrong `@var`/`@throws` classes, `isOk()`/`setJson()` calls with the wrong case, filter `before()`/`after()` return types aligned with CodeIgniter's `FilterInterface` (`after()` no longer declares a native `void`), `StatelessAuthenticator::attempt()` declared abstract, credentials documented as `array<string, mixed>` on `AuthenticatorInterface`.
@@ -170,6 +220,7 @@ New per-provider option on `Daycry\Auth\Config\AuthOAuth::$providers`:
 
 ### Tooling
 
+- `UserModelGeneratorTest` deletes and regenerates the library's own `src/Models/UserModel.php`; it now keeps the original in memory and restores it in `tearDown()` and at shutdown, instead of a `.bak` copy that an interrupted run could leave behind together with a deleted model.
 - Fixed `deduplicate` script paths.
 - Corrected `.gitattributes` (`deptrac.yaml`, `phpstan-baseline.neon`, and the `phpcpd` phar now `export-ignore`).
 - CI composer cache keyed on `composer.json`.

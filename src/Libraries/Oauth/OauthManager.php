@@ -21,9 +21,9 @@ use Daycry\Auth\Config\AuthOAuth as AuthConfig;
 use Daycry\Auth\Entities\User;
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Exceptions\AuthenticationException;
+use Daycry\Auth\Interfaces\OAuthTokenRepositoryInterface;
 use Daycry\Auth\Interfaces\UserProviderInterface;
 use Daycry\Auth\Libraries\Oauth\ProfileResolver\ProfileResolverFactory;
-use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use League\OAuth2\Client\Grant\RefreshToken;
@@ -43,7 +43,7 @@ class OauthManager
 {
     protected AbstractProvider $provider;
     protected string $providerName;
-    private ?OAuthTokenRepository $repository = null;
+    private ?OAuthTokenRepositoryInterface $repository = null;
 
     /**
      * Map of provider alias → FQCN for well-known providers.
@@ -63,19 +63,18 @@ class OauthManager
     }
 
     /**
-     * Lazy-initialise the OAuth token repository.
+     * The OAuth identity repository: `service('oauthTokenRepository')`, so
+     * overriding that binding swaps the storage used here.
      */
-    private function getRepository(): OAuthTokenRepository
+    protected function getRepository(): OAuthTokenRepositoryInterface
     {
-        return $this->repository ??= new OAuthTokenRepository(
-            $this->getIdentityModel(),
-        );
+        return $this->repository ??= service('oauthTokenRepository');
     }
 
     /**
      * Centralised model() call — avoids repeating it across methods.
      */
-    private function getIdentityModel(): UserIdentityModel
+    protected function getIdentityModel(): UserIdentityModel
     {
         /** @var UserIdentityModel */
         return model(UserIdentityModel::class);
@@ -103,6 +102,9 @@ class OauthManager
 
         $this->providerName = $providerName;
         $providerConfig     = $this->config->providers[$providerName];
+        if ((bool) ($providerConfig['pkce'] ?? true)) {
+            $providerConfig['pkceMethod'] = AbstractProvider::PKCE_METHOD_S256;
+        }
 
         // Azure needs tenant-specific URLs when a tenant is given
         if ($providerName === 'azure' && ! empty($providerConfig['tenant'])) {
@@ -177,8 +179,28 @@ class OauthManager
      */
     public function redirect(): RedirectResponse
     {
-        $authorizationUrl = $this->provider->getAuthorizationUrl();
+        $options        = [];
+        $providerConfig = $this->config->providers[$this->providerName] ?? [];
+        $pkce           = (bool) ($providerConfig['pkce'] ?? $providerConfig !== []);
+        $verifier       = $pkce ? rtrim(strtr(base64_encode(random_bytes(48)), '+/', '-_'), '=') : null;
+        if ($verifier !== null) {
+            $options['code_challenge']        = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+            $options['code_challenge_method'] = 'S256';
+        }
+        $nonce = ! empty($providerConfig['oidc']) ? bin2hex(random_bytes(32)) : null;
+        if ($nonce !== null) {
+            $options['nonce'] = $nonce;
+        }
+        $authorizationUrl = $this->provider->getAuthorizationUrl($options);
+        // Providers with native PKCE support may generate their own verifier.
+        if ($pkce) {
+            $nativeVerifier = $this->provider->getPkceCode();
+            if (is_string($nativeVerifier) && $nativeVerifier !== '') {
+                $verifier = $nativeVerifier;
+            }
+        }
         session()->set('oauth2state', $this->provider->getState());
+        session()->set('oauth2flow', ['provider' => $this->providerName, 'verifier' => $verifier, 'nonce' => $nonce, 'created' => time()]);
 
         return redirect()->to($authorizationUrl);
     }
@@ -186,9 +208,11 @@ class OauthManager
     /**
      * Handle the authorization callback from the OAuth provider.
      */
-    public function handleCallback(string $code, string $state): User
+    public function handleCallback(string $code, string $state, ?string $issuer = null): User
     {
         $sessionState = session()->get('oauth2state');
+        $flow         = session('oauth2flow');
+        session()->remove(['oauth2state', 'oauth2flow']);
 
         // CSRF check — reject empty state and use timing-safe comparison.
         if (
@@ -208,9 +232,30 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.invalidOauthState'));
         }
 
+        $providerConfig = $this->config->providers[$this->providerName] ?? [];
+        $pkce           = (bool) ($providerConfig['pkce'] ?? $providerConfig !== []);
+        if (is_array($flow) && (($flow['provider'] ?? null) !== $this->providerName || (int) ($flow['created'] ?? 0) + 600 < time())) {
+            throw new AuthenticationException(lang('Auth.invalidOauthState'));
+        }
+        if ($pkce) {
+            $verifier = is_array($flow) ? ($flow['verifier'] ?? null) : null;
+            if (! is_string($verifier) || $verifier === '') {
+                throw new AuthenticationException(lang('Auth.invalidOauthState'));
+            }
+            $this->provider->setPkceCode($verifier);
+        }
+        $expectedIssuer = $providerConfig['issuer'] ?? null;
+        if (is_string($expectedIssuer) && $expectedIssuer !== '' && ($issuer === null || ! hash_equals($expectedIssuer, $issuer))) {
+            throw new AuthenticationException(lang('Auth.invalidOauthState'));
+        }
+
         try {
             $token       = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
+            $claims      = ! empty($providerConfig['oidc']) ? $this->validateIdToken($token, $providerConfig, is_array($flow) ? $flow : []) : null;
             $userProfile = $this->provider->getResourceOwner($token);
+            if ($claims !== null && ! hash_equals($claims['sub'], (string) $userProfile->getId())) {
+                throw new AuthenticationException(lang('Auth.invalidOauthState'));
+            }
             $profileData = $this->fetchProfileFields($token, $userProfile);
 
             $user = $this->processUser($userProfile, $token, $profileData);
@@ -225,6 +270,53 @@ class OauthManager
         } catch (IdentityProviderException $e) {
             throw new AuthenticationException($e->getMessage());
         }
+    }
+
+    /**
+     * Validate an ID token received directly from the configured TLS token
+     * endpoint in the authorization-code flow (OIDC Core 3.1.3.7). This method
+     * does not accept ID tokens from the browser or implicit/hybrid grants.
+     *
+     * @param array<string, mixed> $config
+     * @param array<string, mixed> $flow
+     *
+     * @return array<string, mixed>
+     */
+    protected function validateIdToken(AccessTokenInterface $token, array $config, array $flow): array
+    {
+        $invalid = static fn (): AuthenticationException => new AuthenticationException(lang('Auth.invalidOauthState'));
+        if (parse_url($this->provider->getBaseAccessTokenUrl([]), PHP_URL_SCHEME) !== 'https') {
+            throw $invalid();
+        }
+        $raw = $token->getValues()['id_token'] ?? null;
+        if (! is_string($raw) || strlen($raw) > 65536) {
+            throw $invalid();
+        }
+        $parts = explode('.', $raw);
+        if (count($parts) !== 3 || $parts[2] === '') {
+            throw $invalid();
+        }
+        $header = json_decode((string) base64_decode(strtr($parts[0], '-_', '+/'), true), true);
+        $claims = json_decode((string) base64_decode(strtr($parts[1], '-_', '+/'), true), true);
+        if (! is_array($header) || ! is_string($header['alg'] ?? null) || strtolower($header['alg']) === 'none' || ! is_array($claims)) {
+            throw $invalid();
+        }
+        $issuer    = $config['issuer'] ?? null;
+        $client    = $config['clientId'] ?? null;
+        $nonce     = $flow['nonce'] ?? null;
+        $audiences = isset($claims['aud']) ? (array) $claims['aud'] : [];
+        if (! is_string($issuer) || ! is_string($claims['iss'] ?? null) || ! hash_equals($issuer, $claims['iss'])
+                                 || ! is_string($client) || ! in_array($client, $audiences, true)
+                                 || (count($audiences) > 1 && ($claims['azp'] ?? null) !== $client)
+                                 || (isset($claims['azp']) && $claims['azp'] !== $client)
+                                 || ! is_string($nonce) || ! is_string($claims['nonce'] ?? null) || ! hash_equals($nonce, $claims['nonce'])
+                                 || ! is_int($claims['exp'] ?? null) || $claims['exp'] <= time()
+                                 || ! is_int($claims['iat'] ?? null) || $claims['iat'] > time() + 60
+                                 || ! is_string($claims['sub'] ?? null) || $claims['sub'] === '') {
+            throw $invalid();
+        }
+
+        return $claims;
     }
 
     /**
@@ -303,22 +395,7 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.emailNotFoundInOauth'));
         }
 
-        $extraData = ['refresh_token' => $token->getRefreshToken()];
-
-        // Scopes (RFC 6749 §3.3: space-delimited)
-        $tokenValues = $token->getValues();
-        if (isset($tokenValues['scope'])) {
-            $extraData['scopes_granted'] = is_string($tokenValues['scope'])
-                ? explode(' ', $tokenValues['scope'])
-                : (array) $tokenValues['scope'];
-        }
-
-        if ($profileData !== []) {
-            $extraData['profile']            = $profileData;
-            $extraData['profile_fetched_at'] = Time::now()->toDateTimeString();
-        }
-
-        $extraJson = json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $extraJson = $this->buildIdentityExtra($token, $profileData);
 
         // Explicit linking mode: an authenticated user is attaching this provider
         // to their own account (initiated via OauthController::link). This skips
@@ -328,7 +405,7 @@ class OauthManager
         session()->remove('oauth_link_user_id');
 
         if ($linkUserId > 0) {
-            return $this->linkProviderToUser($linkUserId, $socialId, $name, $email, $extraJson, $token);
+            return $this->linkProviderToUser($linkUserId, $socialId, $name === null ? null : (string) $name, $email, $extraJson, $token);
         }
 
         $identity = $repo->findByProviderAndSocialId($this->providerName, $socialId);
@@ -336,16 +413,10 @@ class OauthManager
         if ($identity instanceof UserIdentity) {
             /** @var UserIdentity $identity */
             $user = $identity->user();
+            $this->assertNotBanned($user);
 
             // Update token and profile data on re-login
-            $identity->secret2 = $token->getToken();
-            $identity->extra   = $extraJson;
-
-            if ($token->getExpires()) {
-                $identity->expires = Time::createFromTimestamp($token->getExpires());
-            }
-
-            $repo->updateOAuthIdentity($identity);
+            $this->refreshIdentity($identity, $token, $extraJson);
         } else {
             $provider = auth()->getProvider();
             $user     = $provider->findByCredentials(['email' => $email]);
@@ -361,22 +432,87 @@ class OauthManager
                 if (! $emailVerified && ! $allowUnverified) {
                     throw new AuthenticationException(lang('Auth.oauthEmailUnverified'));
                 }
+
+                $this->assertNotBanned($user);
             } else {
                 $user = $this->registerUser($provider, $email);
             }
 
-            $repo->createOAuthIdentity((int) $user->id, $this->providerName, [
-                'name'    => $name ?? $email,
-                'secret'  => $socialId,
-                'secret2' => $token->getToken(),
-                'extra'   => $extraJson,
-                'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
-            ]);
+            $this->createIdentity((int) $user->id, $socialId, (string) ($name ?? $email), $token, $extraJson);
         }
 
         auth()->login($user);
 
         return $user;
+    }
+
+    /**
+     * Refuses a banned user before anything is stored or signed in.
+     * Password login refuses them in checkLogin(); login() does not check.
+     *
+     * @throws AuthenticationException
+     */
+    protected function assertNotBanned(User $user): void
+    {
+        if ($user->isBanned()) {
+            throw new AuthenticationException($user->getBanMessage() ?? lang('Auth.bannedUser'));
+        }
+    }
+
+    /**
+     * Builds the identity's `extra` JSON: refresh token, granted scopes and,
+     * when resolved, the extra profile fields.
+     *
+     * @param array<string, mixed> $profileData
+     */
+    protected function buildIdentityExtra(AccessTokenInterface $token, array $profileData = []): string
+    {
+        $extraData = ['refresh_token' => $token->getRefreshToken()];
+
+        // Scopes (RFC 6749 §3.3: space-delimited)
+        $tokenValues = $token->getValues();
+        if (isset($tokenValues['scope'])) {
+            $extraData['scopes_granted'] = is_string($tokenValues['scope'])
+                ? explode(' ', $tokenValues['scope'])
+                : (array) $tokenValues['scope'];
+        }
+
+        if ($profileData !== []) {
+            $extraData['profile']            = $profileData;
+            $extraData['profile_fetched_at'] = Time::now()->toDateTimeString();
+        }
+
+        return json_encode($extraData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Stores the provider's current access token, expiry and extra data on
+     * an existing OAuth identity.
+     */
+    protected function refreshIdentity(UserIdentity $identity, AccessTokenInterface $token, string $extraJson): void
+    {
+        $identity->secret2 = $token->getToken();
+        $identity->extra   = $extraJson;
+
+        if ($token->getExpires()) {
+            $identity->expires = Time::createFromTimestamp($token->getExpires());
+        }
+
+        $this->getRepository()->updateOAuthIdentity($identity);
+    }
+
+    /**
+     * Creates the current provider's OAuth identity for the user.
+     */
+    protected function createIdentity(int $userId, string $socialId, string $name, AccessTokenInterface $token, string $extraJson): void
+    {
+        $this->getRepository()->createOAuthIdentity($userId, $this->providerName, [
+            'name'    => $name,
+            'secret'  => $socialId,
+            'secret2' => $token->getToken(),
+            'extra'   => $extraJson,
+            'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
+        ]);
     }
 
     /**
@@ -390,7 +526,7 @@ class OauthManager
      *
      * @throws LogicException When the configured provider cannot register users.
      */
-    private function registerUser(UserProviderInterface $provider, string $email): User
+    protected function registerUser(UserProviderInterface $provider, string $email): User
     {
         if (! $provider instanceof UserModel) {
             throw new LogicException(
@@ -415,7 +551,7 @@ class OauthManager
      * user (explicit linking). Refuses when the social account is already bound
      * to a different local user.
      */
-    private function linkProviderToUser(int $userId, string $socialId, ?string $name, string $email, string $extraJson, AccessTokenInterface $token): User
+    protected function linkProviderToUser(int $userId, string $socialId, ?string $name, string $email, string $extraJson, AccessTokenInterface $token): User
     {
         $repo     = $this->getRepository();
         $provider = auth()->getProvider();
@@ -426,6 +562,8 @@ class OauthManager
             throw new AuthenticationException(lang('Auth.invalidUser'));
         }
 
+        $this->assertNotBanned($user);
+
         $existing = $repo->findByProviderAndSocialId($this->providerName, $socialId);
 
         if ($existing instanceof UserIdentity) {
@@ -435,22 +573,9 @@ class OauthManager
             }
 
             // Already linked to this user — refresh the stored token/profile.
-            $existing->secret2 = $token->getToken();
-            $existing->extra   = $extraJson;
-
-            if ($token->getExpires()) {
-                $existing->expires = Time::createFromTimestamp($token->getExpires());
-            }
-
-            $repo->updateOAuthIdentity($existing);
+            $this->refreshIdentity($existing, $token, $extraJson);
         } else {
-            $repo->createOAuthIdentity($userId, $this->providerName, [
-                'name'    => $name ?? $email,
-                'secret'  => $socialId,
-                'secret2' => $token->getToken(),
-                'extra'   => $extraJson,
-                'expires' => $token->getExpires() ? Time::createFromTimestamp($token->getExpires()) : null,
-            ]);
+            $this->createIdentity($userId, $socialId, $name ?? $email, $token, $extraJson);
         }
 
         auth()->login($user);
@@ -463,7 +588,7 @@ class OauthManager
      *
      * @return array<string, mixed>
      */
-    private function fetchProfileFields(AccessTokenInterface $token, ResourceOwnerInterface $resourceOwner): array
+    protected function fetchProfileFields(AccessTokenInterface $token, ResourceOwnerInterface $resourceOwner): array
     {
         $providerConfig = $this->config->providers[$this->providerName] ?? [];
         $fields         = $providerConfig['fields'] ?? [];

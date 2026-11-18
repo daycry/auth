@@ -142,7 +142,7 @@ class PermissionsController extends BaseAdminController
 
     // ── Private helpers ───────────────────────────────────────────
 
-    private function findPermOr404(int $id): Permission|RedirectResponse
+    protected function findPermOr404(int $id): Permission|RedirectResponse
     {
         /** @var PermissionModel $permissionModel */
         $permissionModel = model(PermissionModel::class);

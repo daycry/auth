@@ -4,13 +4,7 @@ parameters:
 			rawMessage: 'Call to internal function emailer().'
 			identifier: function.internal
 			count: 1
-			path: src/Authentication/Actions/Email2FA.php
-
-		-
-			rawMessage: 'Call to internal function emailer().'
-			identifier: function.internal
-			count: 1
-			path: src/Authentication/Actions/EmailActivator.php
+			path: src/Authentication/Actions/AbstractAction.php
 
 		-
 			rawMessage: 'Unsafe usage of new static() in abstract class Daycry\Auth\Authentication\Authenticators\Base in static method instance().'
@@ -399,7 +393,7 @@ parameters:
 		-
 			rawMessage: 'Call to method setCookie() of internal class CodeIgniter\Superglobals from outside its root namespace CodeIgniter.'
 			identifier: method.internalClass
-			count: 2
+			count: 3
 			path: tests/Authentication/Authenticators/SessionAuthenticatorTest.php
 
 		-
@@ -747,7 +741,7 @@ parameters:
 		-
 			rawMessage: 'Parameter #1 $provider of method Daycry\Auth\Libraries\Oauth\OauthManager::setProviderInstance() expects League\OAuth2\Client\Provider\AbstractProvider, Mockery\MockInterface given.'
 			identifier: argument.type
-			count: 22
+			count: 24
 			path: tests/Libraries/OauthManagerTest.php
 
 		-

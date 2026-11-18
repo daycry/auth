@@ -257,6 +257,16 @@ the RBAC tables — see
 > To keep a user's record but block login **without** soft-deletes, prefer
 > `$user->ban()` (sets `status = 'banned'`) or `active = false`.
 
+A banned user is refused by every sign-in path: password and token attempts
+(`checkLogin()`), magic link and magic code, the OAuth callback and OAuth
+linking (throw `AuthenticationException` with the ban message), passwordless
+passkeys (`403`, `error: banned`), the `basic-auth` filter (`403`), remember-me
+cookies and `JwtController::refresh()`. `ban()` also deletes the user's
+remember-me tokens. A session that was banned after it started is logged out by
+`AuthFilter` and not accepted by the `chain` filter. `Session::login()` and
+`loginById()` do **not** check bans: call `$user->isBanned()` yourself before
+signing a user in programmatically.
+
 ---
 
 ## Compromised-Password Recheck on Login

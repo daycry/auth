@@ -18,12 +18,12 @@ use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
+use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Enums\IdentityType;
-use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Daycry\Auth\Services\AuditLogger;
-use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Validation\ValidationRules;
 
 /**
  * Handles password reset flow via email token.
@@ -63,21 +63,21 @@ class PasswordResetController extends BaseAuthController
     /**
      * Receives the email, generates a reset token, and sends an email.
      */
-    public function requestAction(): RedirectResponse
+    public function requestAction(): ResponseInterface
     {
         // Validate email format
         $rules    = $this->getValidationRules();
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
 
         if (! $this->validateRequest($postData, $rules)) {
             return $this->handleValidationError('password-reset');
         }
 
-        $email = $this->request->getPost('email');
+        $email = $this->authInput('email');
         $user  = $this->provider->findByCredentials(['email' => $email]);
 
         if ($user !== null) {
-            $sender = new TokenEmailSender();
+            $sender = service('tokenEmailSender');
 
             try {
                 $sender->sendTokenEmail(
@@ -100,7 +100,7 @@ class PasswordResetController extends BaseAuthController
         }
 
         // Always redirect to message view (don't reveal if user exists)
-        return redirect()->route('password-reset-message');
+        return $this->handleSuccess(url_to('password-reset-message'));
     }
 
     /**
@@ -126,16 +126,14 @@ class PasswordResetController extends BaseAuthController
         $identity = $identityModel->getIdentityBySecret(IdentityType::RESET_PASSWORD->value, $token);
 
         if ($identity === null) {
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenInvalid'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenInvalid'), true, 401);
         }
 
         if (Time::now()->isAfter($identity->expires)) {
             // Delete expired token
             $identityModel->delete($identity->id);
 
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenExpired'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenExpired'), true, 401);
         }
 
         $content = $this->view(setting('Auth.views')['password-reset-form'], [
@@ -148,25 +146,16 @@ class PasswordResetController extends BaseAuthController
     /**
      * Handles the password reset form submission.
      */
-    public function resetAction(): RedirectResponse
+    public function resetAction(): ResponseInterface
     {
-        $rules = [
-            'token'            => 'required',
-            'password'         => 'required|min_length[8]',
-            'password_confirm' => 'required|matches[password]',
-        ];
+        $rules = $this->getResetValidationRules();
 
-        $postData = $this->request->getPost();
+        $postData = $this->authInput();
+        $token    = (string) $this->authInput('token');
 
         if (! $this->validateRequest($postData, $rules)) {
-            $token = $this->request->getPost('token');
-
-            return redirect()->to(site_url('password-reset/verify?token=' . $token))
-                ->withInput()
-                ->with('errors', $this->validator->getErrors());
+            return $this->handleValidationError($this->resetFormUrl($token));
         }
-
-        $token = $this->request->getPost('token');
 
         /** @var UserIdentityModel $identityModel */
         $identityModel = model(UserIdentityModel::class);
@@ -174,23 +163,33 @@ class PasswordResetController extends BaseAuthController
         $identity = $identityModel->getIdentityBySecret(IdentityType::RESET_PASSWORD->value, $token);
 
         if ($identity === null) {
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenInvalid'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenInvalid'), true, 401);
         }
 
         if (Time::now()->isAfter($identity->expires)) {
             $identityModel->delete($identity->id);
 
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenExpired'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenExpired'), true, 401);
         }
 
         // Find the user
         $user = $this->provider->findById($identity->user_id);
 
         if ($user === null) {
-            return redirect()->route('password-reset-request')
-                ->with('error', lang('Auth.passwordResetTokenInvalid'));
+            return $this->handleFailure(route_to('password-reset-request'), lang('Auth.passwordResetTokenInvalid'), true, 401);
+        }
+
+        $password = (string) $this->authInput('password');
+
+        // Enforce the same password policy as registration (composition,
+        // personal-info, dictionary, pwned and history validators). Checked
+        // before the token is consumed so the user can retry with it.
+        /** @var Passwords $passwords */
+        $passwords = service('passwords');
+        $check     = $passwords->check($password, $user);
+
+        if (! $check->isOK()) {
+            return $this->handleFailure($this->resetFormUrl($token), $check->reason(), true, 422);
         }
 
         // Capture the previous hash *before* we replace it — needed for
@@ -198,24 +197,49 @@ class PasswordResetController extends BaseAuthController
         $previousHash = $user->password_hash ?? null;
 
         // Update the password
-        $password = $this->request->getPost('password');
         $user->setPassword($password);
 
         /** @var UserModel $userModel */
         $userModel = model(UserModel::class);
         $userModel->save($user);
 
-        (new PasswordChangeRecorder())->record($user, $previousHash);
+        service('passwordChangeRecorder')->record($user, $previousHash);
 
         // Delete the reset token identity
         $identityModel->delete($identity->id);
 
-        (new AuditLogger())->record(AuditLogger::EVENT_PASSWORD_RESET, (int) $user->id);
+        service('auditLogger')->record(AuditLogger::EVENT_PASSWORD_RESET, (int) $user->id);
 
         Events::trigger('passwordReset', $user);
 
-        return redirect()->route('login')
-            ->with('message', lang('Auth.passwordResetSuccess'));
+        return $this->handleSuccess(url_to('login'), lang('Auth.passwordResetSuccess'));
+    }
+
+    /**
+     * Returns the rules used to validate the reset form submission.
+     *
+     * The full password policy is applied afterwards through
+     * {@see Passwords::check()}, once the user is known.
+     *
+     * @return array<string, array<string, list<string>|string>|string>
+     */
+    protected function getResetValidationRules(): array
+    {
+        $rules = new ValidationRules();
+
+        return [
+            'token'            => 'required',
+            'password'         => $rules->getPasswordRules(),
+            'password_confirm' => $rules->getPasswordConfirmRules(),
+        ];
+    }
+
+    /**
+     * Returns the URL of the reset form for the given token.
+     */
+    protected function resetFormUrl(string $token): string
+    {
+        return site_url('password-reset/verify?token=' . rawurlencode($token));
     }
 
     /**

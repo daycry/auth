@@ -53,6 +53,10 @@ jobs:
             vendor/bin/phpunit --no-coverage
           fi
 
+      - name: Verify passkey browser helpers
+        if: matrix.php-versions == '8.5'
+        run: node --test tests/browser/passkey.test.mjs
+
       - name: Upload coverage to Coveralls
         if: matrix.php-versions == '8.5'
         uses: coverallsapp/github-action@v2

@@ -93,7 +93,12 @@ $user->removeGroup('editor');
 if (! $user->inGroup('subscriber')) {
     $user->addGroup('subscriber');
 }
+
+// Replace the whole set: removes every group not listed
+$user->syncGroups('editor', 'beta-tester');
 ```
+
+Group and permission names are case-insensitive: `addGroup()`, `removeGroup()`, `syncGroups()` and their permission counterparts lower-case them. Every change is written to the audit log.
 
 ### Getting All Users in a Group
 

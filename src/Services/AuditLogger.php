@@ -15,6 +15,7 @@ namespace Daycry\Auth\Services;
 
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\I18n\Time;
+use Daycry\Auth\Interfaces\AuditLoggerInterface;
 use Daycry\Auth\Models\AuditLogModel;
 use Throwable;
 
@@ -31,7 +32,7 @@ use Throwable;
  * Failures (DB unavailable, schema missing) are caught and logged at
  * `warning` level — audit failure must never break the user-facing flow.
  */
-class AuditLogger
+class AuditLogger implements AuditLoggerInterface
 {
     /**
      * Canonical event type identifiers. Using constants prevents typos in

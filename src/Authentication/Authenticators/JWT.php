@@ -32,7 +32,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
      */
     public const ID_TYPE_JWT = 'jwt';
 
-    protected mixed $payload;
+    protected mixed $payload = null;
 
     public function __construct(
         UserProviderInterface $provider,
@@ -53,18 +53,10 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
      */
     public function attempt(array $credentials = []): Result
     {
-        if (! array_key_exists('token', $credentials) || empty($credentials['token'])) {
-            $credentials = ['token' => $this->getTokenFromRequest()];
-        }
+        $credentials = $this->resolveTokenCredentials($credentials);
 
         if (empty($credentials['token'])) {
-            return new Result([
-                'success' => false,
-                'reason'  => lang(
-                    'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
-                ),
-            ]);
+            return $this->noTokenResult();
         }
 
         return $this->checkLogin($credentials);
@@ -82,13 +74,7 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
     public function check(array $credentials = []): Result
     {
         if (! array_key_exists('token', $credentials) || $credentials['token'] === '') {
-            return new Result([
-                'success' => false,
-                'reason'  => lang(
-                    'Auth.noToken',
-                    [service('settings')->get('Auth.authenticatorHeader')[$this->method]],
-                ),
-            ]);
+            return $this->noTokenResult();
         }
 
         // Check JWT
@@ -135,6 +121,17 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
             ]);
         }
 
+        // Applying a mandatory-MFA policy also retires access tokens minted
+        // before enrollment/proof was enforced; refresh protection alone leaves
+        // those password-only tokens usable until their expiry.
+        $assurance = (is_array($payload) || is_object($payload)) && (((array) $payload)['mfa'] ?? false) === true;
+        if (service('mfaPolicy')->requires($user) && ! $assurance) {
+            return new Result([
+                'success' => false,
+                'reason'  => lang('Auth.passwordConfirmRequired'),
+            ]);
+        }
+
         // Access-token revocation: a token minted under an older token_version
         // (before a ban / password change / explicit revocation) is rejected.
         if ($tokenVersion !== null && (int) ($user->token_version ?? 0) !== $tokenVersion) {
@@ -158,18 +155,6 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
         return $this->payload;
     }
 
-    public function getLogCredentials(array $credentials): mixed
-    {
-        $this->authType = self::ID_TYPE_JWT;
-
-        $token = $credentials['token'] ?? '';
-
-        // Never persist the full signed JWT in the login log — it is a usable
-        // bearer credential until it expires. Record a non-reversible SHA-256
-        // fingerprint instead so log correlation is preserved without exposure.
-        return $token === '' ? '' : hash('sha256', (string) $token);
-    }
-
     /**
      * Returns the Bearer token extracted from the Authorization header.
      * Returns an empty string when no token is present.
@@ -183,10 +168,14 @@ class JWT extends StatelessAuthenticator implements AuthenticatorInterface
 
     private function parseHeader(?string $token): string
     {
-        if ($token !== null && str_starts_with($token, 'Bearer')) {
-            $token = trim(substr($token, 6));
+        $token = trim((string) $token);
+
+        // The auth scheme is case-insensitive (RFC 9110 §11.1) and must be
+        // followed by whitespace: "BearerX" is not a Bearer credential.
+        if (preg_match('/^Bearer(?:\s+(.*))?$/is', $token, $matches) === 1) {
+            return trim($matches[1] ?? '');
         }
 
-        return $token ?? '';
+        return $token;
     }
 }

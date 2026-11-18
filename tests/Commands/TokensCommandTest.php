@@ -19,6 +19,7 @@ use Daycry\Auth\Entities\User as UserEntity;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
+use Daycry\Auth\Services\AuditLogger;
 use Daycry\Auth\Test\MockInputOutput;
 use Tests\Support\DatabaseTestCase;
 
@@ -149,6 +150,12 @@ final class TokensCommandTest extends DatabaseTestCase
             ->where('revoked_at')
             ->countAllResults();
         $this->assertSame(1, $unrevokedAccess);
+
+        // Audited like the access-token branch.
+        $this->seeInDatabase($this->tables['audit_logs'], [
+            'user_id'    => $user->id,
+            'event_type' => AuditLogger::EVENT_REFRESH_TOKEN_REVOKED,
+        ]);
     }
 
     public function testUnknownTypeFails(): void
@@ -159,5 +166,14 @@ final class TokensCommandTest extends DatabaseTestCase
         command('auth:tokens revoke -e typed@example.com --type unknown');
 
         $this->assertStringContainsString('Unknown --type', $this->io->getOutputs());
+    }
+
+    public function testUnknownTypeIsRejectedBeforeLookingUpTheUser(): void
+    {
+        $this->setMockIo();
+        command('auth:tokens revoke -e nobody@example.com --type unknown');
+
+        $this->assertStringContainsString('Unknown --type', $this->io->getOutputs());
+        $this->assertStringNotContainsString('User not found', $this->io->getOutputs());
     }
 }

@@ -99,7 +99,7 @@ trait Authorizable
         if (count($this->groupCache) > $groupCount) {
             $this->saveGroups();
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_GROUP_ASSIGNED,
                 (int) $this->id,
                 ['groups' => $added],
@@ -130,7 +130,7 @@ trait Authorizable
         $this->saveGroups();
 
         if ($removed !== []) {
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_GROUP_REVOKED,
                 (int) $this->id,
                 ['groups' => $removed],
@@ -151,14 +151,21 @@ trait Authorizable
     {
         $this->populateGroups();
 
-        foreach ($groups as $group) {
-            if (! in_array($group, array_values($this->groups), true)) {
-                throw AuthorizationException::forUnknownGroup($group);
-            }
-        }
+        // Case-insensitive, resolved to the stored name (the admin panel
+        // keeps names as typed, e.g. "Editors").
+        $groups = $this->resolveDefinedNames($groups, $this->groups ?? [], AuthorizationException::forUnknownGroup(...));
 
+        $previous         = $this->groupCache;
         $this->groupCache = $groups;
         $this->saveGroups();
+
+        $this->auditChanges(
+            array_values(array_diff($groups, $previous)),
+            array_values(array_diff($previous, $groups)),
+            AuditLogger::EVENT_GROUP_ASSIGNED,
+            AuditLogger::EVENT_GROUP_REVOKED,
+            'groups',
+        );
 
         return $this;
     }
@@ -219,7 +226,7 @@ trait Authorizable
         if (count($this->permissionsCache) > $permissionCount) {
             $this->savePermissions();
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_PERMISSION_GRANTED,
                 (int) $this->id,
                 ['permissions' => $added],
@@ -250,7 +257,7 @@ trait Authorizable
         $this->savePermissions();
 
         if ($removed !== []) {
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_PERMISSION_REVOKED,
                 (int) $this->id,
                 ['permissions' => $removed],
@@ -271,16 +278,72 @@ trait Authorizable
     {
         $this->populatePermissions();
 
-        foreach ($permissions as $permission) {
-            if (! in_array($permission, array_values($this->permissions), true)) {
-                throw AuthorizationException::forUnknownPermission($permission);
-            }
-        }
+        // Case-insensitive, resolved to the stored name.
+        $permissions = $this->resolveDefinedNames($permissions, $this->permissions ?? [], AuthorizationException::forUnknownPermission(...));
 
+        $previous               = $this->permissionsCache;
         $this->permissionsCache = $permissions;
         $this->savePermissions();
 
+        $this->auditChanges(
+            array_values(array_diff($permissions, $previous)),
+            array_values(array_diff($previous, $permissions)),
+            AuditLogger::EVENT_PERMISSION_GRANTED,
+            AuditLogger::EVENT_PERMISSION_REVOKED,
+            'permissions',
+        );
+
         return $this;
+    }
+
+    /**
+     * Maps each requested name to the defined name it matches, without
+     * duplicates: an exact match wins, otherwise the first case-insensitive one
+     * (names that differ only in case can coexist on case-sensitive databases).
+     *
+     * @param list<string>                             $requested
+     * @param array<int|string, string>                $defined   id => stored name
+     * @param callable(string): AuthorizationException $unknown
+     *
+     * @return list<string>
+     *
+     * @throws AuthorizationException When a name is not defined.
+     */
+    private function resolveDefinedNames(array $requested, array $defined, callable $unknown): array
+    {
+        $byLowerName = [];
+
+        foreach ($defined as $name) {
+            $byLowerName[strtolower($name)] ??= $name;
+        }
+
+        $resolved = [];
+
+        foreach ($requested as $name) {
+            $resolved[] = in_array($name, $defined, true)
+                ? $name
+                : $byLowerName[strtolower($name)] ?? throw $unknown($name);
+        }
+
+        return array_values(array_unique($resolved));
+    }
+
+    /**
+     * Records the audit entries for a sync: one for what was added and one
+     * for what was removed, each only when non-empty.
+     *
+     * @param list<string> $added
+     * @param list<string> $removed
+     */
+    private function auditChanges(array $added, array $removed, string $addedEvent, string $removedEvent, string $key): void
+    {
+        if ($added !== []) {
+            service('auditLogger')->record($addedEvent, (int) $this->id, [$key => $added]);
+        }
+
+        if ($removed !== []) {
+            service('auditLogger')->record($removedEvent, (int) $this->id, [$key => $removed]);
+        }
     }
 
     /**
@@ -465,33 +528,10 @@ trait Authorizable
     }
 
     /**
-     * User for populate all permissions
-     */
-    private function getGroupPermissions(Group $group): array
-    {
-        $groupPermissionsModel = $this->permissionGroupModel();
-        $groupPermissions      = $groupPermissionsModel->getForGroup($group);
-
-        $ids = [];
-
-        foreach ($groupPermissions as $groupPermission) {
-            $ids[] = $groupPermission->permission_id;
-        }
-
-        $permissionModel = $this->permissionModel();
-
-        if ($ids !== []) {
-            return $permissionModel->getByIds($ids);
-        }
-
-        return [];
-    }
-
-    /**
      * Loads all permissions for all of the user's groups in two queries
      * (one for permission_group rows, one for permission names) and
      * populates $groupPermissionsCache. This eliminates the N+1 problem
-     * where can() previously called getGroupPermissions() per group.
+     * where can() used to load each group's permissions separately.
      */
     private function eagerLoadGroupPermissions(): void
     {
@@ -573,7 +613,7 @@ trait Authorizable
         }
 
         // Try persistent cache first
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             /** @var array{groups: array<int, string>, groupCache: list<string>, groupPermissionsCache: array<string, list<string>>}|null $cached */
             $cached = cache($this->getPermissionCacheKey('groups'));
 
@@ -605,13 +645,12 @@ trait Authorizable
         }
 
         // Store in persistent cache
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
-            $ttl = (int) (service('settings')->get('AuthSecurity.permissionCacheTTL') ?? 300);
+        if ($this->permissionCacheEnabled()) {
             cache()->save($this->getPermissionCacheKey('groups'), [
                 'groups'                => $this->groups,
                 'groupCache'            => $this->groupCache,
                 'groupPermissionsCache' => $this->groupPermissionsCache,
-            ], $ttl);
+            ], $this->permissionCacheTtl());
         }
     }
 
@@ -627,7 +666,7 @@ trait Authorizable
         }
 
         // Try persistent cache first
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             /** @var array{permissions: array<int, string>, permissionsCache: list<string>}|null $cached */
             $cached = cache($this->getPermissionCacheKey('permissions'));
 
@@ -652,13 +691,28 @@ trait Authorizable
         $this->permissionsCache = array_column($this->getAllUserPermissions(), 'name');
 
         // Store in persistent cache
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
-            $ttl = (int) (service('settings')->get('AuthSecurity.permissionCacheTTL') ?? 300);
+        if ($this->permissionCacheEnabled()) {
             cache()->save($this->getPermissionCacheKey('permissions'), [
                 'permissions'      => $this->permissions,
                 'permissionsCache' => $this->permissionsCache,
-            ], $ttl);
+            ], $this->permissionCacheTtl());
         }
+    }
+
+    /**
+     * Whether `AuthSecurity::$permissionCacheEnabled` is on.
+     */
+    private function permissionCacheEnabled(): bool
+    {
+        return (bool) service('settings')->get('AuthSecurity.permissionCacheEnabled');
+    }
+
+    /**
+     * `AuthSecurity::$permissionCacheTTL` in seconds (default 300).
+     */
+    private function permissionCacheTtl(): int
+    {
+        return (int) (service('settings')->get('AuthSecurity.permissionCacheTTL') ?? 300);
     }
 
     /**
@@ -688,8 +742,6 @@ trait Authorizable
      */
     private function saveGroups(): void
     {
-        $model = $this->groupUserModel();
-
         $names = $this->groupCache;
 
         $cache = [];
@@ -700,10 +752,10 @@ trait Authorizable
 
         $existing = array_column($this->getAllUserGroups(), 'id');
 
-        $this->saveGroupsOrPermissions('group_id', $model, $cache, $existing);
+        service('groupPermissionRepository')->saveUserGroups($this->id, $cache, $existing);
 
         // Invalidate persistent cache after DB write
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             cache()->delete($this->getPermissionCacheKey('groups'));
         }
 
@@ -716,8 +768,6 @@ trait Authorizable
      */
     private function savePermissions(): void
     {
-        $model = $this->permissionUserModel();
-
         $names = $this->permissionsCache;
 
         $cache = [];
@@ -728,22 +778,11 @@ trait Authorizable
 
         $existing = array_column($this->getAllUserPermissions(), 'id');
 
-        $this->saveGroupsOrPermissions('permission_id', $model, $cache, $existing);
+        service('groupPermissionRepository')->saveUserPermissions($this->id, $cache, $existing);
 
         // Invalidate persistent cache after DB write
-        if (service('settings')->get('AuthSecurity.permissionCacheEnabled')) {
+        if ($this->permissionCacheEnabled()) {
             cache()->delete($this->getPermissionCacheKey('permissions'));
         }
-    }
-
-    /**
-     * @param         GroupUserModel|PermissionUserModel $model
-     * @phpstan-param 'group_id'|'permission_id'         $type
-     */
-    private function saveGroupsOrPermissions(string $type, $model, array $cache, array $existing): void
-    {
-        // Persistence (and its transaction) lives in the repository, so the
-        // entity itself no longer opens DB transactions.
-        service('groupPermissionRepository')->saveUserPivot($this->id, $type, $model, $cache, $existing);
     }
 }

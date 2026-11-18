@@ -15,6 +15,7 @@ namespace Daycry\Auth\Models;
 
 use Daycry\Auth\Entities\UserIdentity;
 use Daycry\Auth\Enums\IdentityType;
+use Daycry\Auth\Interfaces\OAuthTokenRepositoryInterface;
 
 /**
  * Repository for OAuth identity operations.
@@ -22,7 +23,7 @@ use Daycry\Auth\Enums\IdentityType;
  * Encapsulates all OAuth token/identity CRUD from UserIdentityModel
  * into a focused, single-responsibility class.
  */
-class OAuthTokenRepository
+class OAuthTokenRepository implements OAuthTokenRepositoryInterface
 {
     public function __construct(
         private readonly UserIdentityModel $identityModel,

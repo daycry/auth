@@ -102,6 +102,47 @@ final class PasswordResetControllerTest extends DatabaseTestCase
         $second->assertSessionHas('error');
     }
 
+    public function testResetEnforcesThePasswordPolicyAndKeepsTheToken(): void
+    {
+        // 15 chars: passes the old hardcoded min_length[8], fails the policy.
+        $this->injectMockAttributesSecurity(['minimumPasswordLength' => 20]);
+
+        $token = $this->seedResetToken(3600);
+
+        $result = $this->post('password-reset/verify', [
+            'token'            => $token,
+            'password'         => 'BrandNewPass123',
+            'password_confirm' => 'BrandNewPass123',
+        ]);
+
+        $result->assertRedirectTo(site_url('password-reset/verify?token=' . rawurlencode($token)));
+        $result->assertSessionHas('error', lang('Auth.errorPasswordLength', [20]));
+
+        // The token survives so the user can retry with a stronger password.
+        $this->seeInDatabase($this->tables['identities'], [
+            'user_id' => $this->userId,
+            'type'    => IdentityType::RESET_PASSWORD->value,
+        ]);
+        $this->assertTrue(service('passwords')->verify(
+            'old-password-123',
+            model(UserModel::class)->findById($this->userId)->password_hash,
+        ));
+    }
+
+    public function testResetRejectsMismatchedConfirmation(): void
+    {
+        $token = $this->seedResetToken(3600);
+
+        $result = $this->post('password-reset/verify', [
+            'token'            => $token,
+            'password'         => 'BrandNewPass123',
+            'password_confirm' => 'Different-Pass-456',
+        ]);
+
+        $result->assertRedirectTo(site_url('password-reset/verify?token=' . rawurlencode($token)));
+        $result->assertSessionHas('errors');
+    }
+
     public function testResetWithExpiredTokenIsRejected(): void
     {
         $token = $this->seedResetToken(-3600); // already expired

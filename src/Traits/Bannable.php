@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Traits;
 
+use CodeIgniter\Events\Events;
+use Daycry\Auth\Models\RememberModel;
 use Daycry\Auth\Models\UserModel;
 
 trait Bannable
@@ -44,6 +46,11 @@ trait Bannable
         // Invalidate any outstanding JWT access tokens for the banned user.
         $this->revokeIssuedTokens();
 
+        // ...and the remember-me cookies, so none can sign them back in.
+        model(RememberModel::class)->purgeRememberTokensByUserId($this->id);
+
+        Events::trigger('user-banned', $this, $message);
+
         return $this;
     }
 
@@ -56,6 +63,8 @@ trait Bannable
         $this->status_message = null;
 
         $this->bannableUserModel()->save($this);
+
+        Events::trigger('user-unbanned', $this);
 
         return $this;
     }

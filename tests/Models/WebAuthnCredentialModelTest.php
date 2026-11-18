@@ -38,6 +38,14 @@ final class WebAuthnCredentialModelTest extends DatabaseTestCase
         return $model->find($id);
     }
 
+    public function testUsesTheConfiguredAuthDatabaseGroup(): void
+    {
+        $model = model(WebAuthnCredentialModel::class, false);
+
+        $this->assertSame(setting('Auth.DBGroup'), (fn (): ?string => $this->DBGroup)->call($model));
+        $this->assertSame(setting('Auth.tables')['webauthn_credentials'], (fn (): string => $this->table)->call($model));
+    }
+
     public function testInsertGeneratesUuidAndReturnsEntity(): void
     {
         $user = fake(UserModel::class);

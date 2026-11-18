@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Daycry\Auth\Traits;
 
 use Daycry\Auth\Entities\WebAuthnCredential;
-use Daycry\Auth\Models\WebAuthnCredentialModel;
 
 /**
  * WebAuthn/passkey helpers mixed into the User entity.
@@ -22,25 +21,16 @@ use Daycry\Auth\Models\WebAuthnCredentialModel;
 trait HasWebAuthn
 {
     /**
-     * Returns the WebAuthnCredentialModel instance (shared service from the CI4 container).
-     */
-    private function webAuthnModel(): WebAuthnCredentialModel
-    {
-        /** @var WebAuthnCredentialModel */
-        return model(WebAuthnCredentialModel::class);
-    }
-
-    /**
      * @return list<WebAuthnCredential>
      */
     public function webAuthnCredentials(): array
     {
-        return $this->webAuthnModel()->activeForUser($this->id);
+        return service('webAuthnCredentialRepository')->activeForUser($this->id);
     }
 
     public function hasWebAuthnCredentials(): bool
     {
-        return $this->webAuthnModel()->countActiveForUser($this->id) > 0;
+        return service('webAuthnCredentialRepository')->countActiveForUser($this->id) > 0;
     }
 
     public function revokeWebAuthnCredential(string $uuid): bool

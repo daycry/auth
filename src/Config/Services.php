@@ -19,8 +19,24 @@ use Daycry\Auth\Authentication\Passwords;
 use Daycry\Auth\Authorization\Gate;
 use Daycry\Auth\Authorization\GroupPermissionRepository;
 use Daycry\Auth\Config\Auth as AuthConfig;
+use Daycry\Auth\Interfaces\AccessTokenRepositoryInterface;
+use Daycry\Auth\Interfaces\AuditLoggerInterface;
+use Daycry\Auth\Interfaces\EmailDeliveryInterface;
+use Daycry\Auth\Interfaces\GroupPermissionRepositoryInterface;
+use Daycry\Auth\Interfaces\JwtTokenRepositoryInterface;
+use Daycry\Auth\Interfaces\MfaPolicyInterface;
+use Daycry\Auth\Interfaces\OAuthTokenRepositoryInterface;
+use Daycry\Auth\Interfaces\PasswordChangeRecorderInterface;
+use Daycry\Auth\Interfaces\SecurityNotifierInterface;
+use Daycry\Auth\Interfaces\TokenEmailSenderInterface;
+use Daycry\Auth\Interfaces\UserAnonymizerInterface;
+use Daycry\Auth\Interfaces\UserDataExporterInterface;
+use Daycry\Auth\Interfaces\WebAuthnCredentialRepositoryInterface;
+use Daycry\Auth\Interfaces\WebAuthnManagerInterface;
+use Daycry\Auth\Libraries\CodeIgniterEmailDelivery;
 use Daycry\Auth\Libraries\Logger;
 use Daycry\Auth\Libraries\SecurityNotifier;
+use Daycry\Auth\Libraries\TokenEmailSender;
 use Daycry\Auth\Libraries\WebAuthn\ChallengeManager;
 use Daycry\Auth\Libraries\WebAuthn\WebAuthnManager;
 use Daycry\Auth\Models\AccessTokenRepository;
@@ -29,6 +45,11 @@ use Daycry\Auth\Models\OAuthTokenRepository;
 use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\WebAuthnCredentialModel;
 use Daycry\Auth\Models\WebAuthnCredentialRepository;
+use Daycry\Auth\Services\AuditLogger;
+use Daycry\Auth\Services\MfaPolicy;
+use Daycry\Auth\Services\PasswordChangeRecorder;
+use Daycry\Auth\Services\UserAnonymizer;
+use Daycry\Auth\Services\UserDataExporter;
 use Symfony\Component\Serializer\SerializerInterface;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
@@ -39,6 +60,42 @@ use Webauthn\Denormalizer\WebauthnSerializerFactory;
 
 class Services extends BaseService
 {
+    /**
+     * Enrollment and proof policy for second factors.
+     */
+    public static function mfaPolicy(bool $getShared = true): MfaPolicyInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('mfaPolicy');
+        }
+
+        return new MfaPolicy();
+    }
+
+    /**
+     * Portable account export. Replace to include application-owned profile data.
+     */
+    public static function userDataExporter(bool $getShared = true): UserDataExporterInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('userDataExporter');
+        }
+
+        return new UserDataExporter();
+    }
+
+    /**
+     * Email transport. Applications may replace it without extending this library.
+     */
+    public static function emailDelivery(bool $getShared = true): EmailDeliveryInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('emailDelivery');
+        }
+
+        return new CodeIgniterEmailDelivery();
+    }
+
     /**
      * The base auth class
      */
@@ -84,7 +141,7 @@ class Services extends BaseService
     /**
      * Access-token CRUD repository. Override this binding to swap token storage.
      */
-    public static function accessTokenRepository(bool $getShared = true): AccessTokenRepository
+    public static function accessTokenRepository(bool $getShared = true): AccessTokenRepositoryInterface
     {
         if ($getShared) {
             return self::getSharedInstance('accessTokenRepository');
@@ -96,7 +153,7 @@ class Services extends BaseService
     /**
      * JWT refresh-token CRUD repository. Override this binding to swap storage.
      */
-    public static function jwtTokenRepository(bool $getShared = true): JwtTokenRepository
+    public static function jwtTokenRepository(bool $getShared = true): JwtTokenRepositoryInterface
     {
         if ($getShared) {
             return self::getSharedInstance('jwtTokenRepository');
@@ -109,7 +166,7 @@ class Services extends BaseService
      * First-party security notification e-mails. Override this binding to
      * customise delivery (queue, another transport, templates).
      */
-    public static function securityNotifier(bool $getShared = true): SecurityNotifier
+    public static function securityNotifier(bool $getShared = true): SecurityNotifierInterface
     {
         if ($getShared) {
             return self::getSharedInstance('securityNotifier');
@@ -119,9 +176,62 @@ class Services extends BaseService
     }
 
     /**
+     * Audit trail writer used across the library. Override this binding to
+     * ship audit events elsewhere (SIEM, queue) or enrich them.
+     */
+    public static function auditLogger(bool $getShared = true): AuditLoggerInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('auditLogger');
+        }
+
+        return new AuditLogger();
+    }
+
+    /**
+     * Single-use token e-mails (magic link/code, password reset, e-mail
+     * change, account deletion). Override this binding to queue them or use
+     * another transport.
+     */
+    public static function tokenEmailSender(bool $getShared = true): TokenEmailSenderInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('tokenEmailSender');
+        }
+
+        return new TokenEmailSender();
+    }
+
+    /**
+     * Post-password-change bookkeeping (history, password_changed_at, token
+     * revocation). Override this binding to add side effects.
+     */
+    public static function passwordChangeRecorder(bool $getShared = true): PasswordChangeRecorderInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('passwordChangeRecorder');
+        }
+
+        return new PasswordChangeRecorder();
+    }
+
+    /**
+     * GDPR anonymisation shared by `auth:gdpr anonymize` and self-service
+     * account deletion. Override this binding to scrub app-owned data too.
+     */
+    public static function userAnonymizer(bool $getShared = true): UserAnonymizerInterface
+    {
+        if ($getShared) {
+            return self::getSharedInstance('userAnonymizer');
+        }
+
+        return new UserAnonymizer();
+    }
+
+    /**
      * OAuth identity CRUD repository. Override this binding to swap storage.
      */
-    public static function oauthTokenRepository(bool $getShared = true): OAuthTokenRepository
+    public static function oauthTokenRepository(bool $getShared = true): OAuthTokenRepositoryInterface
     {
         if ($getShared) {
             return self::getSharedInstance('oauthTokenRepository');
@@ -134,7 +244,7 @@ class Services extends BaseService
      * Transactional persistence of user group/permission pivot rows. Override
      * this binding to change how RBAC assignments are stored.
      */
-    public static function groupPermissionRepository(bool $getShared = true): GroupPermissionRepository
+    public static function groupPermissionRepository(bool $getShared = true): GroupPermissionRepositoryInterface
     {
         if ($getShared) {
             return self::getSharedInstance('groupPermissionRepository');
@@ -206,7 +316,7 @@ class Services extends BaseService
     /**
      * WebAuthn credential persistence seam. Override to swap storage.
      */
-    public static function webAuthnCredentialRepository(bool $getShared = true): WebAuthnCredentialRepository
+    public static function webAuthnCredentialRepository(bool $getShared = true): WebAuthnCredentialRepositoryInterface
     {
         if ($getShared) {
             return self::getSharedInstance('webAuthnCredentialRepository');
@@ -221,7 +331,7 @@ class Services extends BaseService
     /**
      * WebAuthn ceremony orchestrator.
      */
-    public static function webAuthnManager(bool $getShared = true): WebAuthnManager
+    public static function webAuthnManager(bool $getShared = true): WebAuthnManagerInterface
     {
         if ($getShared) {
             return self::getSharedInstance('webAuthnManager');

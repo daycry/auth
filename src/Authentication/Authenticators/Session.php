@@ -105,11 +105,36 @@ class Session extends Base implements AuthenticatorInterface
 
         parent::__construct($provider, $request, $userIdentityModel, $loginModel);
 
-        $this->lockoutManager    = new UserLockoutManager($provider);
-        $this->deviceRecorder    = new DeviceSessionRecorder();
-        $this->actionCoordinator = new PendingActionCoordinator($userIdentityModel);
+        $this->lockoutManager    = $this->createLockoutManager($provider);
+        $this->deviceRecorder    = $this->createDeviceSessionRecorder();
+        $this->actionCoordinator = $this->createActionCoordinator($userIdentityModel);
 
         $this->checkSecurityConfig();
+    }
+
+    /**
+     * Creates the per-user lockout manager. Override to customise lockout.
+     */
+    protected function createLockoutManager(UserProviderInterface $provider): UserLockoutManager
+    {
+        return new UserLockoutManager($provider);
+    }
+
+    /**
+     * Creates the device-session recorder. Override to customise tracking.
+     */
+    protected function createDeviceSessionRecorder(): DeviceSessionRecorder
+    {
+        return new DeviceSessionRecorder();
+    }
+
+    /**
+     * Creates the post-auth action coordinator. Override to customise how
+     * pending actions are found and started.
+     */
+    protected function createActionCoordinator(UserIdentityModel $userIdentityModel): PendingActionCoordinator
+    {
+        return new PendingActionCoordinator($userIdentityModel);
     }
 
     public static function instance(UserProviderInterface $provider): static
@@ -174,7 +199,16 @@ class Session extends Base implements AuthenticatorInterface
      */
     public function attempt(array $credentials = []): Result
     {
-        return $this->checkLogin($credentials);
+        $result = $this->checkLogin($credentials);
+
+        if (! $result->isOK()) {
+            // Listeners get the identifier fields, never the password.
+            unset($credentials['password']);
+
+            Events::trigger('failedLogin', $credentials);
+        }
+
+        return $result;
     }
 
     /**
@@ -255,7 +289,7 @@ class Session extends Base implements AuthenticatorInterface
      * Failures inside the validator are caught — login MUST NOT break if HIBP
      * is unreachable; the worst-case is "no recheck this login".
      */
-    private function maybeRecheckPwnedOnLogin(User $user, string $givenPassword): void
+    protected function maybeRecheckPwnedOnLogin(User $user, string $givenPassword): void
     {
         if (! (bool) (setting('AuthSecurity.recheckPwnedOnLogin') ?? false)) {
             return;
@@ -337,25 +371,30 @@ class Session extends Base implements AuthenticatorInterface
         // On success - remove the identity
         $this->userIdentityModel->deleteIdentitiesByType($user, $identity->type);
 
-        // Clean up our session
-        $this->removeSessionKey('auth_action');
-        $this->removeSessionKey('auth_action_message');
-
         $this->user = $user;
 
+        // Also clears the pending-action session keys.
         $this->completeLogin($user);
 
         return true;
     }
 
     /**
-     * Remove the key value in Session User Info
+     * Removes the pending post-auth action state in a single session write.
      */
-    private function removeSessionKey(string $key): void
+    private function clearAuthActionSession(): void
     {
         $sessionUserInfo = $this->getSessionUserInfo();
-        unset($sessionUserInfo[$key]);
+        unset($sessionUserInfo['auth_action'], $sessionUserInfo['auth_action_message']);
         session()->set(setting('Auth.sessionConfig')['field'], $sessionUserInfo);
+    }
+
+    /**
+     * Whether `Auth::$sessionConfig['trackDeviceSessions']` is on.
+     */
+    private function tracksDeviceSessions(): bool
+    {
+        return (bool) (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false);
     }
 
     /**
@@ -467,7 +506,7 @@ class Session extends Base implements AuthenticatorInterface
      * Shared session-establishment tail: start the login session and issue the
      * remember-me token if requested.
      */
-    private function beginSession(User $user): void
+    protected function beginSession(User $user): void
     {
         $this->startLogin($user);
 
@@ -486,7 +525,7 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         // Terminate the device session record if tracking is enabled
-        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+        if ($this->tracksDeviceSessions()) {
             $this->deviceRecorder->terminateCurrentSession();
         }
 
@@ -561,8 +600,7 @@ class Session extends Base implements AuthenticatorInterface
         // This is critical for actions (e.g. Totp2FA) that call
         // completeLogin() directly after verifying their own code,
         // because those actions don't go through checkAction().
-        $this->removeSessionKey('auth_action');
-        $this->removeSessionKey('auth_action_message');
+        $this->clearAuthActionSession();
 
         $this->userState = AuthenticationState::LOGGED_IN;
 
@@ -585,7 +623,7 @@ class Session extends Base implements AuthenticatorInterface
      * Runs the {@see SuspiciousLoginDetector} when the feature is enabled.
      * Failures are logged but never propagate.
      */
-    private function maybeFireSuspiciousLogin(User $user): void
+    protected function maybeFireSuspiciousLogin(User $user): void
     {
         if (! (bool) (setting('AuthSecurity.suspiciousLoginAlerts') ?? false)) {
             return;
@@ -604,7 +642,7 @@ class Session extends Base implements AuthenticatorInterface
                 return;
             }
 
-            (new AuditLogger())->record(
+            service('auditLogger')->record(
                 AuditLogger::EVENT_SUSPICIOUS_LOGIN,
                 (int) $user->id,
                 ['flags' => $flags, 'ip' => $ip, 'user_agent' => $ua],
@@ -631,8 +669,8 @@ class Session extends Base implements AuthenticatorInterface
         if ($userId !== null) {
             $user = $this->provider->findById($userId);
 
-            // Check identities for actions
-            if ($this->getIdentitiesForAction($user) !== []) {
+            // Check identities for actions (unknown or deleted ids have none)
+            if ($user !== null && $this->getIdentitiesForAction($user) !== []) {
                 // Make pending login state
                 $this->user = $user;
                 $this->setSessionKey('id', $user->id);
@@ -651,22 +689,24 @@ class Session extends Base implements AuthenticatorInterface
         return $this->setAuthAction();
     }
 
-    private function issueRememberMeToken(): void
+    /**
+     * Issues (or clears) the remember-me cookie after a login and runs the
+     * optional purge of expired tokens.
+     */
+    protected function issueRememberMeToken(): void
     {
         if ($this->shouldRemember && setting('Auth.sessionConfig')['allowRemembering']) {
             $this->rememberMe->rememberUser($this->user);
 
             // Reset so it doesn't mess up future calls.
             $this->shouldRemember = false;
-        } elseif ($this->rememberMe->getRememberMeToken() !== null && $this->rememberMe->getRememberMeToken() !== '' && $this->rememberMe->getRememberMeToken() !== '0') {
+        } elseif (! in_array($this->rememberMe->getRememberMeToken(), [null, '', '0'], true)) {
             $this->rememberMe->removeKey();
-
-            // @TODO delete the token record.
         }
 
-        // We'll give a 20% chance to need to do a purge since we
-        // don't need to purge THAT often, it's just a maintenance issue.
-        // to keep the table from getting out of control.
+        // Maintenance only (expiry is enforced at validation time), so it
+        // runs on a `rememberMePurgeChance` % chance (default 0: schedule
+        // `php spark auth:purge` instead).
         if (random_int(1, 100) <= (int) setting('AuthSecurity.rememberMePurgeChance')) {
             $this->rememberMe->purgeOldTokens();
         }
@@ -685,8 +725,7 @@ class Session extends Base implements AuthenticatorInterface
 
         if (! $activated) {
             // Action was skipped or not configured — clear any stale session state
-            $this->removeSessionKey('auth_action');
-            $this->removeSessionKey('auth_action_message');
+            $this->clearAuthActionSession();
 
             return false;
         }
@@ -711,6 +750,20 @@ class Session extends Base implements AuthenticatorInterface
      */
     private function checkUserState(): void
     {
+        if ($this->getSessionKey('id') !== null && ! $this->getSessionKey('auth_action') && $this->sessionTimedOut()) {
+            if ($this->tracksDeviceSessions()) {
+                $this->deviceRecorder->terminateCurrentSession();
+            }
+            $this->rememberMe->removeKey();
+            $this->removeSessionUserInfo();
+            session()->remove([self::AUTHENTICATED_AT_KEY, 'auth_mfa_user', 'auth_mfa_at', 'password_confirmed_at', 'auth_step_up_user', 'auth_session_started_at', 'auth_last_activity_at']);
+            session()->set('auth_session_expired', true);
+            $this->user      = null;
+            $this->userState = AuthenticationState::ANONYMOUS;
+
+            return;
+        }
+
         if ($this->userState !== AuthenticationState::UNKNOWN) {
             // Checked already.
             return;
@@ -745,7 +798,7 @@ class Session extends Base implements AuthenticatorInterface
             // "revoke" and concurrent-session eviction actually invalidate the
             // session instead of only flipping a DB column.
             if (
-                (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false)
+                $this->tracksDeviceSessions()
                 && ! $this->deviceRecorder->isCurrentSessionActive()
             ) {
                 $this->userState = AuthenticationState::ANONYMOUS;
@@ -761,7 +814,7 @@ class Session extends Base implements AuthenticatorInterface
 
         // No User Info in Session.
         // Check remember-me token.
-        if (setting('Auth.sessionConfig')['allowRemembering']) {
+        if (setting('Auth.sessionConfig')['allowRemembering'] && ! session('auth_session_expired')) {
             if ($this->checkRememberMe()) {
                 $this->setAuthAction();
             }
@@ -770,6 +823,28 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         $this->userState = AuthenticationState::ANONYMOUS;
+    }
+
+    /**
+     * Authentication lifetime is independent of the PHP session storage TTL.
+     * Missing stamps on sessions created before this release are initialized
+     * on their first request, so enabling a timeout has a bounded grace period.
+     */
+    protected function sessionTimedOut(): bool
+    {
+        $config   = setting('Auth.sessionConfig');
+        $now      = time();
+        $started  = (int) (session('auth_session_started_at') ?? $now);
+        $last     = (int) (session('auth_last_activity_at') ?? $now);
+        $idle     = (int) ($config['idleTimeout'] ?? 0);
+        $absolute = (int) ($config['absoluteTimeout'] ?? 0);
+        if (($idle > 0 && $now - $last >= $idle) || ($absolute > 0 && $now - $started >= $absolute)) {
+            return true;
+        }
+        session()->set('auth_session_started_at', $started);
+        session()->set('auth_last_activity_at', $now);
+
+        return false;
     }
 
     /**
@@ -823,10 +898,19 @@ class Session extends Base implements AuthenticatorInterface
             return false;
         }
 
+        $absolute = (int) (setting('Auth.sessionConfig')['absoluteTimeout'] ?? 0);
+        $issued   = isset($token->created_at) ? strtotime((string) $token->created_at) : false;
+        if ($absolute > 0 && ($issued === false || time() - $issued >= $absolute)) {
+            $this->rememberMe->removeKey();
+            $this->userState = AuthenticationState::ANONYMOUS;
+
+            return false;
+        }
+
         $user = $this->provider->findById($token->user_id);
 
-        if ($user === null) {
-            // The user is deleted.
+        // A deleted or banned user must not be signed back in by the cookie.
+        if ($user === null || $user->isBanned()) {
             $this->userState = AuthenticationState::ANONYMOUS;
 
             // Remove remember-me cookie.
@@ -836,6 +920,12 @@ class Session extends Base implements AuthenticatorInterface
         }
 
         $this->startLogin($user);
+
+        // Refreshing the cookie may extend its storage TTL, but never the
+        // absolute authentication lifetime measured from its initial issue.
+        if ($absolute > 0) {
+            session()->set('auth_session_started_at', $issued);
+        }
 
         $this->rememberMe->refresh($token);
 
@@ -865,6 +955,10 @@ class Session extends Base implements AuthenticatorInterface
 
         $this->user = $user;
 
+        session()->remove(['auth_mfa_user', 'auth_mfa_at', 'password_confirmed_at', 'auth_step_up_user', self::AUTHENTICATED_AT_KEY, 'auth_session_expired']);
+        session()->set('auth_session_started_at', time());
+        session()->set('auth_last_activity_at', time());
+
         // Regenerate the session ID to help protect against session fixation
         if (ENVIRONMENT !== 'testing') {
             session()->regenerate(true);
@@ -877,7 +971,7 @@ class Session extends Base implements AuthenticatorInterface
         $this->setSessionKey('id', $user->id);
 
         // Track the device session if enabled
-        if (setting('Auth.sessionConfig')['trackDeviceSessions'] ?? false) {
+        if ($this->tracksDeviceSessions()) {
             $this->deviceRecorder->recordSession($user, $this->request->getIPAddress());
         }
 

@@ -234,6 +234,7 @@ public int $passwordResetLifetime = HOUR; // How long the token is valid
 - The `requestAction()` always shows a generic "check your email" message regardless of whether the email exists — this prevents email enumeration.
 - Tokens are cryptographically secure (20 random bytes).
 - Tokens are deleted immediately after use.
+- The new password must satisfy the same policy as registration (`AuthSecurity::$minimumPasswordLength` and the `$passwordValidators`, checked with `Passwords::check()`). A rejected password does not consume the token, so the user can retry from the same link. Override `getResetValidationRules()` to change the form rules.
 - After a successful reset, `Events::trigger('passwordReset', $user)` fires.
 
 ### Adding a Link to Your Login Page
@@ -311,7 +312,9 @@ model(UserIdentityModel::class)->forceGlobalPasswordReset();
 
 The user must enter:
 - Their **current password** (verified before changing)
-- A **new password** and confirmation
+- A **new password** and confirmation. The new password must satisfy the same policy as registration (`Passwords::check()`).
+
+Validation errors return to the form itself. `Auth::$redirects['force_reset']` is only where `ForcePasswordResetFilter` sends flagged users.
 
 This prevents someone who has briefly accessed an unlocked computer from changing another user's password.
 

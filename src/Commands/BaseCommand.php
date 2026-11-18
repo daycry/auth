@@ -16,6 +16,8 @@ namespace Daycry\Auth\Commands;
 use CodeIgniter\CLI\BaseCommand as FrameworkBaseCommand;
 use CodeIgniter\CLI\Commands;
 use Daycry\Auth\Commands\Utils\InputOutput;
+use Daycry\Auth\Entities\User;
+use Daycry\Auth\Models\UserModel;
 use Psr\Log\LoggerInterface;
 
 abstract class BaseCommand extends FrameworkBaseCommand
@@ -71,6 +73,40 @@ abstract class BaseCommand extends FrameworkBaseCommand
         ?string $background = null,
     ): void {
         self::$io->error($text, $foreground, $background);
+    }
+
+    /**
+     * Resolves the user targeted by the `-e <email>` / `-i <id>` options.
+     *
+     * Prints the error and returns null when neither option is given or no
+     * such user exists.
+     *
+     * @param array<int|string, string|null> $params
+     */
+    protected function resolveTargetUser(array $params): ?User
+    {
+        $email = (string) ($params['e'] ?? '');
+        $id    = (string) ($params['i'] ?? '');
+
+        if ($email === '' && $id === '') {
+            $this->error('Specify -e <email> or -i <id>.');
+
+            return null;
+        }
+
+        /** @var UserModel $userModel */
+        $userModel = model(UserModel::class);
+        $user      = $id !== ''
+            ? $userModel->findById((int) $id)
+            : $userModel->findByCredentials(['email' => $email]);
+
+        if (! $user instanceof User) {
+            $this->error('User not found.');
+
+            return null;
+        }
+
+        return $user;
     }
 
     protected function ensureInputOutput(): void

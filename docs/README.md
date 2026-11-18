@@ -87,6 +87,12 @@ Complete documentation for **Daycry Auth**, a comprehensive authentication and a
 - Managing TOTP in controllers
 - Testing TOTP
 
+### [Extending the Library](16-extending.md)
+- Overridable service bindings (audit, mail, repositories, anonymiser)
+- A custom `User` class
+- Lifecycle events and protected hooks
+- Custom post-login actions
+
 ### [WebAuthn / Passkeys](15-webauthn.md)
 - Availability vs. enforcement (global flag, opt-in per user)
 - **Passwordless login** (usernameless / discoverable)

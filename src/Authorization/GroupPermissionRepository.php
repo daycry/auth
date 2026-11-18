@@ -13,9 +13,12 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Authorization;
 
+use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\I18n\Time;
 use Config\Database;
+use Daycry\Auth\Interfaces\GroupPermissionRepositoryInterface;
 use Daycry\Auth\Models\GroupUserModel;
+use Daycry\Auth\Models\PermissionGroupModel;
 use Daycry\Auth\Models\PermissionUserModel;
 
 /**
@@ -25,8 +28,26 @@ use Daycry\Auth\Models\PermissionUserModel;
  * entity no longer opens database transactions itself — that Entity → DB
  * layering inversion is what previously required a deptrac whitelist.
  */
-class GroupPermissionRepository
+class GroupPermissionRepository implements GroupPermissionRepositoryInterface
 {
+    /**
+     * @param list<int|string> $cache
+     * @param list<int|string> $existing
+     */
+    public function saveUserGroups(int|string $userId, array $cache, array $existing): void
+    {
+        $this->saveUserPivot($userId, 'group_id', model(GroupUserModel::class), $cache, $existing);
+    }
+
+    /**
+     * @param list<int|string> $cache
+     * @param list<int|string> $existing
+     */
+    public function saveUserPermissions(int|string $userId, array $cache, array $existing): void
+    {
+        $this->saveUserPivot($userId, 'permission_id', model(PermissionUserModel::class), $cache, $existing);
+    }
+
     /**
      * Syncs a user's pivot rows (groups or permissions) so the persisted set
      * matches $cache: rows not in $cache are removed, and rows in $cache but
@@ -41,7 +62,7 @@ class GroupPermissionRepository
      */
     public function saveUserPivot($userId, string $type, $model, array $cache, array $existing): void
     {
-        $db  = Database::connect();
+        $db  = $this->connection();
         $new = array_diff($cache, $existing);
 
         $db->transStart();
@@ -71,5 +92,53 @@ class GroupPermissionRepository
         }
 
         $db->transComplete();
+    }
+
+    /**
+     * Replaces a group's permission set with $permissionIds in one
+     * transaction, so a failed insert never leaves the group without
+     * permissions.
+     *
+     * @param int|string       $groupId
+     * @param list<int|string> $permissionIds
+     *
+     * @return bool False when the transaction was rolled back
+     */
+    public function syncGroupPermissions($groupId, array $permissionIds): bool
+    {
+        /** @var PermissionGroupModel $model */
+        $model = model(PermissionGroupModel::class);
+        $db    = $this->connection();
+
+        $db->transStart();
+
+        $model->deleteAll($groupId);
+
+        if ($permissionIds !== []) {
+            $inserts = [];
+
+            foreach ($permissionIds as $permissionId) {
+                $inserts[] = ['group_id' => $groupId, 'permission_id' => $permissionId];
+            }
+
+            $model->insertBatch($inserts);
+        }
+
+        // Read before transComplete(): in non-strict mode it resets the
+        // status to true after rolling back.
+        $succeeded = $db->transStatus();
+
+        $db->transComplete();
+
+        return $succeeded;
+    }
+
+    /**
+     * The connection the auth models use (`Auth.DBGroup`), so the
+     * transaction wraps their queries.
+     */
+    protected function connection(): BaseConnection
+    {
+        return Database::connect(setting('Auth.DBGroup'));
     }
 }

@@ -147,23 +147,12 @@ class GroupsController extends BaseAdminController
         $group->description = $description !== '' ? $description : null;
         $groupModel->save($group);
 
-        // Sync permissions for the group via PermissionGroupModel
-        /** @var PermissionGroupModel $pgModel */
-        $pgModel = model(PermissionGroupModel::class);
-
         // The form sends permission IDs (from the checkbox values)
-        $newPermIds = array_filter(array_map(intval(...), (array) $this->request->getPost('permissions')));
+        $newPermIds = array_values(array_filter(array_map(intval(...), (array) $this->request->getPost('permissions'))));
 
-        $pgModel->deleteAll($group->id);
-
-        if ($newPermIds !== []) {
-            $inserts = [];
-
-            foreach ($newPermIds as $permId) {
-                $inserts[] = ['group_id' => $group->id, 'permission_id' => $permId];
-            }
-
-            $pgModel->insertBatch($inserts);
+        if (! service('groupPermissionRepository')->syncGroupPermissions($group->id, $newPermIds)) {
+            return redirect()->back()->withInput()
+                ->with('error', "The permissions of group \"{$group->name}\" could not be saved.");
         }
 
         return redirect()->route('admin-groups')
@@ -193,7 +182,7 @@ class GroupsController extends BaseAdminController
 
     // ── Private helpers ───────────────────────────────────────────
 
-    private function findGroupOr404(int $id): Group|RedirectResponse
+    protected function findGroupOr404(int $id): Group|RedirectResponse
     {
         /** @var GroupModel $groupModel */
         $groupModel = model(GroupModel::class);

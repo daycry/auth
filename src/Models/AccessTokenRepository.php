@@ -13,9 +13,11 @@ declare(strict_types=1);
 
 namespace Daycry\Auth\Models;
 
+use CodeIgniter\Events\Events;
 use Daycry\Auth\Authentication\Authenticators\AccessToken;
 use Daycry\Auth\Entities\AccessToken as AccessTokenIdentity;
 use Daycry\Auth\Entities\User;
+use Daycry\Auth\Interfaces\AccessTokenRepositoryInterface;
 use Daycry\Auth\Services\AuditLogger;
 
 /**
@@ -24,7 +26,7 @@ use Daycry\Auth\Services\AuditLogger;
  * Encapsulates all access token CRUD from UserIdentityModel
  * into a focused, single-responsibility class.
  */
-class AccessTokenRepository
+class AccessTokenRepository implements AccessTokenRepositoryInterface
 {
     public function __construct(
         private readonly UserIdentityModel $identityModel,
@@ -39,7 +41,16 @@ class AccessTokenRepository
      */
     public function generateAccessToken(User $user, string $name, array $scopes = ['*']): AccessTokenIdentity
     {
-        return $this->identityModel->generateAccessToken($user, $name, $scopes);
+        $token = $this->identityModel->generateAccessToken($user, $name, $scopes);
+
+        // Listeners (audit, SIEM) get a copy without the plain-text bearer
+        // token; only the caller receives raw_token, once.
+        $eventToken = clone $token;
+        unset($eventToken->raw_token);
+
+        Events::trigger('access-token-created', $user, $eventToken);
+
+        return $token;
     }
 
     /**
@@ -149,7 +160,8 @@ class AccessTokenRepository
         // Build the User from the joined columns. Leaving its identities null
         // (DO NOT call setIdentities([])) keeps lazy-loading behaviour identical
         // to a findById() User.
-        $user = new User($userData);
+        $provider = auth()->getProvider();
+        $user     = $provider instanceof UserModel ? $provider->createUserEntity($userData) : new User($userData);
         $user->syncOriginal();
 
         // Hydrate the AccessToken identity exactly as the model's asObject()
@@ -226,12 +238,7 @@ class AccessTokenRepository
         $token = $this->identityModel->getAccessToken($user, $rawToken);
 
         if ($token !== null) {
-            $this->identityModel->revokeIdentityById((int) $token->id);
-
-            (new AuditLogger())->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
-                'identity_id' => (int) $token->id,
-                'token_name'  => $token->name,
-            ]);
+            $this->revokeToken($user, $token);
         }
     }
 
@@ -248,7 +255,7 @@ class AccessTokenRepository
             ->first();
 
         if ($token !== null) {
-            $this->identityModel->revokeIdentityById((int) $token->id);
+            $this->revokeToken($user, $token);
         }
     }
 
@@ -262,8 +269,26 @@ class AccessTokenRepository
             AccessToken::ID_TYPE_ACCESS_TOKEN,
         );
 
-        (new AuditLogger())->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
+        service('auditLogger')->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
             'scope' => 'all_access_tokens',
         ]);
+
+        Events::trigger('access-token-revoked', $user, null);
+    }
+
+    /**
+     * Soft-revokes one token, audits it and fires `access-token-revoked`
+     * with the token (null when all of the user's tokens were revoked).
+     */
+    private function revokeToken(User $user, AccessTokenIdentity $token): void
+    {
+        $this->identityModel->revokeIdentityById((int) $token->id);
+
+        service('auditLogger')->record(AuditLogger::EVENT_TOKEN_REVOKED, (int) $user->id, [
+            'identity_id' => (int) $token->id,
+            'token_name'  => $token->name,
+        ]);
+
+        Events::trigger('access-token-revoked', $user, $token);
     }
 }

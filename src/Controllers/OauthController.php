@@ -59,6 +59,7 @@ class OauthController extends BaseAuthController
             $this->createManager()->setProvider($provider)->handleCallback(
                 $this->request->getGet('code') ?? '',
                 $this->request->getGet('state') ?? '',
+                $this->request->getGet('iss'),
             );
 
             return redirect()->to(config('Auth')->loginRedirect());

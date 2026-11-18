@@ -291,4 +291,20 @@ return [
 
     // Self-service account management + security notices — newly added, pending translation
     'deleteAccountFailed' => 'Your account could not be deleted. Please try again later.',
+
+    // MFA policy, recovery and portable account data.
+    'mfaEnrollmentRequired'              => 'Set up two-factor authentication to continue.',
+    'mfaVerificationRequired'            => 'Verify a second factor to continue.',
+    'mfaLastFactorRequired'              => 'Your account requires at least one second factor.',
+    'recoveryCodesRegenerate'            => 'Generate new recovery codes',
+    'recoveryCodesRegenerateDescription' => 'New codes replace every previous recovery code. Confirm your identity before continuing.',
+    'recoveryCodesUnavailable'           => 'Set up TOTP or a passkey before generating recovery codes.',
+    'recoveryCode'                       => 'Recovery code',
+    'stepUpTitle'                        => 'Confirm your identity',
+    'stepUpDescription'                  => 'Use your password, authenticator code or passkey to continue.',
+    'stepUpPasskey'                      => 'Confirm with a passkey',
+    'stepUpTotp'                         => 'Authenticator code',
+    'stepUpInvalid'                      => 'The verification failed. Try again.',
+    'exportAccountData'                  => 'Download account data',
+    'dataExportTooLarge'                 => 'This account is too large to download here. Contact an administrator for a complete export.',
 ];

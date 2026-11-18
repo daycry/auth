@@ -1,0 +1,1757 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Daycry Auth browser and JSON forms",
+    "version": "1.0.0",
+    "description": "Session-cookie authentication. Send Accept: application/json and a JSON or form body. Mutations require the application CSRF header/token. HTML clients retain redirects. Route prefixes are application-configurable."
+  },
+  "paths": {
+    "/login": {
+      "post": {
+        "operationId": "login",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          },
+          "202": {
+            "description": "Post-authentication action required; authenticated is false; redirect points to the action."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "remember": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "remember": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/register": {
+      "post": {
+        "operationId": "register",
+        "responses": {
+          "201": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          },
+          "202": {
+            "description": "Post-authentication action required; authenticated is false; redirect points to the action."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "password_confirm": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password",
+                  "password_confirm"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "password_confirm": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password",
+                  "password_confirm"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "get": {
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        }
+      }
+    },
+    "/login/magic-link": {
+      "post": {
+        "operationId": "requestMagicLogin",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "delivery": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "delivery": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/login/magic-link/code": {
+      "post": {
+        "operationId": "verifyMagicCode",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          },
+          "202": {
+            "description": "Post-authentication action required; authenticated is false; redirect points to the action."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/login/verify-magic-link": {
+      "get": {
+        "operationId": "verifyMagicLink",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          },
+          "202": {
+            "description": "Post-authentication action required; authenticated is false; redirect points to the action."
+          }
+        },
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/password-reset": {
+      "post": {
+        "operationId": "requestPasswordReset",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/password-reset/verify": {
+      "post": {
+        "operationId": "resetPassword",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "password_confirm": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token",
+                  "password",
+                  "password_confirm"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "password_confirm": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token",
+                  "password",
+                  "password_confirm"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/force-reset": {
+      "post": {
+        "operationId": "forcePasswordReset",
+        "responses": {
+          "200": {
+            "description": "JSON result. Token is the current CSRF name and hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or request body must be an object"
+          },
+          "401": {
+            "description": "Invalid credentials, token or missing authenticated session"
+          },
+          "403": {
+            "description": "Feature disabled or CSRF verification failed"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string"
+                  },
+                  "new_password_confirm": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "current_password",
+                  "new_password",
+                  "new_password_confirm"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string"
+                  },
+                  "new_password_confirm": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "current_password",
+                  "new_password",
+                  "new_password_confirm"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/a/show": {
+      "get": {
+        "operationId": "showAuthAction",
+        "responses": {
+          "200": {
+            "description": "Authentication completed, authenticated true"
+          },
+          "202": {
+            "description": "Action required, authenticated false"
+          },
+          "400": {
+            "description": "Malformed JSON"
+          },
+          "404": {
+            "description": "No pending authentication action"
+          },
+          "422": {
+            "description": "Invalid factor or action input; authenticated false"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        }
+      }
+    },
+    "/auth/a/handle": {
+      "post": {
+        "operationId": "handleAuthAction",
+        "responses": {
+          "200": {
+            "description": "Authentication completed, authenticated true"
+          },
+          "202": {
+            "description": "Action required, authenticated false"
+          },
+          "400": {
+            "description": "Malformed JSON"
+          },
+          "404": {
+            "description": "No pending authentication action"
+          },
+          "422": {
+            "description": "Invalid factor or action input; authenticated false"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "credential": {
+                    "type": "string",
+                    "description": "Serialized WebAuthn assertion"
+                  },
+                  "trust_device": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/a/verify": {
+      "post": {
+        "operationId": "verifyAuthAction",
+        "responses": {
+          "200": {
+            "description": "Authentication completed, authenticated true"
+          },
+          "202": {
+            "description": "Action required, authenticated false"
+          },
+          "400": {
+            "description": "Malformed JSON"
+          },
+          "404": {
+            "description": "No pending authentication action"
+          },
+          "422": {
+            "description": "Invalid factor or action input; authenticated false"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "credential": {
+                    "type": "string",
+                    "description": "Serialized WebAuthn assertion"
+                  },
+                  "trust_device": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/jwt/login": {
+      "post": {
+        "operationId": "jwtLogin",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "access_token",
+                    "refresh_token",
+                    "user_id",
+                    "token_type"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "integer"
+                    },
+                    "token_type": {
+                      "type": "string",
+                      "enum": [
+                        "Bearer"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "mfa_code": {
+                    "type": "string",
+                    "description": "Required when mandatory MFA cannot be satisfied by a same-user verified session."
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "mfa_code": {
+                    "type": "string",
+                    "description": "Required when mandatory MFA cannot be satisfied by a same-user verified session."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/jwt/refresh": {
+      "post": {
+        "operationId": "jwtRefresh",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "access_token",
+                    "refresh_token",
+                    "user_id",
+                    "token_type"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "integer"
+                    },
+                    "token_type": {
+                      "type": "string",
+                      "enum": [
+                        "Bearer"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/jwt/logout": {
+      "post": {
+        "operationId": "jwtLogout",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user_id": {
+                    "type": "integer"
+                  },
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/security/export": {
+      "post": {
+        "operationId": "exportOwnData",
+        "responses": {
+          "200": {
+            "description": "JSON attachment of the signed-in account data; secrets redacted; Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Account data, identities without secrets, device sessions, login/audit history and security metadata."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          },
+          "413": {
+            "description": "The inline export exceeds the configured record limit. No partial download is returned."
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webauthn/credentials/sync": {
+      "get": {
+        "operationId": "syncOwnPasskeys",
+        "responses": {
+          "200": {
+            "description": "Current account Signal API payload. No other users are selectable; Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rpId": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "allAcceptedCredentialIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        }
+      }
+    },
+    "/webauthn/register/options": {
+      "post": {
+        "operationId": "webauthnRegisterOptions",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webauthn/register/verify": {
+      "post": {
+        "operationId": "webauthnRegisterVerify",
+        "responses": {
+          "201": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webauthn/login/options": {
+      "post": {
+        "operationId": "webauthnLoginOptions",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webauthn/login/verify": {
+      "post": {
+        "operationId": "webauthnLoginVerify",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webauthn/2fa/options": {
+      "post": {
+        "operationId": "webauthn2FaOptions",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "conditional": {
+                    "type": "boolean"
+                  },
+                  "credential": {
+                    "type": "object",
+                    "description": "WebAuthn attestation or assertion serialized by the browser."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webauthn/credentials/{uuid}/delete": {
+      "post": {
+        "operationId": "deleteOwnPasskey",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/auth/confirm-password/options": {
+      "post": {
+        "operationId": "stepUpPasskeyOptions",
+        "responses": {
+          "200": {
+            "description": "Successful operation"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/confirm-password": {
+      "post": {
+        "operationId": "stepUpConfirmation",
+        "responses": {
+          "200": {
+            "description": "Fresh confirmation. JSON confirmed:true with redirect; HTML redirects."
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "factor": {
+                    "type": "string",
+                    "enum": [
+                      "password",
+                      "totp",
+                      "passkey",
+                      "recovery"
+                    ]
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "credential": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "factor": {
+                    "type": "string",
+                    "enum": [
+                      "password",
+                      "totp",
+                      "passkey",
+                      "recovery"
+                    ]
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "credential": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/security/recovery-codes": {
+      "post": {
+        "operationId": "regenerateOwnRecoveryCodes",
+        "responses": {
+          "200": {
+            "description": "HTML recovery-code view. Requires a recent account-bound step-up; displays new codes once.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication failed or missing"
+          },
+          "403": {
+            "description": "Insufficient proof, MFA required/enrollment required, or feature disabled"
+          },
+          "404": {
+            "description": "Unavailable resource or feature"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "429": {
+            "description": "Rate limit reached"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "error",
+              "action_required"
+            ]
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "redirect": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "token": {
+            "type": "object",
+            "required": [
+              "name",
+              "hash"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "hash": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

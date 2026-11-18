@@ -23,6 +23,7 @@ use Daycry\Auth\Authentication\Actions\Totp2FA;
 use Daycry\Auth\Authentication\Authentication;
 use Daycry\Auth\Authentication\Authenticators\Session;
 use Daycry\Auth\Config\Auth;
+use Daycry\Auth\Entities\User;
 use Daycry\Auth\Enums\IdentityType;
 use Daycry\Auth\Enums\TotpState;
 use Daycry\Auth\Libraries\TOTP;
@@ -30,12 +31,14 @@ use Daycry\Auth\Models\UserIdentityModel;
 use Daycry\Auth\Models\UserModel;
 use Tests\Support\DatabaseTestCase;
 use Tests\Support\FakeUser;
+use Tests\Support\ListensToEvents;
 
 /**
  * @internal
  */
 final class Totp2FATest extends DatabaseTestCase
 {
+    use ListensToEvents;
     use FakeUser;
 
     private Session $authenticator;
@@ -441,6 +444,28 @@ final class Totp2FATest extends DatabaseTestCase
             'user_id' => $this->user->id,
             'type'    => IdentityType::TOTP->value,
         ]);
+    }
+
+    public function testVerifyFiresTwoFactorEvents(): void
+    {
+        $seen = [];
+        $this->listen('two-factor-failed', static function (User $user, string $type = '') use (&$seen): void {
+            $seen[] = 'failed:' . $type;
+        });
+        $this->listen('two-factor-verified', static function (User $user, string $type = '') use (&$seen): void {
+            $seen[] = 'verified:' . $type;
+        });
+
+        try {
+            $secret = $this->setUpConfirmedTotpPendingSession();
+
+            (new Totp2FA())->verify($this->postToken('000000'));
+            (new Totp2FA())->verify($this->postToken(TOTP::getCode($secret)));
+        } finally {
+            $this->stopListening();
+        }
+
+        $this->assertSame(['failed:totp', 'verified:totp'], $seen);
     }
 
     public function testVerifyDoesNotCompleteLoginWhenAccountIsLockedOut(): void

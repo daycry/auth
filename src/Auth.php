@@ -160,7 +160,12 @@ class Auth
             $disabledGroups[] = 'webauthn';
         }
 
-        $routes->group('/', ['namespace' => $namespace], static function (RouteCollection $routes) use ($authRoutes, $config, $disabledGroups): void {
+        $routeFilters = config('Auth')->routeFilters;
+        if (array_key_exists('routeFilters', $config)) {
+            $routeFilters = is_array($config['routeFilters']) ? array_replace($routeFilters, $config['routeFilters']) : false;
+        }
+
+        $routes->group('/', ['namespace' => $namespace], static function (RouteCollection $routes) use ($authRoutes, $config, $disabledGroups, $routeFilters): void {
             foreach ($authRoutes as $name => $row) {
                 if (in_array($name, $disabledGroups, true)) {
                     continue;
@@ -169,7 +174,18 @@ class Auth
                     foreach ($row as $params) {
                         $options = isset($params[3])
                             ? ['as' => $params[3]]
-                            : null;
+                            : [];
+                        if (is_array($routeFilters)) {
+                            $filter = $routeFilters[$name] ?? $routeFilters['*'] ?? null;
+                            if ($filter !== false && $filter !== null && $filter !== []) {
+                                $options['filter'] = $filter;
+                            }
+                        }
+                        // Required authentication on account routes survives a throttle opt-out.
+                        if (isset($params[4])) {
+                            $filters           = (array) ($options['filter'] ?? []);
+                            $options['filter'] = array_values(array_unique(array_merge([$params[4]], $filters)));
+                        }
                         $routes->{$params[0]}($params[1], $params[2], $options);
                     }
                 }

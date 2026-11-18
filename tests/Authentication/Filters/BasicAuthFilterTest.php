@@ -110,6 +110,22 @@ final class BasicAuthFilterTest extends FilterTestCase
         $result->assertSee('Protected');
     }
 
+    public function testRefusesBannedUserWithValidPassword(): void
+    {
+        $email    = 'banned@example.com';
+        $password = 'secret_password_42';
+
+        $this->createUserWithPassword('banned', $email, $password);
+        model(UserModel::class)->findByCredentials(['email' => $email])->ban('Basic ban');
+
+        $result = $this->withHeaders(['Authorization' => 'Basic ' . base64_encode($email . ':' . $password)])
+            ->get('protected-route');
+
+        $result->assertStatus(403);
+        $result->assertSee('Basic ban');
+        $this->assertFalse(auth('session')->loggedIn());
+    }
+
     public function testAcceptsValidUsernameAndPassword(): void
     {
         $username = 'bob';

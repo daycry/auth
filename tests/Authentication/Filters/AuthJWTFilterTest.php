@@ -67,6 +67,26 @@ final class AuthJWTFilterTest extends FilterTestCase
         $this->assertSame($user->id, auth('jwt')->user()->id);
     }
 
+    public function testBearerSchemeIsCaseInsensitive(): void
+    {
+        /** @var User $user */
+        $user = fake(UserModel::class);
+
+        $result = $this->withHeaders(['Authorization' => 'bearer ' . $this->jwtFor($user)])
+            ->get('protected-route');
+
+        $result->assertStatus(200);
+        $this->assertSame($user->id, auth('jwt')->id());
+    }
+
+    public function testBearerSchemeRequiresWhitespaceBeforeToken(): void
+    {
+        $result = $this->withHeaders(['Authorization' => 'Bearer' . $this->jwtFor(fake(UserModel::class))])
+            ->get('protected-route');
+
+        $result->assertStatus(401);
+    }
+
     public function testStrictApiAndAuthRejectsJwtWithoutAccessToken(): void
     {
         $this->injectMockAttributesSecurity(['accessTokenEnabled' => true, 'strictApiAndAuth' => true]);

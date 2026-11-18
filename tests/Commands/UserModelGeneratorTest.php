@@ -21,6 +21,13 @@ use CodeIgniter\Test\Filters\CITestStreamFilter;
  */
 final class UserModelGeneratorTest extends CIUnitTestCase
 {
+    /**
+     * The library's real src/Models/UserModel.php, which these tests delete
+     * and regenerate. Kept in memory (not as a .bak next to it) and put back
+     * in tearDown() and, should the run die mid-test, at shutdown.
+     */
+    private static ?string $originalUserModel = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,8 +36,12 @@ final class UserModelGeneratorTest extends CIUnitTestCase
         CITestStreamFilter::addOutputFilter();
         CITestStreamFilter::addErrorFilter();
 
-        if (is_file(HOMEPATH . 'src/Models/UserModel.php')) {
-            copy(HOMEPATH . 'src/Models/UserModel.php', HOMEPATH . 'src/Models/UserModel.php.bak');
+        if (self::$originalUserModel === null) {
+            $original = (string) file_get_contents(self::libraryUserModel());
+            $this->assertStringContainsString('class UserModel extends BaseModel', $original);
+
+            self::$originalUserModel = $original;
+            register_shutdown_function(static fn () => self::restoreLibraryUserModel());
         }
 
         $this->deleteTestFiles();
@@ -44,10 +55,18 @@ final class UserModelGeneratorTest extends CIUnitTestCase
         CITestStreamFilter::removeErrorFilter();
 
         $this->deleteTestFiles();
+        self::restoreLibraryUserModel();
+    }
 
-        if (is_file(HOMEPATH . 'src/Models/UserModel.php.bak')) {
-            copy(HOMEPATH . 'src/Models/UserModel.php.bak', HOMEPATH . 'src/Models/UserModel.php');
-            unlink(HOMEPATH . 'src/Models/UserModel.php.bak');
+    private static function libraryUserModel(): string
+    {
+        return HOMEPATH . 'src/Models/UserModel.php';
+    }
+
+    private static function restoreLibraryUserModel(): void
+    {
+        if (self::$originalUserModel !== null) {
+            file_put_contents(self::libraryUserModel(), self::$originalUserModel);
         }
     }
 
